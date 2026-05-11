@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ktm-ride-postgres
+    environment:
+      POSTGRES_USER: ktm
+      POSTGRES_PASSWORD: ktm
+      POSTGRES_DB: ktm_ride
+    ports:
+      - "5432:5432"
+    volumes:
+      - ktm_ride_pg:/var/lib/postgresql/data
+
+volumes:
+  ktm_ride_pg:
