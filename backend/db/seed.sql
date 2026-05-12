@@ -2,7 +2,7 @@ insert into users (id, email, password_hash, name, bike_model)
 values (
   '11111111-1111-1111-1111-111111111111',
   'rider@example.com',
-  '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjZAgcfl7p92ldGxad68LJZdL17lhWy',
+  '$2a$10$pT.63lftPN9UNETXPQmMveMsjjz2kq1cihN27sws/jk4Skf6U23r6',
   'Duke Rider',
   'KTM Duke 250 Gen 3'
 )
