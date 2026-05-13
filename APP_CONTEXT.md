@@ -38,6 +38,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Saves completed rides to the backend/PostgreSQL.
 - Shows dashboard totals for today, month, year, total rides, best top speed, average speed, and recent rides.
 - Shows ride history by period, with route maps and full-screen map viewing.
+- Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
 - Shows analytics charts for distance, duration, speed trends, and top speed comparison.
 - Generates basic reports and can export reports as PDF.
 
@@ -60,6 +61,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 ## Important Files
 
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
+- `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
 - `mobile/src/services/locationTask.ts`: Expo background location task entrypoint.
 - `mobile/src/services/rideUpload.ts`: ride upload and pending auto ride sync.
@@ -135,6 +137,8 @@ https://ktm-ride-mvp.onrender.com/health
 - Map test:
   - Navigate tab route appears.
   - History ride map appears.
+  - Tapping a History ride opens Ride Detail.
+  - Ride Detail shows route map, stat cards, route summary, and speed chart.
   - Full-screen map works and does not hide Google current-location controls.
 
 ## Safety And Reliability Notes

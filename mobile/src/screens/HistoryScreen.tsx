@@ -1,8 +1,7 @@
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
-import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
 import { colors } from "../theme/colors";
 import { Ride } from "../types";
@@ -11,9 +10,9 @@ import { duration, km, kmh, shortDate, time } from "../utils/format";
 type Period = "today" | "month" | "year";
 
 export function HistoryScreen() {
+  const navigation = useNavigation<any>();
   const [period, setPeriod] = useState<Period>("month");
   const [rides, setRides] = useState<Ride[]>([]);
-  const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -23,7 +22,6 @@ export function HistoryScreen() {
       setError("");
       const response = await api<{ rides: Ride[] }>(`/rides?period=${period}`);
       setRides(response.rides);
-      setSelectedRide(null);
     } catch (err: any) {
       setError(err.message || "Ride history unavailable");
     } finally {
@@ -36,17 +34,6 @@ export function HistoryScreen() {
       load();
     }, [load])
   );
-
-  async function openRide(ride: Ride) {
-    try {
-      setError("");
-      const response = await api<{ ride: Ride }>(`/rides/${ride.id}`);
-      setSelectedRide(response.ride);
-    } catch (err: any) {
-      setSelectedRide(null);
-      setError(err.message || "Unable to open this ride");
-    }
-  }
 
   return (
     <Screen>
@@ -66,18 +53,12 @@ export function HistoryScreen() {
         {loading ? <ActivityIndicator color={colors.orange} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {selectedRide?.points?.length ? (
-          <View style={styles.detail}>
-            <RideMap
-              coordinates={selectedRide.points}
-              title={`${selectedRide.startLabel} to ${selectedRide.endLabel}`}
-            />
-            <Text style={styles.detailTitle}>{selectedRide.startLabel} to {selectedRide.endLabel}</Text>
-          </View>
-        ) : null}
-
         {rides.map((ride) => (
-          <Pressable key={ride.id} onPress={() => openRide(ride)} style={styles.card}>
+          <Pressable
+            key={ride.id}
+            onPress={() => navigation.navigate("RideDetail", { rideId: ride.id })}
+            style={styles.card}
+          >
             <View style={styles.cardHeader}>
               <View>
                 <Text style={styles.route}>{ride.startLabel} to {ride.endLabel}</Text>
@@ -127,14 +108,6 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: colors.text
-  },
-  detail: {
-    gap: 10
-  },
-  detailTitle: {
-    color: colors.text,
-    fontWeight: "900",
-    fontSize: 18
   },
   card: {
     backgroundColor: colors.surface,

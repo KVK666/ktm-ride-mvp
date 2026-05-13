@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
@@ -7,10 +8,12 @@ import { HistoryScreen } from "../screens/HistoryScreen";
 import { NavigateScreen } from "../screens/NavigateScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
+import { RideDetailScreen } from "../screens/RideDetailScreen";
 import { RideScreen } from "../screens/RideScreen";
 import { colors } from "../theme/colors";
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
   Dashboard: "speedometer",
@@ -22,7 +25,7 @@ const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
   Profile: "person-circle"
 };
 
-export function AppNavigator() {
+function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -51,5 +54,21 @@ export function AppNavigator() {
       <Tab.Screen name="Reports" component={ReportsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
+  );
+}
+
+export function AppNavigator() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
+        headerTitleStyle: { fontWeight: "900" },
+        contentStyle: { backgroundColor: colors.background }
+      }}
+    >
+      <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+      <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: "Ride detail" }} />
+    </Stack.Navigator>
   );
 }
