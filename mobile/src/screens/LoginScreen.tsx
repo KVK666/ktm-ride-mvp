@@ -14,6 +14,14 @@ export function LoginScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function switchMode() {
+    setMode(mode === "login" ? "register" : "login");
+    setEmail("");
+    setPassword("");
+    setName("");
+    setError("");
+  }
+
   async function submit() {
     setError("");
     const cleanEmail = email.trim();
@@ -56,8 +64,9 @@ export function LoginScreen() {
         <View style={styles.form}>
           {mode === "register" ? (
             <TextInput
-              autoComplete="name"
-              textContentType="name"
+              autoComplete="off"
+              importantForAutofill="no"
+              textContentType="none"
               placeholder="Name"
               placeholderTextColor={colors.muted}
               value={name}
@@ -68,7 +77,8 @@ export function LoginScreen() {
           <TextInput
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="email"
+            autoComplete="off"
+            importantForAutofill="no"
             keyboardType="email-address"
             placeholder="Email"
             placeholderTextColor={colors.muted}
@@ -80,8 +90,9 @@ export function LoginScreen() {
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            textContentType={mode === "login" ? "password" : "newPassword"}
+            autoComplete="off"
+            importantForAutofill="no"
+            textContentType="none"
             placeholder="Password"
             placeholderTextColor={colors.muted}
             value={password}
@@ -97,7 +108,7 @@ export function LoginScreen() {
           />
           <Text
             style={styles.switcher}
-            onPress={() => setMode(mode === "login" ? "register" : "login")}
+            onPress={switchMode}
           >
             {mode === "login" ? "Create a new rider account" : "Back to login"}
           </Text>
