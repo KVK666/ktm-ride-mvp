@@ -10,6 +10,7 @@ import { colors } from "../theme/colors";
 import { Coordinate } from "../types";
 
 export function NavigateScreen() {
+  const mapRef = useRef<MapView | null>(null);
   const [destination, setDestination] = useState("");
   const [current, setCurrent] = useState<Coordinate | null>(null);
   const [route, setRoute] = useState<RouteDetails | null>(null);
@@ -25,6 +26,17 @@ export function NavigateScreen() {
       subscription.current?.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!route?.coordinates.length) {
+      return;
+    }
+
+    mapRef.current?.fitToCoordinates(route.coordinates, {
+      edgePadding: { top: 70, right: 45, bottom: 70, left: 45 },
+      animated: true
+    });
+  }, [route]);
 
   const progress = useMemo(() => {
     if (!current || !route?.coordinates.length) {
@@ -118,19 +130,23 @@ export function NavigateScreen() {
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          showsUserLocation
-          followsUserLocation
-          initialRegion={{ ...initial, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
-        >
-          {route ? <Polyline coordinates={route.coordinates} strokeColor={colors.orange} strokeWidth={5} /> : null}
-          {route?.coordinates[0] ? <Marker coordinate={route.coordinates[0]} title="Start" /> : null}
-          {route?.coordinates.length ? (
-            <Marker coordinate={route.coordinates[route.coordinates.length - 1]} title="Destination" pinColor={colors.orange} />
-          ) : null}
-        </MapView>
+        <View style={styles.mapShell}>
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            googleRenderer="LEGACY"
+            style={StyleSheet.absoluteFill}
+            showsUserLocation
+            followsUserLocation
+            initialRegion={{ ...initial, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
+          >
+            {route ? <Polyline coordinates={route.coordinates} strokeColor={colors.orange} strokeWidth={5} /> : null}
+            {route?.coordinates[0] ? <Marker coordinate={route.coordinates[0]} title="Start" /> : null}
+            {route?.coordinates.length ? (
+              <Marker coordinate={route.coordinates[route.coordinates.length - 1]} title="Destination" pinColor={colors.orange} />
+            ) : null}
+          </MapView>
+        </View>
 
         <View style={styles.navPanel}>
           <View>
@@ -186,10 +202,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 16
   },
-  map: {
+  mapShell: {
     width: "100%",
     height: 360,
-    borderRadius: 8
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: colors.surface
   },
   navPanel: {
     flexDirection: "row",

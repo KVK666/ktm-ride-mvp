@@ -140,6 +140,10 @@ The schema is in `backend/db/schema.sql` and includes:
 
 This app is designed so the destination can be set before riding and ride tracking can run with minimal interaction. Do not interact with the phone while riding. Mount the device securely, configure permissions before moving, and follow local traffic laws.
 
+## Online Deployment
+
+Use [DEPLOYMENT.md](DEPLOYMENT.md) to deploy the backend with managed PostgreSQL and point the mobile app at the public API URL.
+
 ## Next Production Steps
 
 - Add turn instruction progression based on GPS proximity.

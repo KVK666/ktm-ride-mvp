@@ -25,6 +25,7 @@ export function RideMap({
   return (
     <MapView
       provider={PROVIDER_GOOGLE}
+      googleRenderer="LEGACY"
       style={styles.map}
       customMapStyle={darkMapStyle}
       showsUserLocation
