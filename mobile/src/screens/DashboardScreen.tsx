@@ -12,6 +12,8 @@ import { duration, km, kmh, shortDate } from "../utils/format";
 
 export function DashboardScreen() {
   const { user, logout } = useAuth();
+  const displayName = user?.name?.trim() || "Rider";
+  const firstName = displayName.split(/\s+/)[0] || displayName;
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentRides, setRecentRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,9 +53,10 @@ export function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.orange} />}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>{user?.bikeModel}</Text>
-            <Text style={styles.title}>Ride dashboard</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.kicker}>Welcome back</Text>
+            <Text style={styles.title}>Hi, {firstName}</Text>
+            <Text style={styles.subtitle}>{user?.bikeModel || "KTM Duke 250 Gen 3"}</Text>
           </View>
           <PrimaryButton label="Logout" icon="exit" onPress={logout} />
         </View>
@@ -102,6 +105,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12
   },
+  headerText: {
+    flex: 1
+  },
   kicker: {
     color: colors.orange,
     fontWeight: "800",
@@ -111,6 +117,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 28,
     fontWeight: "900"
+  },
+  subtitle: {
+    color: colors.muted,
+    marginTop: 3
   },
   grid: {
     flexDirection: "row",

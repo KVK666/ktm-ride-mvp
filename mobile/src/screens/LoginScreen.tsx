@@ -8,20 +8,31 @@ import { colors } from "../theme/colors";
 export function LoginScreen() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("rider@example.com");
-  const [password, setPassword] = useState("password");
-  const [name, setName] = useState("Duke Rider");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function submit() {
     setError("");
+    const cleanEmail = email.trim();
+    const cleanName = name.trim();
+    if (!cleanEmail || !password) {
+      setError("Enter your email and password");
+      return;
+    }
+    if (mode === "register" && !cleanName) {
+      setError("Enter your name");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "login") {
-        await login(email, password);
+        await login(cleanEmail, password);
       } else {
-        await register(email, password, name);
+        await register(cleanEmail, password, cleanName);
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed");
@@ -45,6 +56,8 @@ export function LoginScreen() {
         <View style={styles.form}>
           {mode === "register" ? (
             <TextInput
+              autoComplete="name"
+              textContentType="name"
               placeholder="Name"
               placeholderTextColor={colors.muted}
               value={name}
@@ -54,6 +67,8 @@ export function LoginScreen() {
           ) : null}
           <TextInput
             autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
             keyboardType="email-address"
             placeholder="Email"
             placeholderTextColor={colors.muted}
@@ -63,6 +78,10 @@ export function LoginScreen() {
           />
           <TextInput
             secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            textContentType={mode === "login" ? "password" : "newPassword"}
             placeholder="Password"
             placeholderTextColor={colors.muted}
             value={password}

@@ -1,12 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api, clearToken, readToken, saveToken } from "../api/client";
-
-type User = {
-  id: string;
-  email: string;
-  name: string;
-  bikeModel: string;
-};
+import { User } from "../types";
 
 type AuthContextValue = {
   token: string | null;

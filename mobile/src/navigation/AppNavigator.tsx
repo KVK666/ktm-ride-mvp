@@ -5,6 +5,7 @@ import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { NavigateScreen } from "../screens/NavigateScreen";
+import { ProfileScreen } from "../screens/ProfileScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
 import { RideScreen } from "../screens/RideScreen";
 import { colors } from "../theme/colors";
@@ -17,7 +18,8 @@ const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
   Ride: "radio-button-on",
   History: "time",
   Analytics: "analytics",
-  Reports: "document-text"
+  Reports: "document-text",
+  Profile: "person-circle"
 };
 
 export function AppNavigator() {
@@ -29,13 +31,13 @@ export function AppNavigator() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 66,
+          height: 68,
           paddingTop: 8,
           paddingBottom: 8
         },
         tabBarActiveTintColor: colors.orange,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 11 },
+        tabBarLabelStyle: { fontSize: 10 },
         tabBarIcon: ({ color, size }) => (
           <Ionicons name={icons[route.name]} color={color} size={size} />
         )
@@ -47,6 +49,7 @@ export function AppNavigator() {
       <Tab.Screen name="History" component={HistoryScreen} />
       <Tab.Screen name="Analytics" component={AnalyticsScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

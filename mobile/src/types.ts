@@ -9,6 +9,13 @@ export type RidePoint = Coordinate & {
   recordedAt: string;
 };
 
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  bikeModel: string;
+};
+
 export type Ride = {
   id: string;
   startLabel: string;
