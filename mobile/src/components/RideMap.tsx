@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { StyleSheet } from "react-native";
+import React, { useEffect, useMemo, useRef } from "react";
+import { StyleProp, StyleSheet, ViewStyle } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { Coordinate } from "../types";
 import { colors } from "../theme/colors";
@@ -15,20 +15,39 @@ const darkMapStyle = [
 
 export function RideMap({
   coordinates,
-  current
+  current,
+  style
 }: {
   coordinates: Coordinate[];
   current?: Coordinate | null;
+  style?: StyleProp<ViewStyle>;
 }) {
+  const mapRef = useRef<MapView | null>(null);
   const mapCoordinates = useMemo(() => normalizeCoordinates(coordinates), [coordinates]);
   const mapCurrent = current ? normalizeCoordinate(current) : null;
   const initial = mapCurrent || mapCoordinates[0] || { latitude: 12.9716, longitude: 77.5946 };
 
+  useEffect(() => {
+    if (mapCoordinates.length < 2) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      mapRef.current?.fitToCoordinates(mapCoordinates, {
+        edgePadding: { top: 60, right: 45, bottom: 60, left: 45 },
+        animated: true
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [mapCoordinates]);
+
   return (
     <MapView
+      ref={mapRef}
       provider={PROVIDER_GOOGLE}
       googleRenderer="LEGACY"
-      style={styles.map}
+      style={[styles.map, style]}
       customMapStyle={darkMapStyle}
       showsUserLocation
       followsUserLocation
