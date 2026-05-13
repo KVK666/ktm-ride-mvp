@@ -1,7 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
@@ -15,7 +14,6 @@ export function HistoryScreen() {
   const [period, setPeriod] = useState<Period>("month");
   const [rides, setRides] = useState<Ride[]>([]);
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
-  const [mapFullScreen, setMapFullScreen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -26,7 +24,6 @@ export function HistoryScreen() {
       const response = await api<{ rides: Ride[] }>(`/rides?period=${period}`);
       setRides(response.rides);
       setSelectedRide(null);
-      setMapFullScreen(false);
     } catch (err: any) {
       setError(err.message || "Ride history unavailable");
     } finally {
@@ -71,17 +68,10 @@ export function HistoryScreen() {
 
         {selectedRide?.points?.length ? (
           <View style={styles.detail}>
-            <View style={styles.mapCard}>
-              <RideMap coordinates={selectedRide.points} />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open ride map full screen"
-                onPress={() => setMapFullScreen(true)}
-                style={styles.expandButton}
-              >
-                <Ionicons name="expand" size={22} color={colors.text} />
-              </Pressable>
-            </View>
+            <RideMap
+              coordinates={selectedRide.points}
+              title={`${selectedRide.startLabel} to ${selectedRide.endLabel}`}
+            />
             <Text style={styles.detailTitle}>{selectedRide.startLabel} to {selectedRide.endLabel}</Text>
           </View>
         ) : null}
@@ -103,28 +93,6 @@ export function HistoryScreen() {
           </Pressable>
         ))}
       </ScrollView>
-      <Modal
-        visible={mapFullScreen && Boolean(selectedRide?.points?.length)}
-        animationType="slide"
-        onRequestClose={() => setMapFullScreen(false)}
-      >
-        <View style={styles.fullScreen}>
-          <RideMap coordinates={selectedRide?.points || []} style={styles.fullScreenMap} />
-          <View style={styles.fullScreenHeader}>
-            <Text style={styles.fullScreenTitle} numberOfLines={1}>
-              {selectedRide ? `${selectedRide.startLabel} to ${selectedRide.endLabel}` : "Ride map"}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close full screen map"
-              onPress={() => setMapFullScreen(false)}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={26} color={colors.text} />
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </Screen>
   );
 }
@@ -162,24 +130,6 @@ const styles = StyleSheet.create({
   },
   detail: {
     gap: 10
-  },
-  mapCard: {
-    position: "relative",
-    borderRadius: 8,
-    overflow: "hidden"
-  },
-  expandButton: {
-    position: "absolute",
-    right: 12,
-    top: 12,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(8, 9, 11, 0.82)",
-    borderColor: colors.border,
-    borderWidth: 1
   },
   detailTitle: {
     color: colors.text,
@@ -223,45 +173,5 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.danger
-  },
-  fullScreen: {
-    flex: 1,
-    backgroundColor: colors.background
-  },
-  fullScreenMap: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-    borderRadius: 0
-  },
-  fullScreenHeader: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    top: 42,
-    minHeight: 58,
-    borderRadius: 8,
-    backgroundColor: "rgba(8, 9, 11, 0.88)",
-    borderColor: colors.border,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingLeft: 14,
-    paddingRight: 8
-  },
-  fullScreenTitle: {
-    flex: 1,
-    color: colors.text,
-    fontWeight: "900",
-    fontSize: 16
-  },
-  closeButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.orange
   }
 });

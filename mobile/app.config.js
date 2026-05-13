@@ -9,7 +9,10 @@ module.exports = {
     orientation: "portrait",
     userInterfaceStyle: "dark",
     scheme: "dukeride",
+    icon: "./assets/app-logo.png",
     splash: {
+      image: "./assets/app-logo.png",
+      resizeMode: "contain",
       backgroundColor: "#08090b"
     },
     ios: {
@@ -26,6 +29,7 @@ module.exports = {
     android: {
       package: "com.example.dukeride",
       adaptiveIcon: {
+        foregroundImage: "./assets/app-logo.png",
         backgroundColor: "#0b0b0d"
       },
       config: {

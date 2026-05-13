@@ -1,6 +1,7 @@
 import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { fetchRoute, geocodeDestination, RouteDetails } from "../api/googleMaps";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -18,6 +19,7 @@ export function NavigateScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [safetyVisible, setSafetyVisible] = useState(false);
+  const [mapFullScreen, setMapFullScreen] = useState(false);
   const pendingNavigation = useRef(false);
   const subscription = useRef<Location.LocationSubscription | null>(null);
 
@@ -131,21 +133,19 @@ export function NavigateScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.mapShell}>
-          <MapView
-            ref={mapRef}
-            provider={PROVIDER_GOOGLE}
-            googleRenderer="LEGACY"
-            style={StyleSheet.absoluteFill}
-            showsUserLocation
-            followsUserLocation
-            initialRegion={{ ...initial, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
+          <NavigationMap
+            mapRef={mapRef}
+            initial={initial}
+            route={route}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open navigation map full screen"
+            onPress={() => setMapFullScreen(true)}
+            style={styles.expandButton}
           >
-            {route ? <Polyline coordinates={route.coordinates} strokeColor={colors.orange} strokeWidth={5} /> : null}
-            {route?.coordinates[0] ? <Marker coordinate={route.coordinates[0]} title="Start" /> : null}
-            {route?.coordinates.length ? (
-              <Marker coordinate={route.coordinates[route.coordinates.length - 1]} title="Destination" pinColor={colors.orange} />
-            ) : null}
-          </MapView>
+            <Ionicons name="expand" size={22} color={colors.text} />
+          </Pressable>
         </View>
 
         <View style={styles.navPanel}>
@@ -177,7 +177,83 @@ export function NavigateScreen() {
           </View>
         ))}
       </ScrollView>
+      <Modal
+        visible={mapFullScreen}
+        animationType="slide"
+        onRequestClose={() => setMapFullScreen(false)}
+      >
+        <View style={styles.fullScreen}>
+          <NavigationMap
+            initial={initial}
+            route={route}
+            fullScreen
+          />
+          <View style={styles.fullScreenFooter}>
+            <Text style={styles.fullScreenTitle} numberOfLines={1}>
+              {destination.trim() || "Navigation map"}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close full screen map"
+              onPress={() => setMapFullScreen(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={26} color={colors.text} />
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
+  );
+}
+
+function NavigationMap({
+  mapRef,
+  initial,
+  route,
+  fullScreen
+}: {
+  mapRef?: React.RefObject<MapView>;
+  initial: Coordinate;
+  route: RouteDetails | null;
+  fullScreen?: boolean;
+}) {
+  const localMapRef = useRef<MapView | null>(null);
+  const activeRef = mapRef || localMapRef;
+
+  useEffect(() => {
+    if (!route?.coordinates.length) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      activeRef.current?.fitToCoordinates(route.coordinates, {
+        edgePadding: fullScreen
+          ? { top: 80, right: 55, bottom: 110, left: 55 }
+          : { top: 70, right: 45, bottom: 70, left: 45 },
+        animated: true
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [activeRef, fullScreen, route]);
+
+  return (
+    <MapView
+      ref={activeRef}
+      provider={PROVIDER_GOOGLE}
+      googleRenderer="LEGACY"
+      style={StyleSheet.absoluteFill}
+      showsUserLocation
+      followsUserLocation
+      initialRegion={{ ...initial, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
+    >
+      {route ? <Polyline coordinates={route.coordinates} strokeColor={colors.orange} strokeWidth={5} /> : null}
+      {route?.coordinates[0] ? <Marker coordinate={route.coordinates[0]} title="Start" /> : null}
+      {route?.coordinates.length ? (
+        <Marker coordinate={route.coordinates[route.coordinates.length - 1]} title="Destination" pinColor={colors.orange} />
+      ) : null}
+    </MapView>
   );
 }
 
@@ -208,6 +284,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: colors.surface
+  },
+  expandButton: {
+    position: "absolute",
+    right: 12,
+    bottom: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(8, 9, 11, 0.82)",
+    borderColor: colors.border,
+    borderWidth: 1
   },
   navPanel: {
     flexDirection: "row",
@@ -260,5 +349,39 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.danger
+  },
+  fullScreen: {
+    flex: 1,
+    backgroundColor: colors.background
+  },
+  fullScreenFooter: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 28,
+    minHeight: 58,
+    borderRadius: 8,
+    backgroundColor: "rgba(8, 9, 11, 0.88)",
+    borderColor: colors.border,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingLeft: 14,
+    paddingRight: 8
+  },
+  fullScreenTitle: {
+    flex: 1,
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 16
+  },
+  closeButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.orange
   }
 });

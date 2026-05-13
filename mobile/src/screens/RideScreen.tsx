@@ -150,7 +150,11 @@ export function RideScreen() {
 
         {message ? <Text style={styles.message}>{message}</Text> : null}
 
-        <RideMap coordinates={points} current={points[points.length - 1]} />
+        <RideMap
+          coordinates={points}
+          current={points[points.length - 1]}
+          title={active ? "Live ride route" : "Ride map"}
+        />
 
         <View style={styles.grid}>
           <StatCard label="Distance" value={km(stats.distanceM)} accent={colors.orange} />
