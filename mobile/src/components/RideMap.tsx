@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { Coordinate } from "../types";
@@ -20,7 +20,9 @@ export function RideMap({
   coordinates: Coordinate[];
   current?: Coordinate | null;
 }) {
-  const initial = current || coordinates[0] || { latitude: 12.9716, longitude: 77.5946 };
+  const mapCoordinates = useMemo(() => normalizeCoordinates(coordinates), [coordinates]);
+  const mapCurrent = current ? normalizeCoordinate(current) : null;
+  const initial = mapCurrent || mapCoordinates[0] || { latitude: 12.9716, longitude: 77.5946 };
 
   return (
     <MapView
@@ -36,15 +38,32 @@ export function RideMap({
         longitudeDelta: 0.04
       }}
     >
-      {coordinates.length > 1 ? (
-        <Polyline coordinates={coordinates} strokeColor={colors.orange} strokeWidth={5} />
+      {mapCoordinates.length > 1 ? (
+        <Polyline coordinates={mapCoordinates} strokeColor={colors.orange} strokeWidth={5} />
       ) : null}
-      {coordinates[0] ? <Marker coordinate={coordinates[0]} title="Start" pinColor={colors.success} /> : null}
-      {coordinates.length > 1 ? (
-        <Marker coordinate={coordinates[coordinates.length - 1]} title="End" pinColor={colors.orange} />
+      {mapCoordinates[0] ? <Marker coordinate={mapCoordinates[0]} title="Start" pinColor={colors.success} /> : null}
+      {mapCoordinates.length > 1 ? (
+        <Marker coordinate={mapCoordinates[mapCoordinates.length - 1]} title="End" pinColor={colors.orange} />
       ) : null}
     </MapView>
   );
+}
+
+function normalizeCoordinates(coordinates: Coordinate[]) {
+  return coordinates
+    .map(normalizeCoordinate)
+    .filter((coordinate): coordinate is Coordinate => Boolean(coordinate));
+}
+
+function normalizeCoordinate(coordinate: Coordinate) {
+  const latitude = Number(coordinate.latitude);
+  const longitude = Number(coordinate.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return { latitude, longitude };
 }
 
 const styles = StyleSheet.create({

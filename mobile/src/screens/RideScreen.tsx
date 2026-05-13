@@ -109,12 +109,18 @@ export function RideScreen() {
       const backgroundPoints: RidePoint[] = stored ? JSON.parse(stored) : [];
       const merged = dedupePoints([...points, ...backgroundPoints]);
       const endedAt = new Date().toISOString();
+      const startPoint = merged[0];
+      const endPoint = merged[merged.length - 1];
+      const [startLabel, endLabel] = await Promise.all([
+        getRidePointLabel(startPoint, "Start point"),
+        getRidePointLabel(endPoint, "End point")
+      ]);
 
       await api("/rides", {
         method: "POST",
         body: JSON.stringify({
-          startLabel: "Ride start",
-          endLabel: "Ride end",
+          startLabel,
+          endLabel,
           startedAt,
           endedAt,
           points: merged
@@ -185,6 +191,30 @@ function dedupePoints(points: RidePoint[]) {
       seen.add(key);
       return true;
     });
+}
+
+async function getRidePointLabel(point: RidePoint, fallback: string) {
+  try {
+    const places = await Location.reverseGeocodeAsync({
+      latitude: point.latitude,
+      longitude: point.longitude
+    });
+    const place = places[0];
+    if (!place) {
+      return coordinateLabel(point);
+    }
+
+    const main = place.name || place.street || place.district || place.city || place.region;
+    const area = [place.city, place.region].filter(Boolean).join(", ");
+    const label = [main, area && area !== main ? area : null].filter(Boolean).join(", ");
+    return label || coordinateLabel(point);
+  } catch {
+    return fallback ? `${fallback} (${coordinateLabel(point)})` : coordinateLabel(point);
+  }
+}
+
+function coordinateLabel(point: RidePoint) {
+  return `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
 }
 
 const styles = StyleSheet.create({

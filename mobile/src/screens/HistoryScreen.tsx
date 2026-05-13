@@ -38,8 +38,14 @@ export function HistoryScreen() {
   );
 
   async function openRide(ride: Ride) {
-    const response = await api<{ ride: Ride }>(`/rides/${ride.id}`);
-    setSelectedRide(response.ride);
+    try {
+      setError("");
+      const response = await api<{ ride: Ride }>(`/rides/${ride.id}`);
+      setSelectedRide(response.ride);
+    } catch (err: any) {
+      setSelectedRide(null);
+      setError(err.message || "Unable to open this ride");
+    }
   }
 
   return (
