@@ -2,6 +2,8 @@
 
 A React Native and Node/PostgreSQL MVP for replacing KTM Connect-style ride tracking on a KTM Duke 250 Gen 3. The app is dark themed, KTM orange/black, and includes login, Google Maps route navigation, manual ride tracking, history, dashboard stats, analytics charts, and PDF reports.
 
+For the latest living summary of what the app currently does, deployed URLs, testing notes, and known gaps, see [APP_CONTEXT.md](APP_CONTEXT.md).
+
 ## Project Structure
 
 ```text
@@ -14,7 +16,7 @@ A React Native and Node/PostgreSQL MVP for replacing KTM Connect-style ride trac
 |       +-- context/        # Authentication state
 |       +-- navigation/     # Auth stack and app tabs
 |       +-- screens/        # Dashboard, Navigate, Ride, History, Analytics, Reports
-|       +-- services/       # Background location task
+|       +-- services/       # Background location task and auto tracking
 |       +-- theme/
 |       +-- utils/
 +-- backend/                # Express API
@@ -31,6 +33,7 @@ A React Native and Node/PostgreSQL MVP for replacing KTM Connect-style ride trac
 - Google Maps route lookup with Geocoding API and Directions API.
 - Safety confirmation before navigation: "Set your destination before riding. Do not interact with the phone while riding."
 - Start Ride / Stop Ride tracking with foreground and background location support.
+- Optional automatic ride tracking with speed-based start/stop detection and pending upload retry.
 - Ride storage with start/end location, path points, distance, duration, top speed, average speed, and timestamps.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
