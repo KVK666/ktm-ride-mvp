@@ -46,6 +46,7 @@ module.exports = {
       ]
     },
     plugins: [
+      "./plugins/withFullBleedAndroidIcon",
       "expo-font",
       [
         "expo-location",
