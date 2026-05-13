@@ -64,9 +64,8 @@ export function LoginScreen() {
         <View style={styles.form}>
           {mode === "register" ? (
             <TextInput
-              autoComplete="off"
-              importantForAutofill="no"
-              textContentType="none"
+              autoComplete="name"
+              textContentType="name"
               placeholder="Name"
               placeholderTextColor={colors.muted}
               value={name}
@@ -77,8 +76,7 @@ export function LoginScreen() {
           <TextInput
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="off"
-            importantForAutofill="no"
+            autoComplete="email"
             keyboardType="email-address"
             placeholder="Email"
             placeholderTextColor={colors.muted}
@@ -90,9 +88,8 @@ export function LoginScreen() {
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="off"
-            importantForAutofill="no"
-            textContentType="none"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            textContentType={mode === "login" ? "password" : "newPassword"}
             placeholder="Password"
             placeholderTextColor={colors.muted}
             value={password}
