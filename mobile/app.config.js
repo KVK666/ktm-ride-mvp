@@ -8,6 +8,9 @@ module.exports = {
     orientation: "portrait",
     userInterfaceStyle: "dark",
     scheme: "dukeride",
+    splash: {
+      backgroundColor: "#08090b"
+    },
     ios: {
       bundleIdentifier: "com.example.dukeride",
       config: {
@@ -38,6 +41,7 @@ module.exports = {
       ]
     },
     plugins: [
+      "expo-font",
       [
         "expo-location",
         {
