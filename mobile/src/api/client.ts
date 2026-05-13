@@ -1,20 +1,24 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { MIRRORED_TOKEN_KEY } from "../services/trackingKeys";
 
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.0.2.2:4000/api";
 
 const TOKEN_KEY = "duke_ride_token";
 
 export async function saveToken(token: string) {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await AsyncStorage.setItem(MIRRORED_TOKEN_KEY, token);
 }
 
 export async function readToken() {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return (await SecureStore.getItemAsync(TOKEN_KEY)) || AsyncStorage.getItem(MIRRORED_TOKEN_KEY);
 }
 
 export async function clearToken() {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await AsyncStorage.removeItem(MIRRORED_TOKEN_KEY);
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {

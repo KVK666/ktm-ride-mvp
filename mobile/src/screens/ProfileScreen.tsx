@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
+import { useAutoTracking } from "../hooks/useAutoTracking";
 import { colors } from "../theme/colors";
 
 type ProfileRowProps = {
@@ -39,6 +40,7 @@ function ProfileRow({ icon, label, value }: ProfileRowProps) {
 
 export function ProfileScreen() {
   const { user, logout } = useAuth();
+  const autoTracking = useAutoTracking();
   const displayName = user?.name?.trim() || "Rider";
   const bikeModel = user?.bikeModel || "KTM Duke 250 Gen 3";
   const riderId = user?.id ? user.id.slice(0, 8).toUpperCase() : "Not available";
@@ -69,6 +71,27 @@ export function ProfileScreen() {
           <Text style={styles.cardCopy}>
             Your rides, reports, dashboard stats, and route history are saved to this rider account.
           </Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingText}>
+              <Text style={styles.cardTitle}>Auto tracking</Text>
+              <Text style={styles.cardCopy}>
+                {autoTracking.status.enabled
+                  ? `Status: ${autoTracking.status.label}`
+                  : "Enable hands-free ride detection before you start riding."}
+              </Text>
+            </View>
+            <Switch
+              value={autoTracking.status.enabled}
+              disabled={autoTracking.loading}
+              onValueChange={autoTracking.toggle}
+              thumbColor={autoTracking.status.enabled ? colors.orange : colors.muted}
+              trackColor={{ false: colors.border, true: colors.surfaceHigh }}
+            />
+          </View>
+          {autoTracking.error ? <Text style={styles.error}>{autoTracking.error}</Text> : null}
         </View>
 
         <PrimaryButton label="Logout" icon="exit" danger onPress={logout} />
@@ -167,5 +190,17 @@ const styles = StyleSheet.create({
   cardCopy: {
     color: colors.muted,
     lineHeight: 20
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  settingText: {
+    flex: 1
+  },
+  error: {
+    color: colors.danger,
+    fontWeight: "700"
   }
 });

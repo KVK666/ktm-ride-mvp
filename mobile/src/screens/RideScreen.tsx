@@ -1,13 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import React, { useMemo, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
 import { StatCard } from "../components/StatCard";
-import { BACKGROUND_LOCATION_TASK, BACKGROUND_POINTS_KEY } from "../services/locationTask";
+import { useAutoTracking } from "../hooks/useAutoTracking";
+import {
+  setManualTrackingActive,
+  startManualBackgroundTracking,
+  stopManualBackgroundTracking
+} from "../services/autoRideTracking";
+import { BACKGROUND_POINTS_KEY } from "../services/trackingKeys";
 import { colors } from "../theme/colors";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
@@ -19,6 +25,7 @@ export function RideScreen() {
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const autoTracking = useAutoTracking();
   const subscription = useRef<Location.LocationSubscription | null>(null);
 
   const stats = useMemo(() => {
@@ -51,6 +58,7 @@ export function RideScreen() {
   async function startRide() {
     try {
       await ensurePermissions();
+      await setManualTrackingActive(true);
       await AsyncStorage.removeItem(BACKGROUND_POINTS_KEY);
 
       const firstLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
@@ -70,21 +78,11 @@ export function RideScreen() {
 
       const backgroundGranted = await Location.getBackgroundPermissionsAsync();
       if (backgroundGranted.status === "granted") {
-        const alreadyRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-        if (!alreadyRunning) {
-          await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-            accuracy: Location.Accuracy.Highest,
-            distanceInterval: 10,
-            timeInterval: 5000,
-            showsBackgroundLocationIndicator: true,
-            foregroundService: {
-              notificationTitle: "Duke Ride tracking",
-              notificationBody: "Ride tracking is active."
-            }
-          });
-        }
+        await startManualBackgroundTracking();
       }
+      await autoTracking.refresh();
     } catch (err: any) {
+      await setManualTrackingActive(false);
       setMessage(err.message || "Unable to start ride");
     }
   }
@@ -92,18 +90,18 @@ export function RideScreen() {
   async function stopRide() {
     if (!startedAt || points.length < 2) {
       setActive(false);
+      subscription.current?.remove();
+      subscription.current = null;
+      await stopManualBackgroundTracking();
       setMessage("Ride is too short to save.");
       return;
     }
 
-    setSaving(true);
+      setSaving(true);
     try {
       subscription.current?.remove();
       subscription.current = null;
-      const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      if (running) {
-        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      }
+      await stopManualBackgroundTracking();
 
       const stored = await AsyncStorage.getItem(BACKGROUND_POINTS_KEY);
       const backgroundPoints: RidePoint[] = stored ? JSON.parse(stored) : [];
@@ -131,6 +129,7 @@ export function RideScreen() {
       setActive(false);
       setStartedAt(null);
       await AsyncStorage.removeItem(BACKGROUND_POINTS_KEY);
+      await autoTracking.refresh();
       Alert.alert("Ride saved", "Your ride was added to history and dashboard stats.");
     } catch (err: any) {
       setMessage(err.message || "Unable to save ride. Check your internet connection.");
@@ -149,6 +148,40 @@ export function RideScreen() {
         </View>
 
         {message ? <Text style={styles.message}>{message}</Text> : null}
+        {autoTracking.error ? <Text style={styles.message}>{autoTracking.error}</Text> : null}
+
+        <View style={styles.autoCard}>
+          <View style={styles.autoHeader}>
+            <View style={styles.autoText}>
+              <Text style={styles.autoTitle}>Auto tracking</Text>
+              <Text style={styles.autoCopy}>
+                {autoTracking.status.enabled
+                  ? "Watching for sustained riding movement in the background."
+                  : "Off by default. Enable before riding when you want hands-free ride logs."}
+              </Text>
+            </View>
+            <Switch
+              value={autoTracking.status.enabled}
+              disabled={autoTracking.loading || active}
+              onValueChange={autoTracking.toggle}
+              thumbColor={autoTracking.status.enabled ? colors.orange : colors.muted}
+              trackColor={{ false: colors.border, true: colors.surfaceHigh }}
+            />
+          </View>
+          <View style={styles.statusRow}>
+            <View style={styles.statusPill}>
+              <Text style={styles.statusLabel}>Manual</Text>
+              <Text style={styles.statusValue}>{active ? "Recording" : "Ready"}</Text>
+            </View>
+            <View style={styles.statusPill}>
+              <Text style={styles.statusLabel}>Automatic</Text>
+              <Text style={styles.statusValue}>{autoTracking.status.label}</Text>
+            </View>
+          </View>
+          {autoTracking.status.pendingCount ? (
+            <Text style={styles.pendingText}>{autoTracking.status.pendingCount} ride waiting to upload.</Text>
+          ) : null}
+        </View>
 
         <RideMap
           coordinates={points}
@@ -247,6 +280,59 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 12
+  },
+  autoCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    gap: 14
+  },
+  autoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  autoText: {
+    flex: 1
+  },
+  autoTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  autoCopy: {
+    color: colors.muted,
+    marginTop: 4,
+    lineHeight: 19
+  },
+  statusRow: {
+    flexDirection: "row",
+    gap: 12
+  },
+  statusPill: {
+    flex: 1,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: colors.surfaceHigh
+  },
+  statusLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  statusValue: {
+    color: colors.orange,
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 4
+  },
+  pendingText: {
+    color: colors.yellow,
+    fontWeight: "700"
   },
   grid: {
     flexDirection: "row",

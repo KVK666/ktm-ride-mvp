@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api, clearToken, readToken, saveToken } from "../api/client";
+import { syncPendingRidesForCurrentUser } from "../services/autoRideTracking";
 import { User } from "../types";
 
 type AuthContextValue = {
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(storedToken);
         const response = await api<{ user: User }>("/auth/me");
         setUser(response.user);
+        await syncPendingRidesForCurrentUser();
       } catch {
         await clearToken();
         setToken(null);
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveToken(response.token);
     setToken(response.token);
     setUser(response.user);
+    await syncPendingRidesForCurrentUser();
   }
 
   const value = useMemo<AuthContextValue>(
