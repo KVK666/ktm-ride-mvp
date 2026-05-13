@@ -39,6 +39,8 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Shows dashboard totals for today, month, year, total rides, best top speed, average speed, and recent rides.
 - Shows ride history by period, with route maps and full-screen map viewing.
 - Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
+- Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
+- Imported ride photos with GPS metadata appear as camera markers on the ride map.
 - Shows analytics charts for distance, duration, speed trends, and top speed comparison.
 - Generates basic reports and can export reports as PDF.
 
@@ -62,6 +64,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
 - `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History.
+- `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
 - `mobile/src/services/locationTask.ts`: Expo background location task entrypoint.
 - `mobile/src/services/rideUpload.ts`: ride upload and pending auto ride sync.
@@ -139,6 +142,8 @@ https://ktm-ride-mvp.onrender.com/health
   - History ride map appears.
   - Tapping a History ride opens Ride Detail.
   - Ride Detail shows route map, stat cards, route summary, and speed chart.
+  - Ride Detail `Import ride photos` requests media permission and lists photos taken during the ride time window.
+  - Ride photos with location metadata show camera markers on the ride map.
   - Full-screen map works and does not hide Google current-location controls.
 
 ## Safety And Reliability Notes
@@ -153,6 +158,7 @@ https://ktm-ride-mvp.onrender.com/health
 ## Known Gaps / Future Ideas
 
 - True Google Maps trip import is not implemented; the app only tracks rides through Duke Ride.
+- Imported ride photos are currently scanned/displayed from the local phone library and are not uploaded to the backend.
 - No password reset yet.
 - No refresh-token flow yet.
 - No push notifications yet.

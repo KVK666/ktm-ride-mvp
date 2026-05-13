@@ -35,6 +35,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Start Ride / Stop Ride tracking with foreground and background location support.
 - Optional automatic ride tracking with speed-based start/stop detection and pending upload retry.
 - Ride storage with start/end location, path points, distance, duration, top speed, average speed, and timestamps.
+- Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
 - Basic charts for distance, ride duration trends, and top speed comparison.

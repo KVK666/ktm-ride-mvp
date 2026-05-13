@@ -9,6 +9,13 @@ export type RidePoint = Coordinate & {
   recordedAt: string;
 };
 
+export type RidePhoto = Coordinate & {
+  id: string;
+  uri: string;
+  createdAt: string;
+  hasLocation: boolean;
+};
+
 export type User = {
   id: string;
   email: string;

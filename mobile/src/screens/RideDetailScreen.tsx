@@ -1,14 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useFocusEffect, useRoute } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { api } from "../api/client";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
 import { StatCard } from "../components/StatCard";
+import { importRidePhotos } from "../services/ridePhotos";
 import { colors } from "../theme/colors";
-import { Ride, RidePoint } from "../types";
+import { Ride, RidePhoto, RidePoint } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 
 type RideDetailParams = {
@@ -22,6 +24,10 @@ const chartWidth = Dimensions.get("window").width - 32;
 export function RideDetailScreen() {
   const route = useRoute<RouteProp<RideDetailParams, "RideDetail">>();
   const [ride, setRide] = useState<Ride | null>(null);
+  const [photos, setPhotos] = useState<RidePhoto[]>([]);
+  const [photosSearched, setPhotosSearched] = useState(false);
+  const [importingPhotos, setImportingPhotos] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -29,6 +35,9 @@ export function RideDetailScreen() {
     try {
       setLoading(true);
       setError("");
+      setPhotoError("");
+      setPhotosSearched(false);
+      setPhotos([]);
       const response = await api<{ ride: Ride }>(`/rides/${route.params.rideId}`);
       setRide(response.ride);
     } catch (err: any) {
@@ -46,6 +55,27 @@ export function RideDetailScreen() {
   );
 
   const speedChart = useMemo(() => buildSpeedChart(ride?.points || []), [ride?.points]);
+  const photosWithLocation = useMemo(() => photos.filter((photo) => photo.hasLocation), [photos]);
+
+  async function handleImportRidePhotos() {
+    if (!ride) {
+      return;
+    }
+
+    setImportingPhotos(true);
+    setPhotoError("");
+    try {
+      const importedPhotos = await importRidePhotos(ride);
+      setPhotos(importedPhotos);
+      setPhotosSearched(true);
+    } catch (err: any) {
+      setPhotos([]);
+      setPhotosSearched(true);
+      setPhotoError(err.message || "Unable to import ride photos");
+    } finally {
+      setImportingPhotos(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -77,7 +107,11 @@ export function RideDetailScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {ride.points?.length ? (
-          <RideMap coordinates={ride.points} title={`${ride.startLabel} to ${ride.endLabel}`} />
+          <RideMap
+            coordinates={ride.points}
+            title={`${ride.startLabel} to ${ride.endLabel}`}
+            photoMarkers={photosWithLocation}
+          />
         ) : (
           <View style={styles.emptyMap}>
             <Ionicons name="map" color={colors.muted} size={26} />
@@ -98,6 +132,50 @@ export function RideDetailScreen() {
           <RouteRow icon="flag" label="To" value={ride.endLabel} />
           <RouteRow icon="calendar" label="Date" value={`${shortDate(ride.startedAt)} at ${time(ride.startedAt)}`} />
           <RouteRow icon="pulse" label="GPS points" value={`${ride.points?.length || 0}`} />
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>Photos from this ride</Text>
+              <Text style={styles.sectionMeta}>
+                Finds phone camera photos taken between ride start and end time.
+              </Text>
+            </View>
+          </View>
+          <PrimaryButton
+            label="Import ride photos"
+            icon="images"
+            loading={importingPhotos}
+            onPress={handleImportRidePhotos}
+          />
+          {photoError ? <Text style={styles.error}>{photoError}</Text> : null}
+          {photos.length ? (
+            <>
+              <Text style={styles.photoMeta}>
+                {photos.length} found, {photosWithLocation.length} with map location.
+              </Text>
+              <View style={styles.photoGrid}>
+                {photos.map((photo) => (
+                  <View key={photo.id} style={styles.photoTile}>
+                    <Image source={{ uri: photo.uri }} style={styles.photo} />
+                    <View style={styles.photoFooter}>
+                      <Text style={styles.photoTime}>{time(photo.createdAt)}</Text>
+                      {photo.hasLocation ? <Ionicons name="location" color={colors.blue} size={14} /> : null}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : photosSearched && !photoError ? (
+            <View style={styles.photoEmpty}>
+              <Ionicons name="images" color={colors.muted} size={26} />
+              <Text style={styles.photoEmptyTitle}>No photos found</Text>
+              <Text style={styles.photoEmptyText}>
+                Photos taken with your normal camera during this ride window will appear here.
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.chartBlock}>
@@ -227,6 +305,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900"
   },
+  sectionHeader: {
+    flexDirection: "row",
+    gap: 12
+  },
+  sectionHeaderText: {
+    flex: 1
+  },
+  sectionMeta: {
+    color: colors.muted,
+    marginTop: 4,
+    lineHeight: 19
+  },
   routeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -264,6 +354,59 @@ const styles = StyleSheet.create({
   chart: {
     borderRadius: 8,
     marginTop: 8
+  },
+  photoMeta: {
+    color: colors.orange,
+    fontWeight: "800"
+  },
+  photoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  photoTile: {
+    width: "31%",
+    minWidth: 96,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.border,
+    borderWidth: 1
+  },
+  photo: {
+    width: "100%",
+    aspectRatio: 1
+  },
+  photoFooter: {
+    minHeight: 30,
+    paddingHorizontal: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  photoTime: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  photoEmpty: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    gap: 6,
+    padding: 18
+  },
+  photoEmptyTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  photoEmptyText: {
+    color: colors.muted,
+    textAlign: "center",
+    lineHeight: 19
   },
   error: {
     color: colors.danger

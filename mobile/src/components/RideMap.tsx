@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
-import { Coordinate } from "../types";
+import { Coordinate, RidePhoto } from "../types";
 import { colors } from "../theme/colors";
 
 const darkMapStyle = [
@@ -19,17 +19,23 @@ export function RideMap({
   current,
   style,
   title = "Ride map",
-  fullScreenEnabled = true
+  fullScreenEnabled = true,
+  photoMarkers = []
 }: {
   coordinates: Coordinate[];
   current?: Coordinate | null;
   style?: StyleProp<ViewStyle>;
   title?: string;
   fullScreenEnabled?: boolean;
+  photoMarkers?: RidePhoto[];
 }) {
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const mapRef = useRef<MapView | null>(null);
   const mapCoordinates = useMemo(() => normalizeCoordinates(coordinates), [coordinates]);
+  const mapPhotoMarkers = useMemo(
+    () => photoMarkers.filter((photo) => photo.hasLocation).map((photo) => ({ ...photo, ...normalizeCoordinate(photo) })),
+    [photoMarkers]
+  );
   const mapCurrent = current ? normalizeCoordinate(current) : null;
   const initial = mapCurrent || mapCoordinates[0] || { latitude: 12.9716, longitude: 77.5946 };
 
@@ -71,6 +77,18 @@ export function RideMap({
         {mapCoordinates.length > 1 ? (
           <Marker coordinate={mapCoordinates[mapCoordinates.length - 1]} title="End" pinColor={colors.orange} />
         ) : null}
+        {mapPhotoMarkers.map((photo, index) => (
+          <Marker
+            key={photo.id}
+            coordinate={{ latitude: photo.latitude, longitude: photo.longitude }}
+            title={`Photo stop ${index + 1}`}
+            description={new Date(photo.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+          >
+            <View style={styles.photoMarker}>
+              <Ionicons name="camera" size={16} color={colors.text} />
+            </View>
+          </Marker>
+        ))}
       </MapView>
       {fullScreenEnabled ? (
         <Pressable
@@ -91,6 +109,7 @@ export function RideMap({
           <RideMap
             coordinates={mapCoordinates}
             current={mapCurrent}
+            photoMarkers={photoMarkers}
             style={styles.fullScreenMap}
             fullScreenEnabled={false}
           />
@@ -188,5 +207,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.orange
+  },
+  photoMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.blue,
+    borderColor: colors.text,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center"
   }
 });
