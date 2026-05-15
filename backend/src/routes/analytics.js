@@ -15,16 +15,21 @@ router.get("/distance", async (req, res, next) => {
   try {
     const bucket = buckets[req.query.bucket] || "day";
     const result = await db.query(
-      `select date_trunc($2, started_at) as bucket,
-              coalesce(sum(distance_m), 0) as distance_m,
-              count(*)::int as ride_count,
-              coalesce(sum(duration_s), 0) as duration_s,
-              coalesce(max(top_speed_kmh), 0) as top_speed_kmh
-       from rides
-       where user_id = $1
-       group by 1
-       order by 1 asc
-       limit 60`,
+      `select *
+       from (
+         select date_trunc($2, started_at) as bucket,
+                coalesce(sum(distance_m), 0) as distance_m,
+                count(*)::int as ride_count,
+                coalesce(sum(duration_s), 0) as duration_s,
+                coalesce(max(top_speed_kmh), 0) as top_speed_kmh,
+                coalesce(avg(nullif(avg_speed_kmh, 0)), 0) as avg_speed_kmh
+         from rides
+         where user_id = $1
+         group by 1
+         order by 1 desc
+         limit 60
+       ) recent
+       order by bucket asc`,
       [req.user.id, bucket]
     );
 
@@ -34,7 +39,8 @@ router.get("/distance", async (req, res, next) => {
         distanceM: Number(row.distance_m),
         rideCount: row.ride_count,
         durationS: Number(row.duration_s),
-        topSpeedKmh: Number(row.top_speed_kmh)
+        topSpeedKmh: Number(row.top_speed_kmh),
+        avgSpeedKmh: Number(row.avg_speed_kmh)
       }))
     });
   } catch (error) {

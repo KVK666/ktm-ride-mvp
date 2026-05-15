@@ -1,6 +1,6 @@
 # Duke Ride App Context
 
-Last updated: 2026-05-13
+Last updated: 2026-05-15
 
 This file is the living context for the KTM Duke Ride MVP. Keep it updated whenever the app gains a meaningful feature, deployment change, setup change, or known limitation.
 
@@ -26,7 +26,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 
 - Lets a rider register and log in with email/password.
 - Shows the logged-in rider name on the dashboard.
-- Shows a Profile tab with name, email, bike model, rider ID, logout, and auto tracking toggle.
+- Shows a Profile tab with local profile photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
 - Shows a dark KTM-inspired orange/black UI.
 - Shows an Android app icon based on `mobile/assets/app-logo.png`.
 - Uses Google Maps in navigation, ride, and history views.
@@ -41,7 +41,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
 - Imported ride photos with GPS metadata appear as camera markers on the ride map.
-- Shows analytics charts for distance, duration, speed trends, and top speed comparison.
+- Shows analytics summary cards and charts for distance, ride count, duration, and top speed.
 - Generates basic reports and can export reports as PDF.
 
 ## Automatic Ride Tracking
@@ -51,8 +51,9 @@ Auto tracking is implemented as an optional setting and is off by default.
 - Toggle location: Ride tab and Profile tab.
 - Manual Start/Stop remains available.
 - Manual tracking takes priority so an auto ride is not created at the same time.
-- Auto tracking uses background GPS and speed-based detection.
-- Auto-start rule: speed above `15 km/h` for about `60 seconds` and at least `250 meters`.
+- Auto tracking uses background GPS with both reported speed and inferred speed from GPS distance/time.
+- Auto-start rule: sustained movement around `8 km/h` or clear GPS movement for about `30 seconds` and at least `100 meters`.
+- Auto-start tolerates short bad/zero-speed GPS samples for about `75 seconds`.
 - Auto-stop rule: speed below `5 km/h` for about `5 minutes`.
 - Discard rule: auto rides under `2 minutes` or under `500 meters` are ignored.
 - If upload fails, auto rides are queued locally and retried when the app opens/logs in.
@@ -64,6 +65,9 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
 - `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History.
+- `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
+- `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
+- `mobile/src/services/profilePhoto.ts`: local per-user profile photo picker/storage.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
 - `mobile/src/services/locationTask.ts`: Expo background location task entrypoint.
@@ -83,6 +87,7 @@ Mobile:
 cd "C:\Users\BBS001\Documents\New project\mobile"
 npm run typecheck
 npm run android
+npm run android:install:release
 ```
 
 Release APK build:
@@ -121,7 +126,7 @@ https://ktm-ride-mvp.onrender.com/health
 - Login with a real account.
 - Register a new rider and confirm empty form fields.
 - Confirm dashboard says `Hi, <name>`.
-- Confirm Profile shows account details.
+- Confirm Profile shows account details and can add/change/remove the local profile photo.
 - Manual ride test:
   - Start Ride.
   - Move a short distance.
@@ -145,6 +150,9 @@ https://ktm-ride-mvp.onrender.com/health
   - Ride Detail `Import ride photos` requests media permission and lists photos taken during the ride time window.
   - Ride photos with location metadata show camera markers on the ride map.
   - Full-screen map works and does not hide Google current-location controls.
+- Analytics test:
+  - Confirm Daily/Monthly/Yearly tabs load.
+  - Confirm summary cards and charts use the latest ride buckets.
 
 ## Safety And Reliability Notes
 
@@ -159,6 +167,7 @@ https://ktm-ride-mvp.onrender.com/health
 
 - True Google Maps trip import is not implemented; the app only tracks rides through Duke Ride.
 - Imported ride photos are currently scanned/displayed from the local phone library and are not uploaded to the backend.
+- Profile photos are local to the phone and are not uploaded to the backend.
 - No password reset yet.
 - No refresh-token flow yet.
 - No push notifications yet.

@@ -20,7 +20,8 @@ export function RideMap({
   style,
   title = "Ride map",
   fullScreenEnabled = true,
-  photoMarkers = []
+  photoMarkers = [],
+  onPhotoMarkerPress
 }: {
   coordinates: Coordinate[];
   current?: Coordinate | null;
@@ -28,6 +29,7 @@ export function RideMap({
   title?: string;
   fullScreenEnabled?: boolean;
   photoMarkers?: RidePhoto[];
+  onPhotoMarkerPress?: (photo: RidePhoto) => void;
 }) {
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const mapRef = useRef<MapView | null>(null);
@@ -83,6 +85,12 @@ export function RideMap({
             coordinate={{ latitude: photo.latitude, longitude: photo.longitude }}
             title={`Photo stop ${index + 1}`}
             description={new Date(photo.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            onPress={() => {
+              if (onPhotoMarkerPress) {
+                setFullScreenVisible(false);
+                requestAnimationFrame(() => onPhotoMarkerPress(photo));
+              }
+            }}
           >
             <View style={styles.photoMarker}>
               <Ionicons name="camera" size={16} color={colors.text} />
@@ -110,6 +118,7 @@ export function RideMap({
             coordinates={mapCoordinates}
             current={mapCurrent}
             photoMarkers={photoMarkers}
+            onPhotoMarkerPress={onPhotoMarkerPress}
             style={styles.fullScreenMap}
             fullScreenEnabled={false}
           />

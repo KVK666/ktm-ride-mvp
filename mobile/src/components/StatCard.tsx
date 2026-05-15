@@ -6,7 +6,9 @@ export function StatCard({ label, value, accent }: { label: string; value: strin
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, accent ? { color: accent } : null]}>{value}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.value, accent ? { color: accent } : null]}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -15,6 +17,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     minWidth: "46%",
+    minHeight: 86,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
@@ -29,6 +32,7 @@ const styles = StyleSheet.create({
   value: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: "800"
+    fontWeight: "800",
+    minWidth: 0
   }
 });

@@ -1,6 +1,6 @@
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
@@ -11,6 +11,7 @@ import { DashboardStats, Ride } from "../types";
 import { duration, km, kmh, shortDate } from "../utils/format";
 
 export function DashboardScreen() {
+  const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
   const displayName = user?.name?.trim() || "Rider";
   const firstName = displayName.split(/\s+/)[0] || displayName;
@@ -74,16 +75,21 @@ export function DashboardScreen() {
 
         <Text style={styles.sectionTitle}>Recent rides</Text>
         {recentRides.map((ride) => (
-          <View key={ride.id} style={styles.rideCard}>
-            <View>
-              <Text style={styles.rideTitle}>{ride.startLabel} to {ride.endLabel}</Text>
-              <Text style={styles.rideMeta}>{shortDate(ride.startedAt)} - {duration(ride.durationS)}</Text>
+          <Pressable
+            key={ride.id}
+            accessibilityRole="button"
+            onPress={() => navigation.navigate("RideDetail", { rideId: ride.id })}
+            style={({ pressed }) => [styles.rideCard, pressed && styles.pressedCard]}
+          >
+            <View style={styles.rideText}>
+              <Text numberOfLines={2} style={styles.rideTitle}>{ride.startLabel} to {ride.endLabel}</Text>
+              <Text numberOfLines={1} style={styles.rideMeta}>{shortDate(ride.startedAt)} - {duration(ride.durationS)}</Text>
             </View>
             <View style={styles.rideStats}>
-              <Text style={styles.rideDistance}>{km(ride.distanceM)}</Text>
-              <Text style={styles.rideMeta}>{kmh(ride.topSpeedKmh)}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.rideDistance}>{km(ride.distanceM)}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.rideMeta}>{kmh(ride.topSpeedKmh)}</Text>
             </View>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
     </Screen>
@@ -142,6 +148,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12
   },
+  pressedCard: {
+    opacity: 0.82
+  },
+  rideText: {
+    flex: 1,
+    minWidth: 0
+  },
   rideTitle: {
     color: colors.text,
     fontSize: 15,
@@ -152,7 +165,9 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   rideStats: {
-    alignItems: "flex-end"
+    alignItems: "flex-end",
+    flexShrink: 0,
+    maxWidth: 112
   },
   rideDistance: {
     color: colors.orange,

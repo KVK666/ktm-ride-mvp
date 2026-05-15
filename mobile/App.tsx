@@ -4,6 +4,7 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import { AuthStack } from "./src/navigation/AuthStack";
@@ -58,9 +59,11 @@ const styles = StyleSheet.create({
 
 export default function App() {
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
-      <Root />
-    </AuthProvider>
+    <AppErrorBoundary>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <Root />
+      </AuthProvider>
+    </AppErrorBoundary>
   );
 }

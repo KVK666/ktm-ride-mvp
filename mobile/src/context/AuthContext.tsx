@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api, clearToken, readToken, saveToken } from "../api/client";
+import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { syncPendingRidesForCurrentUser } from "../services/autoRideTracking";
 import { User } from "../types";
 
@@ -30,7 +31,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const response = await api<{ user: User }>("/auth/me");
         setUser(response.user);
         await syncPendingRidesForCurrentUser();
-      } catch {
+      } catch (err) {
+        logDiagnostic({
+          level: "warn",
+          area: "auth",
+          message: "Auth bootstrap failed; clearing stored session",
+          details: diagnosticDetails(err)
+        });
         await clearToken();
         setToken(null);
       } finally {

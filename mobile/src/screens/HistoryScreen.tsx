@@ -60,16 +60,16 @@ export function HistoryScreen() {
             style={styles.card}
           >
             <View style={styles.cardHeader}>
-              <View>
-                <Text style={styles.route}>{ride.startLabel} to {ride.endLabel}</Text>
-                <Text style={styles.meta}>{shortDate(ride.startedAt)} - {time(ride.startedAt)}</Text>
+              <View style={styles.routeText}>
+                <Text numberOfLines={2} style={styles.route}>{ride.startLabel} to {ride.endLabel}</Text>
+                <Text numberOfLines={1} style={styles.meta}>{shortDate(ride.startedAt)} - {time(ride.startedAt)}</Text>
               </View>
-              <Text style={styles.distance}>{km(ride.distanceM)}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.distance}>{km(ride.distanceM)}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.metric}>Duration {duration(ride.durationS)}</Text>
-              <Text style={styles.metric}>Top {kmh(ride.topSpeedKmh)}</Text>
-              <Text style={styles.metric}>Avg {kmh(ride.avgSpeedKmh)}</Text>
+              <Text numberOfLines={1} style={styles.metric}>Duration {duration(ride.durationS)}</Text>
+              <Text numberOfLines={1} style={styles.metric}>Top {kmh(ride.topSpeedKmh)}</Text>
+              <Text numberOfLines={1} style={styles.metric}>Avg {kmh(ride.avgSpeedKmh)}</Text>
             </View>
           </Pressable>
         ))}
@@ -122,6 +122,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12
   },
+  routeText: {
+    flex: 1,
+    minWidth: 0
+  },
   route: {
     color: colors.text,
     fontWeight: "900",
@@ -134,7 +138,10 @@ const styles = StyleSheet.create({
   distance: {
     color: colors.orange,
     fontWeight: "900",
-    fontSize: 18
+    fontSize: 18,
+    flexShrink: 0,
+    maxWidth: 118,
+    textAlign: "right"
   },
   row: {
     flexDirection: "row",
@@ -142,7 +149,8 @@ const styles = StyleSheet.create({
     gap: 10
   },
   metric: {
-    color: colors.muted
+    color: colors.muted,
+    flexShrink: 1
   },
   error: {
     color: colors.danger

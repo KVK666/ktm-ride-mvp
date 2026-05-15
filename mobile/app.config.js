@@ -23,7 +23,7 @@ module.exports = {
       infoPlist: {
         NSLocationWhenInUseUsageDescription: "Duke Ride uses your location for route navigation and ride tracking.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "Duke Ride uses background location to keep tracking active during rides.",
-        NSPhotoLibraryUsageDescription: "Duke Ride reads your photo library only when you import photos taken during a ride.",
+        NSPhotoLibraryUsageDescription: "Duke Ride reads your photo library only when you import ride photos or choose a profile photo.",
         UIBackgroundModes: ["location"]
       }
     },
@@ -44,6 +44,7 @@ module.exports = {
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
+        "ACCESS_MEDIA_LOCATION",
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE"
       ]
@@ -52,9 +53,16 @@ module.exports = {
       "./plugins/withFullBleedAndroidIcon",
       "expo-font",
       [
+        "expo-image-picker",
+        {
+          photosPermission: "Allow Duke Ride to choose a profile photo from your gallery."
+        }
+      ],
+      [
         "expo-media-library",
         {
-          photosPermission: "Allow Duke Ride to find photos taken during your rides."
+          photosPermission: "Allow Duke Ride to find photos taken during your rides.",
+          isAccessMediaLocationEnabled: true
         }
       ],
       [

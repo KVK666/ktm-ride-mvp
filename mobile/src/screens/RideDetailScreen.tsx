@@ -1,13 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useFocusEffect, useRoute } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import ImageViewing from "react-native-image-viewing";
 import { LineChart } from "react-native-chart-kit";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
 import { StatCard } from "../components/StatCard";
+import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { importRidePhotos } from "../services/ridePhotos";
 import { colors } from "../theme/colors";
 import { Ride, RidePhoto, RidePoint } from "../types";
@@ -27,6 +29,8 @@ export function RideDetailScreen() {
   const [photos, setPhotos] = useState<RidePhoto[]>([]);
   const [photosSearched, setPhotosSearched] = useState(false);
   const [importingPhotos, setImportingPhotos] = useState(false);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [photoViewerInitialIndex, setPhotoViewerInitialIndex] = useState(0);
   const [photoError, setPhotoError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,6 +42,7 @@ export function RideDetailScreen() {
       setPhotoError("");
       setPhotosSearched(false);
       setPhotos([]);
+      closePhotoViewer();
       const response = await api<{ ride: Ride }>(`/rides/${route.params.rideId}`);
       setRide(response.ride);
     } catch (err: any) {
@@ -56,6 +61,7 @@ export function RideDetailScreen() {
 
   const speedChart = useMemo(() => buildSpeedChart(ride?.points || []), [ride?.points]);
   const photosWithLocation = useMemo(() => photos.filter((photo) => photo.hasLocation), [photos]);
+  const viewerImages = useMemo(() => photos.map((photo) => ({ uri: photo.uri })), [photos]);
 
   async function handleImportRidePhotos() {
     if (!ride) {
@@ -68,13 +74,41 @@ export function RideDetailScreen() {
       const importedPhotos = await importRidePhotos(ride);
       setPhotos(importedPhotos);
       setPhotosSearched(true);
+      if (!importedPhotos.length) {
+        closePhotoViewer();
+      }
     } catch (err: any) {
       setPhotos([]);
       setPhotosSearched(true);
       setPhotoError(err.message || "Unable to import ride photos");
+      logDiagnostic({
+        level: "error",
+        area: "photos",
+        message: "Ride photo import failed",
+        details: diagnosticDetails(err)
+      });
     } finally {
       setImportingPhotos(false);
     }
+  }
+
+  function openPhotoViewer(index: number) {
+    if (!photos[index]) {
+      return;
+    }
+
+    setPhotoViewerInitialIndex(index);
+    setPhotoViewerOpen(true);
+  }
+
+  function openPhotoMarker(photo: RidePhoto) {
+    const index = photos.findIndex((item) => item.id === photo.id);
+    openPhotoViewer(index);
+  }
+
+  function closePhotoViewer() {
+    setPhotoViewerOpen(false);
+    setPhotoViewerInitialIndex(0);
   }
 
   if (loading) {
@@ -111,6 +145,7 @@ export function RideDetailScreen() {
             coordinates={ride.points}
             title={`${ride.startLabel} to ${ride.endLabel}`}
             photoMarkers={photosWithLocation}
+            onPhotoMarkerPress={openPhotoMarker}
           />
         ) : (
           <View style={styles.emptyMap}>
@@ -156,14 +191,19 @@ export function RideDetailScreen() {
                 {photos.length} found, {photosWithLocation.length} with map location.
               </Text>
               <View style={styles.photoGrid}>
-                {photos.map((photo) => (
-                  <View key={photo.id} style={styles.photoTile}>
+                {photos.map((photo, index) => (
+                  <Pressable
+                    accessibilityRole="imagebutton"
+                    key={photo.id}
+                    onPress={() => openPhotoViewer(index)}
+                    style={({ pressed }) => [styles.photoTile, pressed && styles.pressedPhoto]}
+                  >
                     <Image source={{ uri: photo.uri }} style={styles.photo} />
                     <View style={styles.photoFooter}>
                       <Text style={styles.photoTime}>{time(photo.createdAt)}</Text>
                       {photo.hasLocation ? <Ionicons name="location" color={colors.blue} size={14} /> : null}
                     </View>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             </>
@@ -201,7 +241,50 @@ export function RideDetailScreen() {
           />
         </View>
       </ScrollView>
+      {viewerImages.length ? (
+        <ImageViewing
+          images={viewerImages}
+          imageIndex={Math.min(photoViewerInitialIndex, viewerImages.length - 1)}
+          visible={photoViewerOpen}
+          onRequestClose={closePhotoViewer}
+          animationType="none"
+          backgroundColor="#000"
+          doubleTapToZoomEnabled
+          swipeToCloseEnabled
+          HeaderComponent={({ imageIndex }) => (
+            <View style={styles.viewerHeader}>
+              <Text style={styles.viewerCount}>{imageIndex + 1} / {photos.length}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close photo viewer"
+                onPress={closePhotoViewer}
+                style={styles.viewerClose}
+              >
+                <Ionicons name="close" color={colors.text} size={26} />
+              </Pressable>
+            </View>
+          )}
+          FooterComponent={({ imageIndex }) => (
+            <PhotoViewerFooter photo={photos[imageIndex]} index={imageIndex} total={photos.length} />
+          )}
+        />
+      ) : null}
     </Screen>
+  );
+}
+
+function PhotoViewerFooter({ photo, index, total }: { photo?: RidePhoto; index: number; total: number }) {
+  if (!photo) {
+    return null;
+  }
+
+  return (
+    <View style={styles.viewerFooter}>
+      <Text style={styles.viewerTitle}>Photo {index + 1} of {total}</Text>
+      <Text style={styles.viewerMeta}>
+        {time(photo.createdAt)} - {photo.hasLocation ? "Map location available" : "No map location"}
+      </Text>
+    </View>
   );
 }
 
@@ -373,6 +456,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1
   },
+  pressedPhoto: {
+    opacity: 0.78
+  },
   photo: {
     width: "100%",
     aspectRatio: 1
@@ -410,5 +496,41 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.danger
+  },
+  viewerHeader: {
+    paddingTop: 42,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  viewerCount: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 16
+  },
+  viewerClose: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)"
+  },
+  viewerFooter: {
+    paddingHorizontal: 18,
+    paddingBottom: 34,
+    gap: 4
+  },
+  viewerTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  viewerMeta: {
+    color: colors.muted,
+    textAlign: "center"
   }
 });

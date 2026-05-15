@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../api/client";
 import { RidePoint } from "../types";
+import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import { AUTO_PENDING_RIDES_KEY, MIRRORED_TOKEN_KEY } from "./trackingKeys";
 
 export type RideUploadPayload = {
@@ -12,18 +13,35 @@ export type RideUploadPayload = {
 };
 
 export async function uploadRidePayload(payload: RideUploadPayload, token: string) {
-  const response = await fetch(`${API_BASE_URL}/rides`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(payload)
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/rides`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    logDiagnostic({
+      level: "error",
+      area: "ride-upload",
+      message: "Ride upload network failure",
+      details: diagnosticDetails(err)
+    });
+    throw err;
+  }
 
   const text = await response.text();
   const body = text ? JSON.parse(text) : {};
   if (!response.ok) {
+    logDiagnostic({
+      level: "error",
+      area: "ride-upload",
+      message: `Ride upload failed with ${response.status}`,
+      details: text
+    });
     throw new Error(body.error || "Unable to upload ride");
   }
   return body;
@@ -53,7 +71,13 @@ export async function syncPendingAutoRides() {
     try {
       await uploadRidePayload(ride, token);
       uploaded += 1;
-    } catch {
+    } catch (err) {
+      logDiagnostic({
+        level: "warn",
+        area: "ride-upload",
+        message: "Pending auto ride upload failed",
+        details: diagnosticDetails(err)
+      });
       remaining.push(ride);
     }
   }

@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { MIRRORED_TOKEN_KEY } from "../services/trackingKeys";
 
 export const API_BASE_URL =
@@ -38,6 +39,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       }
     });
   } catch (error: any) {
+    logDiagnostic({
+      level: "error",
+      area: "api",
+      message: `Network failure for ${path}`,
+      details: diagnosticDetails(error)
+    });
     if (error?.name === "AbortError") {
       throw new Error("Request timed out. Check backend connection.");
     }
@@ -50,6 +57,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const body = text ? JSON.parse(text) : {};
 
   if (!response.ok) {
+    logDiagnostic({
+      level: "error",
+      area: "api",
+      message: `API ${response.status} for ${path}`,
+      details: text
+    });
     throw new Error(body.error || "Request failed");
   }
 
