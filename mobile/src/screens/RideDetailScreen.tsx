@@ -8,7 +8,6 @@ import {
   Image,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View
@@ -22,7 +21,8 @@ import { Screen } from "../components/Screen";
 import { StatCard } from "../components/StatCard";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { importRidePhotos } from "../services/ridePhotos";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Ride, RidePhoto, RidePoint } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 
@@ -36,6 +36,8 @@ type RideDetailParams = {
 const chartWidth = Dimensions.get("window").width - 32;
 
 export function RideDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const route = useRoute<RouteProp<RideDetailParams, "RideDetail">>();
   const [ride, setRide] = useState<Ride | null>(null);
   const [duplicateRides, setDuplicateRides] = useState<Ride[]>([]);
@@ -455,6 +457,8 @@ function rideTitle(ride: Ride) {
 }
 
 function PhotoViewerFooter({ photo, index, total }: { photo?: RidePhoto; index: number; total: number }) {
+  const styles = useThemedStyles(createStyles);
+
   if (!photo) {
     return null;
   }
@@ -478,6 +482,9 @@ function RouteRow({
   label: string;
   value: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.routeRow}>
       <View style={styles.routeIcon}>
@@ -508,7 +515,7 @@ function buildSpeedChart(points: RidePoint[]) {
   };
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   center: {
     alignItems: "center",
     justifyContent: "center"

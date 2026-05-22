@@ -1,11 +1,12 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { duration, km, kmh, shortDate } from "../utils/format";
 
 type Period = "day" | "month" | "year";
@@ -30,6 +31,8 @@ type Report = {
 };
 
 export function ReportsScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [period, setPeriod] = useState<Period>("month");
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState("");
@@ -157,7 +160,7 @@ function reportHtml(report: Report) {
   `;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 16,
     gap: 14

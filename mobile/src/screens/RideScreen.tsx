@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import React, { useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ScrollView, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -16,7 +16,8 @@ import {
 } from "../services/autoRideTracking";
 import { BACKGROUND_POINTS_KEY } from "../services/trackingKeys";
 import { createRideClientId } from "../services/rideUpload";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
 import { duration, km, kmh } from "../utils/format";
@@ -26,6 +27,8 @@ const MAX_SPEED_ACCURACY_M = 35;
 const SPEED_SUPPORT_WINDOW_MS = 12000;
 
 export function RideScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<any>();
   const [active, setActive] = useState(false);
   const [points, setPoints] = useState<RidePoint[]>([]);
@@ -300,7 +303,7 @@ function coordinateLabel(point: RidePoint) {
   return `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 18,
     gap: 18

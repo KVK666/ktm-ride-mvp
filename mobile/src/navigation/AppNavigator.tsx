@@ -10,7 +10,7 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
 import { RideDetailScreen } from "../screens/RideDetailScreen";
 import { RideScreen } from "../screens/RideScreen";
-import { colors } from "../theme/colors";
+import { useTheme } from "../theme/ThemeContext";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -26,6 +26,8 @@ const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 function MainTabs() {
+  const { colors } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -59,6 +61,8 @@ function MainTabs() {
 }
 
 export function AppNavigator() {
+  const { colors } = useTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{

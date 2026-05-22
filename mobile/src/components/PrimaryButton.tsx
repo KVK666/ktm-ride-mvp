@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
-import { colors } from "../theme/colors";
+import { useTheme } from "../theme/ThemeContext";
 
 type Props = {
   label: string;
@@ -13,6 +13,8 @@ type Props = {
 };
 
 export function PrimaryButton({ label, icon, onPress, disabled, loading, danger }: Props) {
+  const { colors } = useTheme();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -20,7 +22,7 @@ export function PrimaryButton({ label, icon, onPress, disabled, loading, danger 
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        danger && styles.danger,
+        { backgroundColor: danger ? colors.danger : colors.orange },
         (disabled || loading) && styles.disabled,
         pressed && styles.pressed
       ]}
@@ -30,7 +32,7 @@ export function PrimaryButton({ label, icon, onPress, disabled, loading, danger 
       ) : (
         <>
           {icon ? <Ionicons name={icon} size={22} color={colors.text} /> : null}
-          <Text style={styles.label}>{label}</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
         </>
       )}
     </Pressable>
@@ -41,7 +43,6 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 54,
     borderRadius: 8,
-    backgroundColor: colors.orange,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -50,9 +51,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.12)",
     borderWidth: 1
   },
-  danger: {
-    backgroundColor: colors.danger
-  },
   disabled: {
     opacity: 0.6
   },
@@ -60,7 +58,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }]
   },
   label: {
-    color: colors.text,
     fontSize: 16,
     fontWeight: "900"
   }

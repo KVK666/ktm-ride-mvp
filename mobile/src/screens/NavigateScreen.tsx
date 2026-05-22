@@ -7,10 +7,13 @@ import { fetchRoute, geocodeDestination, RouteDetails } from "../api/googleMaps"
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SafetyModal } from "../components/SafetyModal";
 import { Screen } from "../components/Screen";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Coordinate } from "../types";
 
 export function NavigateScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const mapRef = useRef<MapView | null>(null);
   const [destination, setDestination] = useState("");
   const [current, setCurrent] = useState<Coordinate | null>(null);
@@ -137,6 +140,7 @@ export function NavigateScreen() {
             mapRef={mapRef}
             initial={initial}
             route={route}
+            colors={colors}
           />
           <Pressable
             accessibilityRole="button"
@@ -187,6 +191,7 @@ export function NavigateScreen() {
             initial={initial}
             route={route}
             fullScreen
+            colors={colors}
           />
           <View style={styles.fullScreenFooter}>
             <Text style={styles.fullScreenTitle} numberOfLines={1}>
@@ -211,12 +216,14 @@ function NavigationMap({
   mapRef,
   initial,
   route,
-  fullScreen
+  fullScreen,
+  colors
 }: {
   mapRef?: React.RefObject<MapView>;
   initial: Coordinate;
   route: RouteDetails | null;
   fullScreen?: boolean;
+  colors: ThemeColors;
 }) {
   const localMapRef = useRef<MapView | null>(null);
   const activeRef = mapRef || localMapRef;
@@ -257,7 +264,7 @@ function NavigationMap({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 16,
     gap: 14

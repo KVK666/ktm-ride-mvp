@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   useWindowDimensions,
   View
@@ -14,7 +13,8 @@ import {
 import { LineChart } from "react-native-chart-kit";
 import { api } from "../api/client";
 import { Screen } from "../components/Screen";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 
 type Bucket = "daily" | "monthly" | "yearly";
 type AnalyticsPoint = {
@@ -34,6 +34,8 @@ type SummaryItem = {
 };
 
 export function AnalyticsScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [bucket, setBucket] = useState<Bucket>("daily");
   const [points, setPoints] = useState<AnalyticsPoint[]>([]);
   const [error, setError] = useState("");
@@ -78,7 +80,7 @@ export function AnalyticsScreen() {
       { label: "Time", value: formatDuration(totalDurationS), icon: "time", color: colors.yellow },
       { label: "Top speed", value: `${Math.round(topSpeed)} km/h`, icon: "flash", color: colors.success }
     ];
-  }, [points]);
+  }, [colors, points]);
 
   return (
     <Screen>
@@ -130,9 +132,9 @@ export function AnalyticsScreen() {
           </View>
         ) : null}
 
-        <Chart title="Distance" suffix=" km" labels={labels} data={distance} color={colors.orange} width={chartWidth} />
-        <Chart title="Ride duration" suffix=" min" labels={labels} data={durations} color={colors.blue} width={chartWidth} />
-        <Chart title="Top speed" suffix=" km/h" labels={labels} data={topSpeeds} color={colors.yellow} width={chartWidth} />
+        <Chart title="Distance" suffix=" km" labels={labels} data={distance} color={colors.orange} width={chartWidth} colors={colors} styles={styles} />
+        <Chart title="Ride duration" suffix=" min" labels={labels} data={durations} color={colors.blue} width={chartWidth} colors={colors} styles={styles} />
+        <Chart title="Top speed" suffix=" km/h" labels={labels} data={topSpeeds} color={colors.yellow} width={chartWidth} colors={colors} styles={styles} />
       </ScrollView>
     </Screen>
   );
@@ -144,7 +146,9 @@ function Chart({
   labels,
   data,
   color,
-  width
+  width,
+  colors,
+  styles
 }: {
   title: string;
   suffix: string;
@@ -152,6 +156,8 @@ function Chart({
   data: number[];
   color: string;
   width: number;
+  colors: ThemeColors;
+  styles: any;
 }) {
   const safeData = data.length ? data : [0];
   const safeLabels = labels.length ? labels : [""];
@@ -229,7 +235,7 @@ function formatDuration(seconds: number) {
   return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 16,
     gap: 14

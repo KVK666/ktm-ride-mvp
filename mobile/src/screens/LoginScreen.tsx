@@ -1,11 +1,14 @@
 import React, { useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Text, TextInput, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 
 export function LoginScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -118,7 +121,7 @@ export function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   container: {
     flex: 1,
     padding: 20,

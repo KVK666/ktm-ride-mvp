@@ -1,15 +1,18 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { api } from "../api/client";
 import { Screen } from "../components/Screen";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Ride } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 
 type Period = "today" | "month" | "year";
 
 export function HistoryScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<any>();
   const [period, setPeriod] = useState<Period>("month");
   const [rides, setRides] = useState<Ride[]>([]);
@@ -83,7 +86,7 @@ function rideTitle(ride: Ride) {
   return ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 18,
     gap: 14

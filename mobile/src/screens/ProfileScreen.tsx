@@ -3,7 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { API_BASE_URL } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
@@ -17,7 +17,8 @@ import {
   logDiagnostic
 } from "../services/diagnostics";
 import { getProfilePhotoUri, pickAndSaveProfilePhoto, removeProfilePhoto } from "../services/profilePhoto";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 
 type ProfileRowProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -37,6 +38,9 @@ function initialsFor(name?: string | null) {
 }
 
 function ProfileRow({ icon, label, value }: ProfileRowProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
@@ -51,6 +55,8 @@ function ProfileRow({ icon, label, value }: ProfileRowProps) {
 }
 
 export function ProfileScreen() {
+  const { colors, mode: themeMode, setMode: setThemeMode } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { user, logout } = useAuth();
   const autoTracking = useAutoTracking();
   const [diagnostics, setDiagnostics] = useState<DiagnosticEvent[]>([]);
@@ -201,6 +207,27 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>Theme</Text>
+          <Text style={styles.cardCopy}>Choose the KTM look or a neutral universal color scheme.</Text>
+          <View style={styles.themeOptions}>
+            <ThemeOption
+              label="KTM"
+              description="Orange and black bike-focused style"
+              selected={themeMode === "ktm"}
+              color="#ff6a00"
+              onPress={() => setThemeMode("ktm")}
+            />
+            <ThemeOption
+              label="Universal"
+              description="Neutral blue dark style"
+              selected={themeMode === "universal"}
+              color="#3b82f6"
+              onPress={() => setThemeMode("universal")}
+            />
+          </View>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>Diagnostics</Text>
           <Text style={styles.cardCopy}>
             API: {API_BASE_URL}
@@ -259,6 +286,43 @@ export function ProfileScreen() {
   );
 }
 
+function ThemeOption({
+  label,
+  description,
+  selected,
+  color,
+  onPress
+}: {
+  label: string;
+  description: string;
+  selected: boolean;
+  color: string;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.themeOption,
+        selected && { borderColor: color, backgroundColor: colors.surfaceHigh },
+        pressed && styles.pressed
+      ]}
+    >
+      <View style={[styles.themeSwatch, { backgroundColor: color }]} />
+      <View style={styles.themeText}>
+        <Text style={styles.themeLabel}>{label}</Text>
+        <Text style={styles.themeDescription}>{description}</Text>
+      </View>
+      {selected ? <Ionicons name="checkmark-circle" color={color} size={22} /> : null}
+    </Pressable>
+  );
+}
+
 function buildDiagnosticsHtml(body: string) {
   return `
     <html>
@@ -278,7 +342,7 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;");
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 16,
     gap: 16
@@ -412,6 +476,39 @@ const styles = StyleSheet.create({
   },
   diagnosticActions: {
     gap: 10
+  },
+  themeOptions: {
+    gap: 10
+  },
+  themeOption: {
+    minHeight: 68,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12
+  },
+  themeSwatch: {
+    width: 34,
+    height: 34,
+    borderRadius: 17
+  },
+  themeText: {
+    flex: 1,
+    minWidth: 0
+  },
+  themeLabel: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  themeDescription: {
+    color: colors.muted,
+    marginTop: 3,
+    fontSize: 12
   },
   diagnosticEvent: {
     backgroundColor: colors.surfaceHigh,

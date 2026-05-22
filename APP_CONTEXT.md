@@ -29,7 +29,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Lets a rider register and log in with email/password.
 - Shows the logged-in rider name on the dashboard.
 - Shows a Profile tab with local profile photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
-- Shows a dark KTM-inspired orange/black UI.
+- Supports two persisted app themes from Profile: KTM orange/black and a neutral Universal dark blue scheme.
 - UI uses a modernized dark cockpit style with tighter cards, clearer stat hierarchy, compact nav chrome, and the Duke Ride logo on login.
 - Shows an Android app icon based on `mobile/assets/app-logo.png`.
 - Uses Google Maps in navigation, ride, and history views.
@@ -75,6 +75,8 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History, with ride review and duplicate cleanup.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
+- `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and shared runtime palette.
+- `mobile/src/theme/colors.ts`: KTM and Universal color palettes.
 - `mobile/src/services/profilePhoto.ts`: local per-user profile photo picker/storage.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
@@ -162,6 +164,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - Required before deploy: update the Cloudflare Worker `DATABASE_URL` secret to the Neon database that contains `public.users`, `public.rides`, and `public.ride_points`; then run the schema migration so `rides.title`, `rides.notes`, and `rides.reviewed_at` exist.
 - 2026-05-22: Added speed accuracy fix. New points store `accuracy_m`; top speed ignores poor-accuracy points, ignores readings above `250 km/h`, and requires nearby speed support so one GPS spike does not become the ride top speed.
 - 2026-05-22: Refreshed core mobile UI surfaces: palette, stat cards, buttons, tab bar, login, dashboard, ride screen, history cards, and map chrome.
+- 2026-05-22: Added Profile theme selector with persisted KTM and Universal app color schemes.
 
 ## Testing Checklist
 

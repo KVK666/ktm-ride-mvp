@@ -1,16 +1,19 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { api } from "../api/client";
 import { Screen } from "../components/Screen";
 import { StatCard } from "../components/StatCard";
 import { useAuth } from "../context/AuthContext";
-import { colors } from "../theme/colors";
+import { ThemeColors } from "../theme/colors";
+import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { DashboardStats, Ride } from "../types";
 import { duration, km, kmh, shortDate } from "../utils/format";
 
 export function DashboardScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<any>();
   const { user, logout } = useAuth();
   const displayName = user?.name?.trim() || "Rider";
@@ -120,7 +123,7 @@ function rideTitle(ride: Ride) {
   return ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => ({
   center: {
     alignItems: "center",
     justifyContent: "center"

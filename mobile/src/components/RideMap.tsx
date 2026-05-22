@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { Coordinate, RidePhoto } from "../types";
-import { colors } from "../theme/colors";
+import { useTheme } from "../theme/ThemeContext";
 
 const darkMapStyle = [
   { elementType: "geometry", stylers: [{ color: "#1d1d1f" }] },
@@ -31,6 +31,7 @@ export function RideMap({
   photoMarkers?: RidePhoto[];
   onPhotoMarkerPress?: (photo: RidePhoto) => void;
 }) {
+  const { colors } = useTheme();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const mapRef = useRef<MapView | null>(null);
   const mapCoordinates = useMemo(() => normalizeCoordinates(coordinates), [coordinates]);
@@ -57,7 +58,7 @@ export function RideMap({
   }, [mapCoordinates]);
 
   return (
-    <View style={[styles.shell, style]}>
+    <View style={[styles.shell, { backgroundColor: colors.surface, borderColor: colors.border }, style]}>
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -92,7 +93,7 @@ export function RideMap({
               }
             }}
           >
-            <View style={styles.photoMarker}>
+            <View style={[styles.photoMarker, { backgroundColor: colors.blue, borderColor: colors.text }]}>
               <Ionicons name="camera" size={16} color={colors.text} />
             </View>
           </Marker>
@@ -103,7 +104,7 @@ export function RideMap({
           accessibilityRole="button"
           accessibilityLabel="Open map full screen"
           onPress={() => setFullScreenVisible(true)}
-          style={styles.expandButton}
+          style={[styles.expandButton, { backgroundColor: colors.overlay, borderColor: colors.border }]}
         >
           <Ionicons name="expand" size={22} color={colors.text} />
         </Pressable>
@@ -113,7 +114,7 @@ export function RideMap({
         animationType="slide"
         onRequestClose={() => setFullScreenVisible(false)}
       >
-        <View style={styles.fullScreen}>
+        <View style={[styles.fullScreen, { backgroundColor: colors.background }]}>
           <RideMap
             coordinates={mapCoordinates}
             current={mapCurrent}
@@ -122,13 +123,13 @@ export function RideMap({
             style={styles.fullScreenMap}
             fullScreenEnabled={false}
           />
-          <View style={styles.fullScreenFooter}>
-            <Text style={styles.fullScreenTitle} numberOfLines={1}>{title}</Text>
+          <View style={[styles.fullScreenFooter, { backgroundColor: colors.overlay, borderColor: colors.border }]}>
+            <Text style={[styles.fullScreenTitle, { color: colors.text }]} numberOfLines={1}>{title}</Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close full screen map"
               onPress={() => setFullScreenVisible(false)}
-              style={styles.closeButton}
+              style={[styles.closeButton, { backgroundColor: colors.orange }]}
             >
               <Ionicons name="close" size={26} color={colors.text} />
             </Pressable>
@@ -162,8 +163,6 @@ const styles = StyleSheet.create({
     height: 260,
     borderRadius: 8,
     overflow: "hidden",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderWidth: 1
   },
   expandButton: {
@@ -175,13 +174,10 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.overlay,
-    borderColor: colors.border,
     borderWidth: 1
   },
   fullScreen: {
-    flex: 1,
-    backgroundColor: colors.background
+    flex: 1
   },
   fullScreenMap: {
     flex: 1,
@@ -196,8 +192,6 @@ const styles = StyleSheet.create({
     bottom: 28,
     minHeight: 58,
     borderRadius: 8,
-    backgroundColor: colors.overlay,
-    borderColor: colors.border,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -207,7 +201,6 @@ const styles = StyleSheet.create({
   },
   fullScreenTitle: {
     flex: 1,
-    color: colors.text,
     fontWeight: "900",
     fontSize: 16
   },
@@ -216,15 +209,12 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: 23,
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.orange
+    justifyContent: "center"
   },
   photoMarker: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.blue,
-    borderColor: colors.text,
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center"

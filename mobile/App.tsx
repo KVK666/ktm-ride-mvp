@@ -8,29 +8,29 @@ import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import { AuthStack } from "./src/navigation/AuthStack";
-import { colors } from "./src/theme/colors";
-
-const navTheme = {
-  ...DefaultTheme,
-  dark: true,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    text: colors.text,
-    border: colors.border,
-    primary: colors.orange
-  }
-};
+import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 
 function Root() {
   const { token, loading } = useAuth();
+  const { colors } = useTheme();
+  const navTheme = {
+    ...DefaultTheme,
+    dark: true,
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.orange
+    }
+  };
 
   if (loading) {
     return (
-      <View style={styles.loading}>
+      <View style={[styles.loading, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.orange} size="large" />
-        <Text style={styles.loadingText}>Starting Duke Ride</Text>
+        <Text style={[styles.loadingText, { color: colors.text }]}>Starting Duke Ride</Text>
       </View>
     );
   }
@@ -47,11 +47,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.background,
     gap: 14
   },
   loadingText: {
-    color: colors.text,
     fontSize: 16,
     fontWeight: "800"
   }
@@ -60,10 +58,12 @@ const styles = StyleSheet.create({
 export default function App() {
   return (
     <AppErrorBoundary>
-      <AuthProvider>
-        <StatusBar style="light" />
-        <Root />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <StatusBar style="light" />
+          <Root />
+        </AuthProvider>
+      </ThemeProvider>
     </AppErrorBoundary>
   );
 }
