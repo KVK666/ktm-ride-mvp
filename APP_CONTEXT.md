@@ -30,6 +30,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Shows the logged-in rider name on the dashboard.
 - Shows a Profile tab with local profile photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
 - Shows a dark KTM-inspired orange/black UI.
+- UI uses a modernized dark cockpit style with tighter cards, clearer stat hierarchy, compact nav chrome, and the Duke Ride logo on login.
 - Shows an Android app icon based on `mobile/assets/app-logo.png`.
 - Uses Google Maps in navigation, ride, and history views.
 - Lets users search a destination and view route/directions in the Navigate tab.
@@ -160,6 +161,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-05-22: Implemented Ride Review source changes: ride `title`, `notes`, `reviewed_at`, update endpoint, duplicate lookup endpoint, dashboard review count, Ride Detail review UI, and post-manual-ride review navigation.
 - Required before deploy: update the Cloudflare Worker `DATABASE_URL` secret to the Neon database that contains `public.users`, `public.rides`, and `public.ride_points`; then run the schema migration so `rides.title`, `rides.notes`, and `rides.reviewed_at` exist.
 - 2026-05-22: Added speed accuracy fix. New points store `accuracy_m`; top speed ignores poor-accuracy points, ignores readings above `250 km/h`, and requires nearby speed support so one GPS spike does not become the ride top speed.
+- 2026-05-22: Refreshed core mobile UI surfaces: palette, stat cards, buttons, tab bar, login, dashboard, ride screen, history cards, and map chrome.
 
 ## Testing Checklist
 

@@ -302,15 +302,22 @@ function coordinateLabel(point: RidePoint) {
 
 const styles = StyleSheet.create({
   content: {
-    padding: 16,
-    gap: 16
+    padding: 18,
+    gap: 18
   },
   hero: {
-    gap: 5
+    gap: 6,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1
   },
   kicker: {
     color: colors.orange,
-    fontWeight: "900"
+    fontWeight: "900",
+    fontSize: 11,
+    textTransform: "uppercase"
   },
   title: {
     color: colors.text,
@@ -325,14 +332,16 @@ const styles = StyleSheet.create({
     color: colors.yellow,
     backgroundColor: colors.surface,
     borderRadius: 8,
-    padding: 12
+    padding: 12,
+    borderColor: colors.border,
+    borderWidth: 1
   },
   autoCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     gap: 14
   },
   autoHeader: {
@@ -345,7 +354,7 @@ const styles = StyleSheet.create({
   },
   autoTitle: {
     color: colors.text,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "900"
   },
   autoCopy: {

@@ -30,17 +30,18 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: colors.background },
+        headerShadowVisible: false,
         headerTintColor: colors.text,
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.overlay,
           borderTopColor: colors.border,
-          height: 68,
+          height: 72,
           paddingTop: 8,
-          paddingBottom: 8
+          paddingBottom: 10
         },
         tabBarActiveTintColor: colors.orange,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 10 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "800" },
         tabBarIcon: ({ color, size }) => (
           <Ionicons name={icons[route.name]} color={color} size={size} />
         )
@@ -62,6 +63,7 @@ export function AppNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
+        headerShadowVisible: false,
         headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: "900" },
         contentStyle: { backgroundColor: colors.background }

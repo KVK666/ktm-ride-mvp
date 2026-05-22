@@ -1,8 +1,8 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
-import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { StatCard } from "../components/StatCard";
 import { useAuth } from "../context/AuthContext";
@@ -59,7 +59,9 @@ export function DashboardScreen() {
             <Text style={styles.title}>Hi, {firstName}</Text>
             <Text style={styles.subtitle}>{user?.bikeModel || "KTM Duke 250 Gen 3"}</Text>
           </View>
-          <PrimaryButton label="Logout" icon="exit" onPress={logout} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Logout" onPress={logout} style={styles.iconButton}>
+            <Ionicons name="exit" color={colors.text} size={22} />
+          </Pressable>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -124,31 +126,47 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   content: {
-    padding: 16,
-    gap: 16
+    padding: 18,
+    gap: 18
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 12
+    gap: 14,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1
   },
   headerText: {
     flex: 1
   },
   kicker: {
     color: colors.orange,
-    fontWeight: "800",
-    fontSize: 12
+    fontWeight: "900",
+    fontSize: 11,
+    textTransform: "uppercase"
   },
   title: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "900"
   },
   subtitle: {
     color: colors.muted,
     marginTop: 3
+  },
+  iconButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.border,
+    borderWidth: 1
   },
   grid: {
     flexDirection: "row",
@@ -157,7 +175,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: "900"
   },
   rideCard: {
@@ -165,7 +183,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12
@@ -175,7 +193,7 @@ const styles = StyleSheet.create({
     borderColor: colors.orange,
     borderWidth: 1,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12

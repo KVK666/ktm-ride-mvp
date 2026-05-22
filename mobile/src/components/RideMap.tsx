@@ -162,7 +162,9 @@ const styles = StyleSheet.create({
     height: 260,
     borderRadius: 8,
     overflow: "hidden",
-    backgroundColor: colors.surface
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1
   },
   expandButton: {
     position: "absolute",
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(8, 9, 11, 0.82)",
+    backgroundColor: colors.overlay,
     borderColor: colors.border,
     borderWidth: 1
   },
@@ -194,7 +196,7 @@ const styles = StyleSheet.create({
     bottom: 28,
     minHeight: 58,
     borderRadius: 8,
-    backgroundColor: "rgba(8, 9, 11, 0.88)",
+    backgroundColor: colors.overlay,
     borderColor: colors.border,
     borderWidth: 1,
     flexDirection: "row",

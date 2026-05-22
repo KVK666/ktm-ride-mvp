@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
@@ -56,9 +56,12 @@ export function LoginScreen() {
         style={styles.container}
       >
         <View style={styles.brandBlock}>
-          <Text style={styles.kicker}>KTM Duke 250 Gen 3</Text>
-          <Text style={styles.title}>Duke Ride</Text>
-          <Text style={styles.subtitle}>Navigation, ride tracking, and speed analytics.</Text>
+          <Image source={require("../../assets/app-logo.png")} style={styles.logo} />
+          <View style={styles.brandText}>
+            <Text style={styles.kicker}>KTM Duke 250 Gen 3</Text>
+            <Text style={styles.title}>Duke Ride</Text>
+            <Text style={styles.subtitle}>Track. Navigate. Analyze.</Text>
+          </View>
         </View>
 
         <View style={styles.form}>
@@ -118,21 +121,33 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 22,
+    padding: 20,
     justifyContent: "center"
   },
   brandBlock: {
-    marginBottom: 28
+    marginBottom: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14
+  },
+  logo: {
+    width: 86,
+    height: 86,
+    borderRadius: 8
+  },
+  brandText: {
+    flex: 1,
+    minWidth: 0
   },
   kicker: {
     color: colors.orange,
     fontWeight: "900",
     letterSpacing: 0,
-    marginBottom: 8
+    marginBottom: 6
   },
   title: {
     color: colors.text,
-    fontSize: 44,
+    fontSize: 38,
     fontWeight: "900"
   },
   subtitle: {
@@ -141,10 +156,15 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   form: {
-    gap: 12
+    gap: 12,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceHigh,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,

@@ -85,8 +85,8 @@ function rideTitle(ride: Ride) {
 
 const styles = StyleSheet.create({
   content: {
-    padding: 16,
-    gap: 12
+    padding: 18,
+    gap: 14
   },
   tabs: {
     flexDirection: "row",
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     gap: 12
   },
   cardHeader: {
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   route: {
     color: colors.text,
     fontWeight: "900",
-    fontSize: 16
+    fontSize: 17
   },
   meta: {
     color: colors.muted,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   distance: {
     color: colors.orange,
     fontWeight: "900",
-    fontSize: 18,
+    fontSize: 20,
     flexShrink: 0,
     maxWidth: 118,
     textAlign: "right"

@@ -1,9 +1,14 @@
 import React from "react";
-import { SafeAreaView, StyleSheet, ViewStyle } from "react-native";
+import { SafeAreaView, StatusBar, StyleSheet, ViewStyle } from "react-native";
 import { colors } from "../theme/colors";
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <SafeAreaView style={[styles.container, style]}>{children}</SafeAreaView>;
+  return (
+    <SafeAreaView style={[styles.container, style]}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      {children}
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({

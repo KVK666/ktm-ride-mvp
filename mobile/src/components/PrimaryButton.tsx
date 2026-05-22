@@ -39,14 +39,16 @@ export function PrimaryButton({ label, icon, onPress, disabled, loading, danger 
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 58,
+    minHeight: 54,
     borderRadius: 8,
     backgroundColor: colors.orange,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    paddingHorizontal: 18
+    paddingHorizontal: 18,
+    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1
   },
   danger: {
     backgroundColor: colors.danger
@@ -59,7 +61,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "800"
+    fontSize: 16,
+    fontWeight: "900"
   }
 });
