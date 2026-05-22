@@ -21,6 +21,10 @@ import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
 import { duration, km, kmh } from "../utils/format";
 
+const MAX_REASONABLE_SPEED_KMH = 250;
+const MAX_SPEED_ACCURACY_M = 35;
+const SPEED_SUPPORT_WINDOW_MS = 12000;
+
 export function RideScreen() {
   const navigation = useNavigation<any>();
   const [active, setActive] = useState(false);
@@ -33,11 +37,10 @@ export function RideScreen() {
 
   const stats = useMemo(() => {
     let distanceM = 0;
-    let topSpeed = 0;
     for (let index = 1; index < points.length; index += 1) {
       distanceM += distanceMeters(points[index - 1], points[index]);
-      topSpeed = Math.max(topSpeed, points[index].speedKmh || 0);
     }
+    const topSpeed = reliableTopSpeed(points);
     const startMs = startedAt ? new Date(startedAt).getTime() : Date.now();
     const durationS = active ? Math.floor((Date.now() - startMs) / 1000) : 0;
     const avgSpeed = durationS > 0 ? (distanceM / 1000 / (durationS / 3600)) : 0;
@@ -216,9 +219,47 @@ function toRidePoint(location: Location.LocationObject): RidePoint {
     latitude: location.coords.latitude,
     longitude: location.coords.longitude,
     altitudeM: location.coords.altitude,
+    accuracyM: location.coords.accuracy,
     speedKmh: Math.max(0, (location.coords.speed || 0) * 3.6),
     recordedAt: new Date(location.timestamp).toISOString()
   };
+}
+
+function reliableTopSpeed(points: RidePoint[]) {
+  const candidates = points
+    .map((point, index) => ({ point, index, speed: validSpeed(point) }))
+    .filter((item) => item.speed != null);
+
+  if (!candidates.length) {
+    return 0;
+  }
+
+  let best = 0;
+  for (const candidate of candidates) {
+    const supported = candidates.some((other) => {
+      if (other.index === candidate.index || other.speed == null || candidate.speed == null) {
+        return false;
+      }
+      const gapMs = Math.abs(new Date(other.point.recordedAt).getTime() - new Date(candidate.point.recordedAt).getTime());
+      return gapMs <= SPEED_SUPPORT_WINDOW_MS && other.speed >= candidate.speed * 0.75;
+    });
+    if (supported) {
+      best = Math.max(best, candidate.speed || 0);
+    }
+  }
+
+  return best || Math.max(...candidates.map((candidate) => candidate.speed || 0));
+}
+
+function validSpeed(point: RidePoint) {
+  const speed = point.speedKmh;
+  if (speed == null || speed < 0 || speed > MAX_REASONABLE_SPEED_KMH) {
+    return null;
+  }
+  if (point.accuracyM != null && point.accuracyM > MAX_SPEED_ACCURACY_M) {
+    return null;
+  }
+  return speed;
 }
 
 function dedupePoints(points: RidePoint[]) {

@@ -5,6 +5,7 @@ export type Coordinate = {
 
 export type RidePoint = Coordinate & {
   altitudeM?: number | null;
+  accuracyM?: number | null;
   speedKmh?: number | null;
   recordedAt: string;
 };

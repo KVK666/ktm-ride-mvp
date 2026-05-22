@@ -10,14 +10,49 @@ assert(distance > 100 && distance < 120, `expected roughly 111m, got ${distance}
 const summary = summarizeRide(
   [
     { ...bangaloreA, speedKmh: 0 },
-    { ...bangaloreB, speedKmh: 30 }
+    { ...bangaloreB, speedKmh: 30 },
+    { latitude: 12.9736, longitude: 77.5946, recordedAt: "2026-05-10T10:01:08.000Z", speedKmh: 32 }
   ],
   bangaloreA.recordedAt,
-  bangaloreB.recordedAt
+  "2026-05-10T10:01:08.000Z"
 );
 
 assert(summary.distanceM > 100);
-assert.strictEqual(summary.durationS, 60);
-assert.strictEqual(summary.topSpeedKmh, 30);
+assert.strictEqual(summary.durationS, 68);
+assert.strictEqual(summary.topSpeedKmh, 32);
+
+const spikeSummary = summarizeRide(
+  [
+    { ...bangaloreA, speedKmh: 40, accuracyM: 8 },
+    { ...bangaloreB, speedKmh: 180, accuracyM: 8 },
+    { latitude: 12.9736, longitude: 77.5946, recordedAt: "2026-05-10T10:01:08.000Z", speedKmh: 42, accuracyM: 8 },
+    { latitude: 12.9746, longitude: 77.5946, recordedAt: "2026-05-10T10:01:16.000Z", speedKmh: 43, accuracyM: 8 }
+  ],
+  bangaloreA.recordedAt,
+  "2026-05-10T10:01:16.000Z"
+);
+assert.strictEqual(spikeSummary.topSpeedKmh, 43);
+
+const poorAccuracySummary = summarizeRide(
+  [
+    { ...bangaloreA, speedKmh: 40, accuracyM: 8 },
+    { ...bangaloreB, speedKmh: 120, accuracyM: 80 },
+    { latitude: 12.9736, longitude: 77.5946, recordedAt: "2026-05-10T10:01:08.000Z", speedKmh: 44, accuracyM: 8 }
+  ],
+  bangaloreA.recordedAt,
+  "2026-05-10T10:01:08.000Z"
+);
+assert.strictEqual(poorAccuracySummary.topSpeedKmh, 44);
+
+const cappedSummary = summarizeRide(
+  [
+    { ...bangaloreA, speedKmh: 50, accuracyM: 8 },
+    { ...bangaloreB, speedKmh: 260, accuracyM: 8 },
+    { latitude: 12.9736, longitude: 77.5946, recordedAt: "2026-05-10T10:01:08.000Z", speedKmh: 52, accuracyM: 8 }
+  ],
+  bangaloreA.recordedAt,
+  "2026-05-10T10:01:08.000Z"
+);
+assert.strictEqual(cappedSummary.topSpeedKmh, 52);
 
 console.log("rideMath tests passed");

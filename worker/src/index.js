@@ -160,7 +160,7 @@ app.get("/api/rides/:id", authRequired, async (c) => {
   }
 
   const points = await sql(
-    `select latitude, longitude, altitude_m as "altitudeM", speed_kmh as "speedKmh",
+    `select latitude, longitude, altitude_m as "altitudeM", accuracy_m as "accuracyM", speed_kmh as "speedKmh",
             recorded_at as "recordedAt"
      from ride_points
      where ride_id = $1
@@ -210,6 +210,7 @@ app.post("/api/rides", authRequired, async (c) => {
     latitude: Number(point.latitude),
     longitude: Number(point.longitude),
     altitudeM: point.altitudeM == null ? null : Number(point.altitudeM),
+    accuracyM: point.accuracyM == null ? null : Number(point.accuracyM),
     speedKmh: point.speedKmh == null ? null : Number(point.speedKmh),
     recordedAt: point.recordedAt
   }));
@@ -242,6 +243,7 @@ app.post("/api/rides", authRequired, async (c) => {
         latitude: point.latitude,
         longitude: point.longitude,
         altitude_m: point.altitudeM,
+        accuracy_m: point.accuracyM,
         speed_kmh: point.speedKmh,
         recorded_at: point.recordedAt
       }))
@@ -265,13 +267,14 @@ app.post("/api/rides", authRequired, async (c) => {
        returning id, distance_m, duration_s, top_speed_kmh, avg_speed_kmh
      ),
      inserted_points as (
-       insert into ride_points (ride_id, latitude, longitude, altitude_m, speed_kmh, recorded_at)
-       select new_ride.id, point.latitude, point.longitude, point.altitude_m, point.speed_kmh, point.recorded_at
+       insert into ride_points (ride_id, latitude, longitude, altitude_m, accuracy_m, speed_kmh, recorded_at)
+       select new_ride.id, point.latitude, point.longitude, point.altitude_m, point.accuracy_m, point.speed_kmh, point.recorded_at
        from new_ride,
        jsonb_to_recordset($15::jsonb) as point(
          latitude numeric,
          longitude numeric,
          altitude_m numeric,
+         accuracy_m numeric,
          speed_kmh numeric,
          recorded_at timestamptz
        )

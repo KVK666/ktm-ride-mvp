@@ -106,7 +106,7 @@ router.get("/:id", async (req, res, next) => {
     }
 
     const pointResult = await db.query(
-      `select latitude, longitude, altitude_m as "altitudeM", speed_kmh as "speedKmh",
+      `select latitude, longitude, altitude_m as "altitudeM", accuracy_m as "accuracyM", speed_kmh as "speedKmh",
               recorded_at as "recordedAt"
        from ride_points
        where ride_id = $1
@@ -171,6 +171,7 @@ router.post("/", async (req, res, next) => {
       latitude: Number(point.latitude),
       longitude: Number(point.longitude),
       altitudeM: point.altitudeM == null ? null : Number(point.altitudeM),
+      accuracyM: point.accuracyM == null ? null : Number(point.accuracyM),
       speedKmh: point.speedKmh == null ? null : Number(point.speedKmh),
       recordedAt: point.recordedAt
     }));
@@ -232,9 +233,9 @@ router.post("/", async (req, res, next) => {
     const rideId = rideResult.rows[0].id;
     for (const point of normalizedPoints) {
       await client.query(
-        `insert into ride_points (ride_id, latitude, longitude, altitude_m, speed_kmh, recorded_at)
-         values ($1,$2,$3,$4,$5,$6)`,
-        [rideId, point.latitude, point.longitude, point.altitudeM, point.speedKmh, point.recordedAt]
+        `insert into ride_points (ride_id, latitude, longitude, altitude_m, accuracy_m, speed_kmh, recorded_at)
+         values ($1,$2,$3,$4,$5,$6,$7)`,
+        [rideId, point.latitude, point.longitude, point.altitudeM, point.accuracyM, point.speedKmh, point.recordedAt]
       );
     }
 

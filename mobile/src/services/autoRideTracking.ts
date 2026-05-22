@@ -420,6 +420,7 @@ function toRidePoint(location: Location.LocationObject): RidePoint {
     latitude: location.coords.latitude,
     longitude: location.coords.longitude,
     altitudeM: location.coords.altitude,
+    accuracyM: location.coords.accuracy,
     speedKmh: Math.max(0, (location.coords.speed || 0) * 3.6),
     recordedAt: new Date(location.timestamp).toISOString()
   };

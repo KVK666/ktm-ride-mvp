@@ -36,6 +36,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Shows a safety warning before navigation.
 - Lets users manually start and stop ride tracking.
 - Tracks GPS points, distance, duration, top speed, average speed, start/end time, and route path.
+- Stores GPS accuracy on new ride points and filters top-speed spikes using accuracy, a 250 km/h cap, and nearby speed support.
 - Ride uploads include a client-generated ride ID so retries do not create duplicate rides.
 - Supports background location for ride tracking when permission is granted.
 - Saves completed rides to the backend/PostgreSQL.
@@ -158,6 +159,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-05-21: Added Worker error responses with the failing route and request ID, so app server errors identify the broken endpoint instead of only saying `Unexpected server error`.
 - 2026-05-22: Implemented Ride Review source changes: ride `title`, `notes`, `reviewed_at`, update endpoint, duplicate lookup endpoint, dashboard review count, Ride Detail review UI, and post-manual-ride review navigation.
 - Required before deploy: update the Cloudflare Worker `DATABASE_URL` secret to the Neon database that contains `public.users`, `public.rides`, and `public.ride_points`; then run the schema migration so `rides.title`, `rides.notes`, and `rides.reviewed_at` exist.
+- 2026-05-22: Added speed accuracy fix. New points store `accuracy_m`; top speed ignores poor-accuracy points, ignores readings above `250 km/h`, and requires nearby speed support so one GPS spike does not become the ride top speed.
 
 ## Testing Checklist
 
@@ -167,6 +169,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - Confirm Profile shows account details and can add/change/remove the local profile photo.
 - Confirm Ride Detail can save title/notes and mark reviewed.
 - Confirm duplicate candidates appear in Ride Detail and require confirmation before delete.
+- Confirm top speed does not jump from one isolated GPS spike during a ride.
 - Manual ride test:
   - Start Ride.
   - Move a short distance.

@@ -42,9 +42,12 @@ create table if not exists ride_points (
   latitude numeric(10, 7) not null,
   longitude numeric(10, 7) not null,
   altitude_m numeric(8, 2),
+  accuracy_m numeric(8, 2),
   speed_kmh numeric(6, 2),
   recorded_at timestamptz not null
 );
+
+alter table ride_points add column if not exists accuracy_m numeric(8, 2);
 
 create index if not exists rides_user_started_idx on rides(user_id, started_at desc);
 create index if not exists rides_user_reviewed_idx on rides(user_id, reviewed_at, started_at desc);

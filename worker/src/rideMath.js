@@ -1,4 +1,8 @@
 const EARTH_RADIUS_M = 6371000;
+const MAX_REASONABLE_SPEED_KMH = 250;
+const MAX_SPEED_ACCURACY_M = 35;
+const SPEED_SUPPORT_WINDOW_MS = 12 * 1000;
+const MIN_SUPPORTED_SPEED_RATIO = 0.75;
 
 function toRadians(value) {
   return (value * Math.PI) / 180;
@@ -23,7 +27,7 @@ export function summarizeRide(points, startedAt, endedAt) {
   );
 
   let distanceM = 0;
-  let topSpeedKmh = 0;
+  const speedSamples = [];
 
   for (let index = 1; index < ordered.length; index += 1) {
     const previous = ordered[index - 1];
@@ -34,7 +38,7 @@ export function summarizeRide(points, startedAt, endedAt) {
       typeof current.speedKmh === "number" && current.speedKmh >= 0
         ? current.speedKmh
         : speedBetween(previous, current);
-    topSpeedKmh = Math.max(topSpeedKmh, speedKmh);
+    speedSamples.push({ point: current, index, speedKmh });
   }
 
   const startMs = new Date(startedAt).getTime();
@@ -45,9 +49,40 @@ export function summarizeRide(points, startedAt, endedAt) {
   return {
     distanceM: Math.round(distanceM),
     durationS,
-    topSpeedKmh: round(topSpeedKmh),
+    topSpeedKmh: round(reliableTopSpeed(speedSamples)),
     avgSpeedKmh: round(avgSpeedKmh)
   };
+}
+
+function reliableTopSpeed(samples) {
+  const valid = samples.filter((sample) => isValidSpeedSample(sample));
+  if (!valid.length) {
+    return 0;
+  }
+
+  let best = 0;
+  for (const sample of valid) {
+    const supported = valid.some((other) => {
+      if (other.index === sample.index) {
+        return false;
+      }
+      const gapMs = Math.abs(new Date(other.point.recordedAt).getTime() - new Date(sample.point.recordedAt).getTime());
+      return gapMs <= SPEED_SUPPORT_WINDOW_MS && other.speedKmh >= sample.speedKmh * MIN_SUPPORTED_SPEED_RATIO;
+    });
+    if (supported) {
+      best = Math.max(best, sample.speedKmh);
+    }
+  }
+
+  return best || Math.max(...valid.map((sample) => sample.speedKmh));
+}
+
+function isValidSpeedSample(sample) {
+  if (!Number.isFinite(sample.speedKmh) || sample.speedKmh < 0 || sample.speedKmh > MAX_REASONABLE_SPEED_KMH) {
+    return false;
+  }
+  const accuracyM = sample.point.accuracyM;
+  return accuracyM == null || Number(accuracyM) <= MAX_SPEED_ACCURACY_M;
 }
 
 function speedBetween(a, b) {
