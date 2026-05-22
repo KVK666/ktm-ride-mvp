@@ -56,12 +56,12 @@ export function HistoryScreen() {
         {rides.map((ride) => (
           <Pressable
             key={ride.id}
-            onPress={() => navigation.navigate("RideDetail", { rideId: ride.id })}
+            onPress={() => navigation.navigate("RideDetail", { rideId: ride.id, reviewMode: !ride.reviewedAt })}
             style={styles.card}
           >
             <View style={styles.cardHeader}>
               <View style={styles.routeText}>
-                <Text numberOfLines={2} style={styles.route}>{ride.startLabel} to {ride.endLabel}</Text>
+                <Text numberOfLines={2} style={styles.route}>{rideTitle(ride)}</Text>
                 <Text numberOfLines={1} style={styles.meta}>{shortDate(ride.startedAt)} - {time(ride.startedAt)}</Text>
               </View>
               <Text numberOfLines={1} adjustsFontSizeToFit style={styles.distance}>{km(ride.distanceM)}</Text>
@@ -70,12 +70,17 @@ export function HistoryScreen() {
               <Text numberOfLines={1} style={styles.metric}>Duration {duration(ride.durationS)}</Text>
               <Text numberOfLines={1} style={styles.metric}>Top {kmh(ride.topSpeedKmh)}</Text>
               <Text numberOfLines={1} style={styles.metric}>Avg {kmh(ride.avgSpeedKmh)}</Text>
+              {!ride.reviewedAt ? <Text numberOfLines={1} style={styles.reviewMetric}>Needs review</Text> : null}
             </View>
           </Pressable>
         ))}
       </ScrollView>
     </Screen>
   );
+}
+
+function rideTitle(ride: Ride) {
+  return ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
 }
 
 const styles = StyleSheet.create({
@@ -150,6 +155,11 @@ const styles = StyleSheet.create({
   },
   metric: {
     color: colors.muted,
+    flexShrink: 1
+  },
+  reviewMetric: {
+    color: colors.orange,
+    fontWeight: "900",
     flexShrink: 1
   },
   error: {

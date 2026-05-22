@@ -3,7 +3,13 @@ import * as Location from "expo-location";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
-import { queuePendingRide, RideUploadPayload, syncPendingAutoRides, uploadRidePayload } from "./rideUpload";
+import {
+  createRideClientId,
+  queuePendingRide,
+  RideUploadPayload,
+  syncPendingAutoRides,
+  uploadRidePayload
+} from "./rideUpload";
 import {
   AUTO_PENDING_RIDES_KEY,
   AUTO_RIDE_STATE_KEY,
@@ -362,6 +368,7 @@ function createRidePayload(points: RidePoint[], startedAt: string, endedAt: stri
   const start = points[0];
   const end = points[points.length - 1];
   return {
+    clientRideId: createRideClientId("auto", startedAt, endedAt, points),
     startLabel: `Auto start (${coordinateLabel(start)})`,
     endLabel: `Auto end (${coordinateLabel(end)})`,
     startedAt,

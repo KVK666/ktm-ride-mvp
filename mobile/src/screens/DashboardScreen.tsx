@@ -73,6 +73,24 @@ export function DashboardScreen() {
           <StatCard label="Average speed" value={kmh(stats?.averageSpeedKmh || 0)} accent={colors.blue} />
         </View>
 
+        {stats?.unreviewedRides ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate("History")}
+            style={({ pressed }) => [styles.reviewCard, pressed && styles.pressedCard]}
+          >
+            <View style={styles.reviewIcon}>
+              <Text style={styles.reviewIconText}>!</Text>
+            </View>
+            <View style={styles.rideText}>
+              <Text style={styles.reviewTitle}>Rides to review</Text>
+              <Text style={styles.reviewMeta}>
+                {stats.unreviewedRides} {stats.unreviewedRides === 1 ? "ride needs" : "rides need"} a name or review.
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
+
         <Text style={styles.sectionTitle}>Recent rides</Text>
         {recentRides.map((ride) => (
           <Pressable
@@ -82,7 +100,7 @@ export function DashboardScreen() {
             style={({ pressed }) => [styles.rideCard, pressed && styles.pressedCard]}
           >
             <View style={styles.rideText}>
-              <Text numberOfLines={2} style={styles.rideTitle}>{ride.startLabel} to {ride.endLabel}</Text>
+              <Text numberOfLines={2} style={styles.rideTitle}>{rideTitle(ride)}</Text>
               <Text numberOfLines={1} style={styles.rideMeta}>{shortDate(ride.startedAt)} - {duration(ride.durationS)}</Text>
             </View>
             <View style={styles.rideStats}>
@@ -94,6 +112,10 @@ export function DashboardScreen() {
       </ScrollView>
     </Screen>
   );
+}
+
+function rideTitle(ride: Ride) {
+  return ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
 }
 
 const styles = StyleSheet.create({
@@ -147,6 +169,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12
+  },
+  reviewCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.orange,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  reviewIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.orange
+  },
+  reviewIconText: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 20
+  },
+  reviewTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  reviewMeta: {
+    color: colors.muted,
+    marginTop: 3
   },
   pressedCard: {
     opacity: 0.82

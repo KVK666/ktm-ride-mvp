@@ -9,6 +9,9 @@
     "db:init": "npm run db:migrate && npm run db:seed",
     "db:migrate": "psql \"$DATABASE_URL\" -f db/schema.sql",
     "db:seed": "psql \"$DATABASE_URL\" -f db/seed.sql",
+    "rides:dedupe": "node scripts/removeDuplicateRides.js",
+    "rides:dedupe:api": "node scripts/removeDuplicateRidesViaApi.js",
+    "rides:dedupe:prompt": "powershell -ExecutionPolicy Bypass -File ./scripts/remove-duplicate-rides.ps1",
     "test": "node tests/rideMath.test.js"
   },
   "dependencies": {

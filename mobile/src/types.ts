@@ -35,8 +35,12 @@ export type Ride = {
   durationS: number;
   topSpeedKmh: number;
   avgSpeedKmh: number;
+  title?: string | null;
+  notes?: string | null;
+  reviewedAt?: string | null;
   startedAt: string;
   endedAt?: string;
+  createdAt?: string;
   points?: RidePoint[];
 };
 
@@ -45,6 +49,7 @@ export type DashboardStats = {
   monthDistanceM: number;
   yearDistanceM: number;
   totalRides: number;
+  unreviewedRides?: number;
   bestTopSpeedKmh: number;
   averageSpeedKmh: number;
 };

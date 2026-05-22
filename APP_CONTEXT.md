@@ -1,6 +1,6 @@
 # Duke Ride App Context
 
-Last updated: 2026-05-15
+Last updated: 2026-05-22
 
 This file is the living context for the KTM Duke Ride MVP. Keep it updated whenever the app gains a meaningful feature, deployment change, setup change, or known limitation.
 
@@ -11,14 +11,16 @@ Duke Ride is a private React Native ride tracking app for a KTM Duke 250 Gen 3. 
 ## Current Stack
 
 - Mobile app: Expo React Native, Android-first.
-- Backend: Node.js/Express API.
+- Backend: Cloudflare Workers API is the current working mobile target; Render Express API remains a fallback.
 - Database: PostgreSQL, currently hosted on Neon.
-- Backend hosting: Render web service.
+- Backend hosting: Cloudflare Workers currently working; Render remains available as fallback.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT.
 - Main repo branch: `ktm-ride-mvp`.
 - GitHub repo: `https://github.com/KVK666/ktm-ride-mvp`.
-- Current online API base URL: `https://ktm-ride-mvp.onrender.com/api`.
+- Current working mobile API base URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
+- Render fallback API base URL: `https://ktm-ride-mvp.onrender.com/api`.
+- Worker API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 
 Do not commit `.env` files, API keys, database passwords, or Neon connection strings.
 
@@ -34,15 +36,18 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Shows a safety warning before navigation.
 - Lets users manually start and stop ride tracking.
 - Tracks GPS points, distance, duration, top speed, average speed, start/end time, and route path.
+- Ride uploads include a client-generated ride ID so retries do not create duplicate rides.
 - Supports background location for ride tracking when permission is granted.
 - Saves completed rides to the backend/PostgreSQL.
 - Shows dashboard totals for today, month, year, total rides, best top speed, average speed, and recent rides.
 - Shows ride history by period, with route maps and full-screen map viewing.
 - Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
+- Ride Detail has a Ride Review section for ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
 - Imported ride photos with GPS metadata appear as camera markers on the ride map.
 - Shows analytics summary cards and charts for distance, ride count, duration, and top speed.
 - Generates basic reports and can export reports as PDF.
+- Provides a Cloudflare Worker API with the same mobile `/api/*` contract as the Express backend, and the installed app is currently pointed at the Worker.
 
 ## Automatic Ride Tracking
 
@@ -57,6 +62,7 @@ Auto tracking is implemented as an optional setting and is off by default.
 - Auto-stop rule: speed below `5 km/h` for about `5 minutes`.
 - Discard rule: auto rides under `2 minutes` or under `500 meters` are ignored.
 - If upload fails, auto rides are queued locally and retried when the app opens/logs in.
+- Pending auto ride sync is deduplicated and guarded so repeated retries do not submit the same ride multiple times.
 - Auto tracking status labels: `Off`, `Watching`, `Auto ride in progress`, `Pending upload`.
 
 Known limitation: auto tracking detects sustained movement, not the exact vehicle. It cannot perfectly know bike vs car.
@@ -64,7 +70,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 ## Important Files
 
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
-- `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History.
+- `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History, with ride review and duplicate cleanup.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
 - `mobile/src/services/profilePhoto.ts`: local per-user profile photo picker/storage.
@@ -76,8 +82,13 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/hooks/useAutoTracking.ts`: shared UI hook for Ride/Profile toggle state.
 - `mobile/src/context/AuthContext.tsx`: auth bootstrap and pending ride sync after login.
 - `mobile/src/api/client.ts`: API client, SecureStore token, mirrored background token.
+- `worker/src/index.js`: Cloudflare Worker API routes for auth, rides, dashboard, analytics, and reports.
+- `worker/src/rideMath.js`: Worker-safe ride distance/speed summary logic.
 - `backend/src/routes/rides.js`: ride create/list/detail/delete API.
 - `backend/db/schema.sql`: users, rides, and ride_points schema.
+- `backend/scripts/removeDuplicateRides.js`: one-off duplicate ride cleanup for a rider ID prefix; dry-run by default.
+- `backend/scripts/remove-duplicate-rides.ps1`: Windows wrapper that prompts for `DATABASE_URL` securely before running duplicate cleanup.
+- `backend/scripts/removeDuplicateRidesViaApi.js`: one-off duplicate ride cleanup through the live Worker API, useful when direct Neon connection details are confusing.
 
 ## Local Development Notes
 
@@ -115,11 +126,38 @@ npm install
 npm run dev
 ```
 
-Production backend health check:
+Cloudflare Worker:
+
+```powershell
+cd "C:\Users\BBS001\Documents\New project\worker"
+npm install
+npm run check
+npx wrangler secret put DATABASE_URL
+npx wrangler secret put JWT_SECRET
+npm run deploy
+```
+
+Current production backend health check:
 
 ```text
-https://ktm-ride-mvp.onrender.com/health
+https://duke-ride-api.dukeride-kvk.workers.dev/health
 ```
+
+## Latest Fix Notes
+
+- 2026-05-20: Login was failing with `Unexpected server error` because the mobile `.env` was pointing at the Cloudflare Worker API, which was not verified healthy.
+- 2026-05-20: `mobile/.env` was switched back to `https://ktm-ride-mvp.onrender.com/api`.
+- 2026-05-20: A clean Android release build succeeded and the rebuilt APK was installed on the connected Moto phone.
+- 2026-05-21: Patched and deployed the Worker with clearer `/health` readiness output and config errors.
+- 2026-05-21: Cloudflare `DATABASE_URL` and `JWT_SECRET` secrets were configured.
+- 2026-05-21: Live Worker health reports `ready: true`.
+- 2026-05-21: `mobile/.env` was switched to `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
+- 2026-05-21: A clean Android release build succeeded and the Worker-backed APK was installed on the connected Moto phone.
+- Next app test: login on the phone, confirm Dashboard/History load, then start/stop a short test ride and confirm it saves through Cloudflare Worker.
+- 2026-05-21: Added duplicate ride cleanup tooling for rider ID prefixes such as `FC19BC08`. Run dry-run first, then apply only after reviewing the `DELETE` rows.
+- 2026-05-21: Added Worker error responses with the failing route and request ID, so app server errors identify the broken endpoint instead of only saying `Unexpected server error`.
+- 2026-05-22: Implemented Ride Review source changes: ride `title`, `notes`, `reviewed_at`, update endpoint, duplicate lookup endpoint, dashboard review count, Ride Detail review UI, and post-manual-ride review navigation.
+- Required before deploy: update the Cloudflare Worker `DATABASE_URL` secret to the Neon database that contains `public.users`, `public.rides`, and `public.ride_points`; then run the schema migration so `rides.title`, `rides.notes`, and `rides.reviewed_at` exist.
 
 ## Testing Checklist
 
@@ -127,6 +165,8 @@ https://ktm-ride-mvp.onrender.com/health
 - Register a new rider and confirm empty form fields.
 - Confirm dashboard says `Hi, <name>`.
 - Confirm Profile shows account details and can add/change/remove the local profile photo.
+- Confirm Ride Detail can save title/notes and mark reviewed.
+- Confirm duplicate candidates appear in Ride Detail and require confirmation before delete.
 - Manual ride test:
   - Start Ride.
   - Move a short distance.
@@ -161,7 +201,7 @@ https://ktm-ride-mvp.onrender.com/health
 - Mount the phone securely.
 - Android background tracking reliability depends on location permission and battery optimization.
 - For best field testing, allow location all the time and disable battery optimization for Duke Ride.
-- Render free tier may sleep after inactivity, so the first backend request can be slow.
+- Cloudflare Workers avoids the Render free-tier sleeping issue; Neon can still have occasional database cold latency.
 
 ## Known Gaps / Future Ideas
 

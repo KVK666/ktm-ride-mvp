@@ -1,0 +1,10 @@
+name = "duke-ride-api"
+main = "src/index.js"
+compatibility_date = "2024-12-30"
+
+[vars]
+JWT_EXPIRES_IN_SECONDS = "2592000"
+
+# Set these as Cloudflare secrets before deploying:
+# wrangler secret put DATABASE_URL
+# wrangler secret put JWT_SECRET

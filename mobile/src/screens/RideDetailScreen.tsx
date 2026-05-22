@@ -1,7 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useFocusEffect, useRoute } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from "react-native";
 import ImageViewing from "react-native-image-viewing";
 import { LineChart } from "react-native-chart-kit";
 import { api } from "../api/client";
@@ -18,6 +29,7 @@ import { duration, km, kmh, shortDate, time } from "../utils/format";
 type RideDetailParams = {
   RideDetail: {
     rideId: string;
+    reviewMode?: boolean;
   };
 };
 
@@ -26,6 +38,12 @@ const chartWidth = Dimensions.get("window").width - 32;
 export function RideDetailScreen() {
   const route = useRoute<RouteProp<RideDetailParams, "RideDetail">>();
   const [ride, setRide] = useState<Ride | null>(null);
+  const [duplicateRides, setDuplicateRides] = useState<Ride[]>([]);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [notesDraft, setNotesDraft] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [deletingDuplicateId, setDeletingDuplicateId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<RidePhoto[]>([]);
   const [photosSearched, setPhotosSearched] = useState(false);
   const [importingPhotos, setImportingPhotos] = useState(false);
@@ -45,8 +63,24 @@ export function RideDetailScreen() {
       closePhotoViewer();
       const response = await api<{ ride: Ride }>(`/rides/${route.params.rideId}`);
       setRide(response.ride);
+      setTitleDraft(response.ride.title || "");
+      setNotesDraft(response.ride.notes || "");
+      setReviewMessage(route.params.reviewMode ? "Review this ride before your next trip." : "");
+      try {
+        const duplicates = await api<{ duplicates: Ride[] }>(`/rides/${route.params.rideId}/duplicates`);
+        setDuplicateRides(duplicates.duplicates);
+      } catch (duplicateError: any) {
+        setDuplicateRides([]);
+        logDiagnostic({
+          level: "error",
+          area: "ride-review",
+          message: "Duplicate ride lookup failed",
+          details: diagnosticDetails(duplicateError)
+        });
+      }
     } catch (err: any) {
       setRide(null);
+      setDuplicateRides([]);
       setError(err.message || "Unable to load ride details");
     } finally {
       setLoading(false);
@@ -60,8 +94,63 @@ export function RideDetailScreen() {
   );
 
   const speedChart = useMemo(() => buildSpeedChart(ride?.points || []), [ride?.points]);
+  const needsReview = !ride?.reviewedAt;
   const photosWithLocation = useMemo(() => photos.filter((photo) => photo.hasLocation), [photos]);
   const viewerImages = useMemo(() => photos.map((photo) => ({ uri: photo.uri })), [photos]);
+
+  async function saveReview(markReviewed = false) {
+    if (!ride || reviewSaving) {
+      return;
+    }
+
+    setReviewSaving(true);
+    setReviewMessage("");
+    try {
+      const response = await api<{ ride: Partial<Ride> }>(`/rides/${ride.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: titleDraft,
+          notes: notesDraft,
+          markReviewed
+        })
+      });
+      setRide((current) => current ? { ...current, ...response.ride } : current);
+      setReviewMessage(markReviewed ? "Ride reviewed and saved." : "Ride review saved.");
+    } catch (err: any) {
+      setReviewMessage(err.message || "Unable to save ride review");
+    } finally {
+      setReviewSaving(false);
+    }
+  }
+
+  function confirmDeleteDuplicate(duplicate: Ride) {
+    Alert.alert(
+      "Delete duplicate ride?",
+      `${rideTitle(duplicate)}\n${shortDate(duplicate.startedAt)} - ${km(duplicate.distanceM)}\n\nThis permanently removes the duplicate ride and its route points.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteDuplicate(duplicate.id)
+        }
+      ]
+    );
+  }
+
+  async function deleteDuplicate(rideId: string) {
+    setDeletingDuplicateId(rideId);
+    setReviewMessage("");
+    try {
+      await api(`/rides/${rideId}`, { method: "DELETE" });
+      setDuplicateRides((current) => current.filter((item) => item.id !== rideId));
+      setReviewMessage("Duplicate ride deleted.");
+    } catch (err: any) {
+      setReviewMessage(err.message || "Unable to delete duplicate ride");
+    } finally {
+      setDeletingDuplicateId(null);
+    }
+  }
 
   async function handleImportRidePhotos() {
     if (!ride) {
@@ -132,13 +221,101 @@ export function RideDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <Text style={styles.kicker}>Ride detail</Text>
-          <Text style={styles.title}>{shortDate(ride.startedAt)} ride</Text>
+          <Text style={styles.title}>{rideTitle(ride)}</Text>
           <Text style={styles.subtitle}>
             {time(ride.startedAt)} to {ride.endedAt ? time(ride.endedAt) : "--"}
           </Text>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <View style={[styles.card, needsReview && styles.reviewCard]}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>Ride Review</Text>
+              <Text style={styles.sectionMeta}>
+                {needsReview ? "Name this ride, add notes, then mark it reviewed." : "This ride has been reviewed."}
+              </Text>
+            </View>
+            <View style={[styles.reviewBadge, needsReview ? styles.reviewBadgeOpen : styles.reviewBadgeDone]}>
+              <Text style={styles.reviewBadgeText}>{needsReview ? "OPEN" : "DONE"}</Text>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Ride name</Text>
+            <TextInput
+              value={titleDraft}
+              onChangeText={setTitleDraft}
+              placeholder="Sunday breakfast ride"
+              placeholderTextColor={colors.muted}
+              maxLength={120}
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Notes</Text>
+            <TextInput
+              value={notesDraft}
+              onChangeText={setNotesDraft}
+              placeholder="Road condition, stops, fuel, anything worth remembering"
+              placeholderTextColor={colors.muted}
+              multiline
+              maxLength={2000}
+              style={[styles.input, styles.notesInput]}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {reviewMessage ? <Text style={styles.reviewMessage}>{reviewMessage}</Text> : null}
+
+          <View style={styles.reviewActions}>
+            <PrimaryButton
+              label="Save review"
+              icon="save"
+              loading={reviewSaving}
+              onPress={() => saveReview(false)}
+            />
+            <PrimaryButton
+              label={needsReview ? "Mark reviewed" : "Reviewed"}
+              icon="checkmark-circle"
+              disabled={!needsReview}
+              loading={reviewSaving}
+              onPress={() => saveReview(true)}
+            />
+          </View>
+
+          <View style={styles.duplicateBlock}>
+            <Text style={styles.duplicateTitle}>Suspected duplicates</Text>
+            {duplicateRides.length ? (
+              duplicateRides.map((duplicate) => (
+                <View key={duplicate.id} style={styles.duplicateCard}>
+                  <View style={styles.duplicateText}>
+                    <Text numberOfLines={2} style={styles.duplicateName}>{rideTitle(duplicate)}</Text>
+                    <Text style={styles.duplicateMeta}>
+                      {shortDate(duplicate.startedAt)} - {km(duplicate.distanceM)} - {duration(duplicate.durationS)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={deletingDuplicateId === duplicate.id}
+                    onPress={() => confirmDeleteDuplicate(duplicate)}
+                    style={({ pressed }) => [
+                      styles.deleteDuplicateButton,
+                      pressed && styles.pressedPhoto,
+                      deletingDuplicateId === duplicate.id && styles.disabledButton
+                    ]}
+                  >
+                    <Ionicons name="trash" color={colors.text} size={18} />
+                  </Pressable>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.sectionMeta}>No exact duplicate rides found for this route.</Text>
+            )}
+          </View>
+        </View>
 
         {ride.points?.length ? (
           <RideMap
@@ -273,6 +450,10 @@ export function RideDetailScreen() {
   );
 }
 
+function rideTitle(ride: Ride) {
+  return ride.title?.trim() || `${shortDate(ride.startedAt)} ride`;
+}
+
 function PhotoViewerFooter({ photo, index, total }: { photo?: RidePhoto; index: number; total: number }) {
   if (!photo) {
     return null;
@@ -382,6 +563,106 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 14,
     gap: 12
+  },
+  reviewCard: {
+    borderColor: colors.orange
+  },
+  reviewBadge: {
+    minWidth: 58,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10
+  },
+  reviewBadgeOpen: {
+    backgroundColor: colors.orange
+  },
+  reviewBadgeDone: {
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.border,
+    borderWidth: 1
+  },
+  reviewBadgeText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  inputGroup: {
+    gap: 6
+  },
+  inputLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  input: {
+    minHeight: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceHigh,
+    color: colors.text,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    fontWeight: "700"
+  },
+  notesInput: {
+    minHeight: 104,
+    paddingTop: 12,
+    lineHeight: 20
+  },
+  reviewMessage: {
+    color: colors.yellow,
+    fontWeight: "800"
+  },
+  reviewActions: {
+    gap: 10
+  },
+  duplicateBlock: {
+    gap: 10,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    paddingTop: 12
+  },
+  duplicateTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  duplicateCard: {
+    minHeight: 62,
+    borderRadius: 8,
+    borderColor: colors.border,
+    borderWidth: 1,
+    backgroundColor: colors.surfaceHigh,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  duplicateText: {
+    flex: 1,
+    minWidth: 0
+  },
+  duplicateName: {
+    color: colors.text,
+    fontWeight: "900"
+  },
+  duplicateMeta: {
+    color: colors.muted,
+    marginTop: 3
+  },
+  deleteDuplicateButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.danger
+  },
+  disabledButton: {
+    opacity: 0.55
   },
   sectionTitle: {
     color: colors.text,

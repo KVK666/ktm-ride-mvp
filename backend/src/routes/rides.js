@@ -20,6 +20,9 @@ function rideSelect() {
       r.duration_s as "durationS",
       r.top_speed_kmh as "topSpeedKmh",
       r.avg_speed_kmh as "avgSpeedKmh",
+      r.title,
+      r.notes,
+      r.reviewed_at as "reviewedAt",
       r.started_at as "startedAt",
       r.ended_at as "endedAt",
       r.created_at as "createdAt"
@@ -52,6 +55,44 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/:id/duplicates", async (req, res, next) => {
+  try {
+    const sourceResult = await db.query(
+      "select id from rides where id = $1 and user_id = $2",
+      [req.params.id, req.user.id]
+    );
+    if (!sourceResult.rows[0]) {
+      return res.status(404).json({ error: "Ride not found" });
+    }
+
+    const result = await db.query(
+      `with source_ride as (
+         select *
+         from rides
+         where id = $2 and user_id = $1
+       )
+       ${rideSelect()}
+       join source_ride source on
+         r.user_id = source.user_id
+         and r.id <> source.id
+         and r.started_at = source.started_at
+         and r.ended_at = source.ended_at
+         and r.distance_m = source.distance_m
+         and r.duration_s = source.duration_s
+         and r.start_latitude = source.start_latitude
+         and r.start_longitude = source.start_longitude
+         and r.end_latitude = source.end_latitude
+         and r.end_longitude = source.end_longitude
+       order by r.created_at asc, r.id asc`,
+      [req.user.id, req.params.id]
+    );
+
+    return res.json({ duplicates: result.rows });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     const rideResult = await db.query(
@@ -79,6 +120,35 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+router.patch("/:id", async (req, res, next) => {
+  try {
+    const title = normalizeOptionalText(req.body.title, 120);
+    const notes = normalizeOptionalText(req.body.notes, 2000);
+    const markReviewed = Boolean(req.body.markReviewed);
+
+    const result = await db.query(
+      `update rides
+       set title = $3,
+           notes = $4,
+           reviewed_at = case
+             when $5 then coalesce(reviewed_at, now())
+             else reviewed_at
+           end
+       where id = $2 and user_id = $1
+       returning id, title, notes, reviewed_at as "reviewedAt"`,
+      [req.user.id, req.params.id, title, notes, markReviewed]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: "Ride not found" });
+    }
+
+    return res.json({ ride: result.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/", async (req, res, next) => {
   const client = await db.getClient();
 
@@ -86,10 +156,12 @@ router.post("/", async (req, res, next) => {
     const {
       startLabel,
       endLabel,
+      clientRideId,
       startedAt,
       endedAt,
       points = []
     } = req.body;
+    const rideClientId = clientRideId || req.get("Idempotency-Key") || null;
 
     if (!startedAt || !endedAt || points.length < 2) {
       return res.status(400).json({ error: "Ride requires start time, end time, and at least 2 points" });
@@ -108,13 +180,36 @@ router.post("/", async (req, res, next) => {
     const end = normalizedPoints[normalizedPoints.length - 1];
 
     await client.query("begin");
+    if (rideClientId) {
+      const existing = await client.query(
+        `select id, distance_m, duration_s, top_speed_kmh, avg_speed_kmh
+         from rides
+         where user_id = $1 and client_ride_id = $2`,
+        [req.user.id, rideClientId]
+      );
+      if (existing.rows[0]) {
+        await client.query("commit");
+        const row = existing.rows[0];
+        return res.json({
+          rideId: row.id,
+          duplicate: true,
+          summary: {
+            distanceM: Number(row.distance_m),
+            durationS: Number(row.duration_s),
+            topSpeedKmh: Number(row.top_speed_kmh),
+            avgSpeedKmh: Number(row.avg_speed_kmh)
+          }
+        });
+      }
+    }
+
     const rideResult = await client.query(
       `insert into rides (
          user_id, start_label, end_label, start_latitude, start_longitude,
          end_latitude, end_longitude, distance_m, duration_s,
-         top_speed_kmh, avg_speed_kmh, started_at, ended_at
+         top_speed_kmh, avg_speed_kmh, client_ride_id, started_at, ended_at
        )
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        returning id`,
       [
         req.user.id,
@@ -128,6 +223,7 @@ router.post("/", async (req, res, next) => {
         summary.durationS,
         summary.topSpeedKmh,
         summary.avgSpeedKmh,
+        rideClientId,
         startedAt,
         endedAt
       ]
@@ -146,6 +242,31 @@ router.post("/", async (req, res, next) => {
     return res.status(201).json({ rideId, summary });
   } catch (error) {
     await client.query("rollback");
+    if (error.code === "23505" && (req.body.clientRideId || req.get("Idempotency-Key"))) {
+      try {
+        const existing = await db.query(
+          `select id, distance_m, duration_s, top_speed_kmh, avg_speed_kmh
+           from rides
+           where user_id = $1 and client_ride_id = $2`,
+          [req.user.id, req.body.clientRideId || req.get("Idempotency-Key")]
+        );
+        const row = existing.rows[0];
+        if (row) {
+          return res.json({
+            rideId: row.id,
+            duplicate: true,
+            summary: {
+              distanceM: Number(row.distance_m),
+              durationS: Number(row.duration_s),
+              topSpeedKmh: Number(row.top_speed_kmh),
+              avgSpeedKmh: Number(row.avg_speed_kmh)
+            }
+          });
+        }
+      } catch {
+        // Fall through to normal error handling below.
+      }
+    }
     return next(error);
   } finally {
     client.release();
@@ -168,5 +289,13 @@ router.delete("/:id", async (req, res, next) => {
     return next(error);
   }
 });
+
+function normalizeOptionalText(value, maxLength) {
+  if (value == null) {
+    return null;
+  }
+  const normalized = String(value).trim();
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
 
 module.exports = router;

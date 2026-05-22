@@ -22,10 +22,19 @@ create table if not exists rides (
   duration_s integer not null default 0,
   top_speed_kmh numeric(6, 2) not null default 0,
   avg_speed_kmh numeric(6, 2) not null default 0,
+  client_ride_id text,
+  title text,
+  notes text,
+  reviewed_at timestamptz,
   started_at timestamptz not null,
   ended_at timestamptz not null,
   created_at timestamptz not null default now()
 );
+
+alter table rides add column if not exists client_ride_id text;
+alter table rides add column if not exists title text;
+alter table rides add column if not exists notes text;
+alter table rides add column if not exists reviewed_at timestamptz;
 
 create table if not exists ride_points (
   id bigserial primary key,
@@ -38,4 +47,8 @@ create table if not exists ride_points (
 );
 
 create index if not exists rides_user_started_idx on rides(user_id, started_at desc);
+create index if not exists rides_user_reviewed_idx on rides(user_id, reviewed_at, started_at desc);
+create unique index if not exists rides_user_client_ride_idx
+  on rides(user_id, client_ride_id)
+  where client_ride_id is not null;
 create index if not exists ride_points_ride_time_idx on ride_points(ride_id, recorded_at asc);

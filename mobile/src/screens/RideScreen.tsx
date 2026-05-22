@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import React, { useMemo, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RideMap } from "../components/RideMap";
@@ -14,12 +15,14 @@ import {
   stopManualBackgroundTracking
 } from "../services/autoRideTracking";
 import { BACKGROUND_POINTS_KEY } from "../services/trackingKeys";
+import { createRideClientId } from "../services/rideUpload";
 import { colors } from "../theme/colors";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
 import { duration, km, kmh } from "../utils/format";
 
 export function RideScreen() {
+  const navigation = useNavigation<any>();
   const [active, setActive] = useState(false);
   const [points, setPoints] = useState<RidePoint[]>([]);
   const [startedAt, setStartedAt] = useState<string | null>(null);
@@ -114,9 +117,10 @@ export function RideScreen() {
         getRidePointLabel(endPoint, "End point")
       ]);
 
-      await api("/rides", {
+      const response = await api<{ rideId: string; duplicate?: boolean }>("/rides", {
         method: "POST",
         body: JSON.stringify({
+          clientRideId: createRideClientId("manual", startedAt, endedAt, merged),
           startLabel,
           endLabel,
           startedAt,
@@ -130,7 +134,8 @@ export function RideScreen() {
       setStartedAt(null);
       await AsyncStorage.removeItem(BACKGROUND_POINTS_KEY);
       await autoTracking.refresh();
-      Alert.alert("Ride saved", "Your ride was added to history and dashboard stats.");
+      setMessage("Ride saved. Review the ride before your next trip.");
+      navigation.navigate("RideDetail", { rideId: response.rideId, reviewMode: true });
     } catch (err: any) {
       setMessage(err.message || "Unable to save ride. Check your internet connection.");
     } finally {

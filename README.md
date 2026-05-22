@@ -19,11 +19,14 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 |       +-- services/       # Background location task and auto tracking
 |       +-- theme/
 |       +-- utils/
-+-- backend/                # Express API
++-- backend/                # Express API, kept for local/reference backend
 |   +-- db/schema.sql       # PostgreSQL schema
 |   +-- db/seed.sql         # Sample rider and rides
 |   +-- src/routes/         # Auth, rides, dashboard, analytics, reports
 |   +-- tests/
++-- worker/                 # Cloudflare Workers API for free hosted backend
++   +-- src/index.js        # Worker routes matching /api/*
++   +-- wrangler.toml
 +-- docker-compose.yml      # Local PostgreSQL
 ```
 
@@ -35,6 +38,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Start Ride / Stop Ride tracking with foreground and background location support.
 - Optional automatic ride tracking with speed-based start/stop detection and pending upload retry.
 - Ride storage with start/end location, path points, distance, duration, top speed, average speed, and timestamps.
+- Post-ride review with ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
@@ -54,6 +58,38 @@ Create a Google Cloud API key and enable:
 For Android production builds, restrict the key to your Android package and SHA-1 signing certificate. For iOS, restrict it to your bundle identifier.
 
 ## Backend Setup
+
+The recommended free hosted backend is now the Cloudflare Worker in `worker/`.
+The Express backend in `backend/` remains useful for local development and as a route reference.
+
+## Cloudflare Worker Backend
+
+```bash
+cd worker
+npm install
+npm run check
+```
+
+Configure production secrets:
+
+```bash
+npx wrangler secret put DATABASE_URL
+npx wrangler secret put JWT_SECRET
+```
+
+Deploy:
+
+```bash
+npm run deploy
+```
+
+After deployment, set the mobile API URL to the Worker route plus `/api`:
+
+```text
+EXPO_PUBLIC_API_BASE_URL=https://duke-ride-api.dukeride-kvk.workers.dev/api
+```
+
+## Express Backend Setup
 
 ```bash
 cd backend
@@ -146,7 +182,7 @@ This app is designed so the destination can be set before riding and ride tracki
 
 ## Online Deployment
 
-Use [DEPLOYMENT.md](DEPLOYMENT.md) to deploy the backend with managed PostgreSQL and point the mobile app at the public API URL.
+Use [DEPLOYMENT.md](DEPLOYMENT.md) to deploy the Cloudflare Worker backend with Neon PostgreSQL and point the mobile app at the public API URL.
 
 ## Next Production Steps
 

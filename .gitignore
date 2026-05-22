@@ -1,6 +1,8 @@
 node_modules/
 .expo/
 .env
+.dev.vars
+worker/.wrangler/
 mobile/android/
 dist/
 build/
