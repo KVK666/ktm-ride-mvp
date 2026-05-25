@@ -19,6 +19,7 @@ Duke Ride is a private React Native ride tracking app for a KTM Duke 250 Gen 3. 
 - Main repo branch: `ktm-ride-mvp`.
 - GitHub repo: `https://github.com/KVK666/ktm-ride-mvp`.
 - Downloadable Android APK: `releases/Duke-Ride-latest.apk` in the GitHub repo.
+- Official GitHub Release APK: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/v0.1.0`.
 - Current working mobile API base URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 - Render fallback API base URL: `https://ktm-ride-mvp.onrender.com/api`.
 - Worker API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
@@ -174,6 +175,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-05-25: Hardened long-ride reliability. Manual rides now persist active points continuously, recover after app restart, queue failed uploads locally, compact map rendering for long routes, and surface recoverable rides on Dashboard.
 - 2026-05-25: Added manual pending-upload retry UI with visible success/failure messages for queued rides.
 - 2026-05-25: Added `releases/Duke-Ride-latest.apk` so the app can be downloaded from GitHub onto other Android phones.
+- 2026-05-25: Published official GitHub Release `v0.1.0` with `Duke-Ride-latest.apk` attached.
 
 ## Testing Checklist
 
