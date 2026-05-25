@@ -36,12 +36,15 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Lets users search a destination and view route/directions in the Navigate tab.
 - Shows a safety warning before navigation.
 - Lets users manually start and stop ride tracking.
+- Manual ride tracking is crash-resilient: active ride start time and GPS points are continuously persisted locally and recovered after app restart.
+- If a manual ride save/upload fails, the ride is kept in the local pending upload queue instead of being lost.
 - Tracks GPS points, distance, duration, top speed, average speed, start/end time, and route path.
 - Stores GPS accuracy on new ride points and filters top-speed spikes using accuracy, a 250 km/h cap, and nearby speed support.
 - Ride uploads include a client-generated ride ID so retries do not create duplicate rides.
 - Supports background location for ride tracking when permission is granted.
 - Saves completed rides to the backend/PostgreSQL.
 - Shows dashboard totals for today, month, year, total rides, best top speed, average speed, and recent rides.
+- Dashboard shows a recovery card when an interrupted manual ride is locally stored and needs to be stopped/saved from the Ride tab.
 - Shows ride history by period, with route maps and full-screen map viewing.
 - Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
 - Ride Detail has a Ride Review section for ride title, notes, reviewed status, and confirmed duplicate cleanup.
@@ -72,6 +75,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 ## Important Files
 
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
+- `mobile/src/services/manualRideSession.ts`: crash-resilient local manual ride session storage, recovery, and map point compaction.
 - `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History, with ride review and duplicate cleanup.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
@@ -165,6 +169,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-05-22: Added speed accuracy fix. New points store `accuracy_m`; top speed ignores poor-accuracy points, ignores readings above `250 km/h`, and requires nearby speed support so one GPS spike does not become the ride top speed.
 - 2026-05-22: Refreshed core mobile UI surfaces: palette, stat cards, buttons, tab bar, login, dashboard, ride screen, history cards, and map chrome.
 - 2026-05-22: Added Profile theme selector with persisted KTM and Universal app color schemes.
+- 2026-05-25: Hardened long-ride reliability. Manual rides now persist active points continuously, recover after app restart, queue failed uploads locally, compact map rendering for long routes, and surface recoverable rides on Dashboard.
 
 ## Testing Checklist
 

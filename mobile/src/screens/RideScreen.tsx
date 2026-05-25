@@ -1,6 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { api } from "../api/client";
@@ -14,8 +13,16 @@ import {
   startManualBackgroundTracking,
   stopManualBackgroundTracking
 } from "../services/autoRideTracking";
-import { BACKGROUND_POINTS_KEY } from "../services/trackingKeys";
-import { createRideClientId } from "../services/rideUpload";
+import {
+  appendManualRidePoints,
+  clearManualRideSession,
+  compactRidePointsForMap,
+  dedupeRidePoints,
+  readMergedManualRideSession,
+  startManualRideSession
+} from "../services/manualRideSession";
+import { createRideClientId, queuePendingRide } from "../services/rideUpload";
+import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { ThemeColors } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { RidePoint } from "../types";
@@ -37,6 +44,7 @@ export function RideScreen() {
   const [message, setMessage] = useState("");
   const autoTracking = useAutoTracking();
   const subscription = useRef<Location.LocationSubscription | null>(null);
+  const restoring = useRef(false);
 
   const stats = useMemo(() => {
     let distanceM = 0;
@@ -64,26 +72,85 @@ export function RideScreen() {
     }
   }
 
+  useEffect(() => {
+    restoreActiveRide();
+    return () => {
+      subscription.current?.remove();
+      subscription.current = null;
+    };
+  }, []);
+
+  async function restoreActiveRide() {
+    if (restoring.current) {
+      return;
+    }
+
+    restoring.current = true;
+    try {
+      const session = await readMergedManualRideSession();
+      if (!session?.points.length) {
+        return;
+      }
+
+      setPoints(session.points);
+      setStartedAt(session.startedAt);
+      setActive(true);
+      setMessage("Recovered an interrupted ride. Stop Ride will save all locally stored points.");
+      await setManualTrackingActive(true);
+      await startForegroundWatcher();
+      const backgroundGranted = await Location.getBackgroundPermissionsAsync();
+      if (backgroundGranted.status === "granted") {
+        await startManualBackgroundTracking();
+      }
+    } catch (err) {
+      await logDiagnostic({
+        level: "error",
+        area: "manual-ride",
+        message: "Manual ride restore failed",
+        details: diagnosticDetails(err)
+      });
+    } finally {
+      restoring.current = false;
+    }
+  }
+
+  async function startForegroundWatcher() {
+    if (subscription.current) {
+      return;
+    }
+
+    const foreground = await Location.getForegroundPermissionsAsync();
+    if (foreground.status !== "granted") {
+      return;
+    }
+
+    subscription.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.Highest,
+        distanceInterval: 10,
+        timeInterval: 5000
+      },
+      (location) => {
+        const point = toRidePoint(location);
+        void appendManualRidePoints([point]);
+        setPoints((current) => dedupeRidePoints([...current, point]));
+      }
+    );
+  }
+
   async function startRide() {
     try {
       await ensurePermissions();
+      await clearManualRideSession();
       await setManualTrackingActive(true);
-      await AsyncStorage.removeItem(BACKGROUND_POINTS_KEY);
 
       const firstLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       const firstPoint = toRidePoint(firstLocation);
+      await startManualRideSession(firstPoint);
       setPoints([firstPoint]);
       setStartedAt(firstPoint.recordedAt);
       setActive(true);
-
-      subscription.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Highest,
-          distanceInterval: 8,
-          timeInterval: 3000
-        },
-        (location) => setPoints((current) => [...current, toRidePoint(location)])
-      );
+      await startForegroundWatcher();
 
       const backgroundGranted = await Location.getBackgroundPermissionsAsync();
       if (backgroundGranted.status === "granted") {
@@ -97,24 +164,33 @@ export function RideScreen() {
   }
 
   async function stopRide() {
-    if (!startedAt || points.length < 2) {
-      setActive(false);
-      subscription.current?.remove();
-      subscription.current = null;
-      await stopManualBackgroundTracking();
-      setMessage("Ride is too short to save.");
-      return;
-    }
-
-      setSaving(true);
+    setSaving(true);
     try {
+      try {
+        const finalLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const finalPoint = toRidePoint(finalLocation);
+        await appendManualRidePoints([finalPoint]);
+        setPoints((current) => dedupeRidePoints([...current, finalPoint]));
+      } catch {
+        // A final point is useful, but stopping must still work without it.
+      }
+
       subscription.current?.remove();
       subscription.current = null;
       await stopManualBackgroundTracking();
 
-      const stored = await AsyncStorage.getItem(BACKGROUND_POINTS_KEY);
-      const backgroundPoints: RidePoint[] = stored ? JSON.parse(stored) : [];
-      const merged = dedupePoints([...points, ...backgroundPoints]);
+      const session = await readMergedManualRideSession();
+      const merged = dedupeRidePoints([...(session?.points || []), ...points]);
+      const rideStartedAt = session?.startedAt || startedAt;
+      if (!rideStartedAt || merged.length < 2) {
+        setActive(false);
+        setStartedAt(null);
+        await clearManualRideSession();
+        await autoTracking.refresh();
+        setMessage("Ride is too short to save.");
+        return;
+      }
+
       const endedAt = new Date().toISOString();
       const startPoint = merged[0];
       const endPoint = merged[merged.length - 1];
@@ -126,10 +202,10 @@ export function RideScreen() {
       const response = await api<{ rideId: string; duplicate?: boolean }>("/rides", {
         method: "POST",
         body: JSON.stringify({
-          clientRideId: createRideClientId("manual", startedAt, endedAt, merged),
+          clientRideId: createRideClientId("manual", rideStartedAt, endedAt, merged),
           startLabel,
           endLabel,
-          startedAt,
+          startedAt: rideStartedAt,
           endedAt,
           points: merged
         })
@@ -138,12 +214,40 @@ export function RideScreen() {
       setPoints(merged);
       setActive(false);
       setStartedAt(null);
-      await AsyncStorage.removeItem(BACKGROUND_POINTS_KEY);
+      await clearManualRideSession();
       await autoTracking.refresh();
       setMessage("Ride saved. Review the ride before your next trip.");
       navigation.navigate("RideDetail", { rideId: response.rideId, reviewMode: true });
     } catch (err: any) {
-      setMessage(err.message || "Unable to save ride. Check your internet connection.");
+      const session = await readMergedManualRideSession();
+      const merged = dedupeRidePoints([...(session?.points || []), ...points]);
+      const rideStartedAt = session?.startedAt || startedAt || merged[0]?.recordedAt;
+      const endedAt = new Date().toISOString();
+      if (rideStartedAt && merged.length >= 2) {
+        const payload = {
+          clientRideId: createRideClientId("manual", rideStartedAt, endedAt, merged),
+          startLabel: `Recovered start (${coordinateLabel(merged[0])})`,
+          endLabel: `Recovered end (${coordinateLabel(merged[merged.length - 1])})`,
+          startedAt: rideStartedAt,
+          endedAt,
+          points: merged
+        };
+        await queuePendingRide(payload);
+        await clearManualRideSession();
+        setPoints(merged);
+        setActive(false);
+        setStartedAt(null);
+        await autoTracking.refresh();
+        setMessage("Ride saved locally. It will upload automatically when the backend is reachable.");
+        await logDiagnostic({
+          level: "warn",
+          area: "manual-ride",
+          message: "Manual ride queued after save failure",
+          details: diagnosticDetails(err)
+        });
+      } else {
+        setMessage(err.message || "Unable to save ride. Check your internet connection.");
+      }
     } finally {
       setSaving(false);
     }
@@ -195,7 +299,7 @@ export function RideScreen() {
         </View>
 
         <RideMap
-          coordinates={points}
+          coordinates={compactRidePointsForMap(points)}
           current={points[points.length - 1]}
           title={active ? "Live ride route" : "Ride map"}
         />
@@ -263,20 +367,6 @@ function validSpeed(point: RidePoint) {
     return null;
   }
   return speed;
-}
-
-function dedupePoints(points: RidePoint[]) {
-  const seen = new Set<string>();
-  return points
-    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
-    .filter((point) => {
-      const key = `${point.recordedAt}-${point.latitude}-${point.longitude}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
 }
 
 async function getRidePointLabel(point: RidePoint, fallback: string) {

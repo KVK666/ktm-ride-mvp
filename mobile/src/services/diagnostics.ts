@@ -30,8 +30,13 @@ export async function logDiagnostic(
 }
 
 export async function getDiagnostics(): Promise<DiagnosticEvent[]> {
-  const stored = await AsyncStorage.getItem(DIAGNOSTICS_KEY);
-  return stored ? JSON.parse(stored) : [];
+  try {
+    const stored = await AsyncStorage.getItem(DIAGNOSTICS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    await AsyncStorage.removeItem(DIAGNOSTICS_KEY);
+    return [];
+  }
 }
 
 export async function clearDiagnostics() {

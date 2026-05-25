@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import { Screen } from "../components/Screen";
 import { StatCard } from "../components/StatCard";
 import { useAuth } from "../context/AuthContext";
+import { hasManualRideSession } from "../services/manualRideSession";
 import { ThemeColors } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { DashboardStats, Ride } from "../types";
@@ -22,13 +23,18 @@ export function DashboardScreen() {
   const [recentRides, setRecentRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [recoverableRide, setRecoverableRide] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setError("");
-      const response = await api<{ stats: DashboardStats; recentRides: Ride[] }>("/dashboard");
+      const [response, activeSession] = await Promise.all([
+        api<{ stats: DashboardStats; recentRides: Ride[] }>("/dashboard"),
+        hasManualRideSession()
+      ]);
       setStats(response.stats);
       setRecentRides(response.recentRides);
+      setRecoverableRide(activeSession);
     } catch (err: any) {
       setError(err.message || "Dashboard unavailable");
     } finally {
@@ -68,6 +74,22 @@ export function DashboardScreen() {
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {recoverableRide ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate("Ride")}
+            style={({ pressed }) => [styles.activeRideCard, pressed && styles.pressedCard]}
+          >
+            <View style={styles.activeRideIcon}>
+              <Ionicons name="radio-button-on" color={colors.text} size={20} />
+            </View>
+            <View style={styles.rideText}>
+              <Text style={styles.reviewTitle}>Ride recording is recoverable</Text>
+              <Text style={styles.reviewMeta}>Open Ride and tap Stop Ride to save the stored route.</Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         <View style={styles.grid}>
           <StatCard label="Today" value={km(stats?.todayDistanceM || 0)} accent={colors.orange} />
@@ -200,6 +222,24 @@ const createStyles = (colors: ThemeColors) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 12
+  },
+  activeRideCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.success,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  activeRideIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.success
   },
   reviewIcon: {
     width: 38,

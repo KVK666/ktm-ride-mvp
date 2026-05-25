@@ -35,6 +35,7 @@ export function RideMap({
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const mapRef = useRef<MapView | null>(null);
   const mapCoordinates = useMemo(() => normalizeCoordinates(coordinates), [coordinates]);
+  const renderCoordinates = useMemo(() => sampleCoordinates(mapCoordinates, 1200), [mapCoordinates]);
   const mapPhotoMarkers = useMemo(
     () => photoMarkers.filter((photo) => photo.hasLocation).map((photo) => ({ ...photo, ...normalizeCoordinate(photo) })),
     [photoMarkers]
@@ -43,19 +44,19 @@ export function RideMap({
   const initial = mapCurrent || mapCoordinates[0] || { latitude: 12.9716, longitude: 77.5946 };
 
   useEffect(() => {
-    if (mapCoordinates.length < 2) {
+    if (renderCoordinates.length < 2) {
       return;
     }
 
     const timer = setTimeout(() => {
-      mapRef.current?.fitToCoordinates(mapCoordinates, {
+      mapRef.current?.fitToCoordinates(renderCoordinates, {
         edgePadding: { top: 60, right: 45, bottom: 60, left: 45 },
         animated: true
       });
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [mapCoordinates]);
+  }, [renderCoordinates]);
 
   return (
     <View style={[styles.shell, { backgroundColor: colors.surface, borderColor: colors.border }, style]}>
@@ -73,8 +74,8 @@ export function RideMap({
           longitudeDelta: 0.04
         }}
       >
-        {mapCoordinates.length > 1 ? (
-          <Polyline coordinates={mapCoordinates} strokeColor={colors.orange} strokeWidth={5} />
+        {renderCoordinates.length > 1 ? (
+          <Polyline coordinates={renderCoordinates} strokeColor={colors.orange} strokeWidth={5} />
         ) : null}
         {mapCoordinates[0] ? <Marker coordinate={mapCoordinates[0]} title="Start" pinColor={colors.success} /> : null}
         {mapCoordinates.length > 1 ? (
@@ -155,6 +156,19 @@ function normalizeCoordinate(coordinate: Coordinate) {
   }
 
   return { latitude, longitude };
+}
+
+function sampleCoordinates<T extends Coordinate>(coordinates: T[], maxPoints: number) {
+  if (coordinates.length <= maxPoints) {
+    return coordinates;
+  }
+
+  const sampled: T[] = [];
+  const step = (coordinates.length - 1) / (maxPoints - 1);
+  for (let index = 0; index < maxPoints; index += 1) {
+    sampled.push(coordinates[Math.round(index * step)]);
+  }
+  return sampled;
 }
 
 const styles = StyleSheet.create({

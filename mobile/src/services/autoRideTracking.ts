@@ -3,6 +3,7 @@ import * as Location from "expo-location";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
+import { appendManualRidePoints } from "./manualRideSession";
 import {
   createRideClientId,
   queuePendingRide,
@@ -234,9 +235,28 @@ async function stopBackgroundLocationUpdatesIfRunning() {
 }
 
 async function appendManualBackgroundPoints(points: RidePoint[]) {
-  const stored = await AsyncStorage.getItem(BACKGROUND_POINTS_KEY);
-  const existing: RidePoint[] = stored ? JSON.parse(stored) : [];
-  await AsyncStorage.setItem(BACKGROUND_POINTS_KEY, JSON.stringify([...existing, ...points].slice(-4000)));
+  try {
+    await appendManualRidePoints(points);
+  } catch (err) {
+    await logDiagnostic({
+      level: "error",
+      area: "manual-ride",
+      message: "Manual session point persistence failed",
+      details: diagnosticDetails(err)
+    });
+  }
+  try {
+    const stored = await AsyncStorage.getItem(BACKGROUND_POINTS_KEY);
+    const existing: RidePoint[] = stored ? JSON.parse(stored) : [];
+    await AsyncStorage.setItem(BACKGROUND_POINTS_KEY, JSON.stringify([...existing, ...points].slice(-6000)));
+  } catch (err) {
+    await logDiagnostic({
+      level: "error",
+      area: "manual-ride",
+      message: "Manual background point persistence failed",
+      details: diagnosticDetails(err)
+    });
+  }
 }
 
 async function updateAutoRideState(state: AutoRideState, point: RidePoint): Promise<AutoRideState> {
@@ -427,8 +447,19 @@ function toRidePoint(location: Location.LocationObject): RidePoint {
 }
 
 async function readAutoRideState(): Promise<AutoRideState> {
-  const stored = await AsyncStorage.getItem(AUTO_RIDE_STATE_KEY);
-  return stored ? JSON.parse(stored) : { status: "watching" };
+  try {
+    const stored = await AsyncStorage.getItem(AUTO_RIDE_STATE_KEY);
+    return stored ? JSON.parse(stored) : { status: "watching" };
+  } catch (err) {
+    await logDiagnostic({
+      level: "error",
+      area: "auto-tracking",
+      message: "Auto ride state could not be read; resetting state",
+      details: diagnosticDetails(err)
+    });
+    await AsyncStorage.removeItem(AUTO_RIDE_STATE_KEY);
+    return { status: "watching" };
+  }
 }
 
 async function writeAutoRideState(state: AutoRideState) {
@@ -436,7 +467,17 @@ async function writeAutoRideState(state: AutoRideState) {
 }
 
 async function getPendingCount() {
-  const stored = await AsyncStorage.getItem(AUTO_PENDING_RIDES_KEY);
-  const pending = stored ? JSON.parse(stored) : [];
-  return pending.length;
+  try {
+    const stored = await AsyncStorage.getItem(AUTO_PENDING_RIDES_KEY);
+    const pending = stored ? JSON.parse(stored) : [];
+    return pending.length;
+  } catch (err) {
+    await logDiagnostic({
+      level: "error",
+      area: "ride-upload",
+      message: "Pending ride queue count failed",
+      details: diagnosticDetails(err)
+    });
+    return 0;
+  }
 }

@@ -39,7 +39,7 @@ export async function uploadRidePayload(payload: RideUploadPayload, token: strin
   }
 
   const text = await response.text();
-  const body = text ? JSON.parse(text) : {};
+  const body = parseJson(text);
   if (!response.ok) {
     logDiagnostic({
       level: "error",
@@ -54,10 +54,15 @@ export async function uploadRidePayload(payload: RideUploadPayload, token: strin
 
 export async function queuePendingRide(payload: RideUploadPayload) {
   const ride = ensureClientRideId(payload);
-  const stored = await AsyncStorage.getItem(AUTO_PENDING_RIDES_KEY);
-  const pending: RideUploadPayload[] = stored ? JSON.parse(stored) : [];
+  const pending = await readPendingRides();
   const next = [...pending.filter((item) => getRideClientId(item) !== ride.clientRideId), ride].slice(-20);
   await AsyncStorage.setItem(AUTO_PENDING_RIDES_KEY, JSON.stringify(next));
+  await logDiagnostic({
+    level: "warn",
+    area: "ride-upload",
+    message: "Ride saved to local pending upload queue",
+    details: `clientRideId=${ride.clientRideId || ""} points=${ride.points.length}`
+  });
 }
 
 export async function syncPendingAutoRides() {
@@ -76,8 +81,7 @@ async function syncPendingAutoRidesOnce() {
     return { uploaded: 0, remaining: await getPendingRideCount() };
   }
 
-  const stored = await AsyncStorage.getItem(AUTO_PENDING_RIDES_KEY);
-  const pending: RideUploadPayload[] = stored ? JSON.parse(stored) : [];
+  const pending = await readPendingRides();
   if (!pending.length) {
     return { uploaded: 0, remaining: 0 };
   }
@@ -114,8 +118,7 @@ async function syncPendingAutoRidesOnce() {
 }
 
 export async function getPendingRideCount() {
-  const stored = await AsyncStorage.getItem(AUTO_PENDING_RIDES_KEY);
-  const pending: RideUploadPayload[] = stored ? JSON.parse(stored) : [];
+  const pending = await readPendingRides();
   return uniqueRides(pending).length;
 }
 
@@ -157,4 +160,30 @@ function uniqueRides(rides: RideUploadPayload[]) {
     unique.push(normalized);
   }
   return unique;
+}
+
+async function readPendingRides() {
+  try {
+    const stored = await AsyncStorage.getItem(AUTO_PENDING_RIDES_KEY);
+    return stored ? (JSON.parse(stored) as RideUploadPayload[]) : [];
+  } catch (err) {
+    await logDiagnostic({
+      level: "error",
+      area: "ride-upload",
+      message: "Pending ride queue could not be read",
+      details: diagnosticDetails(err)
+    });
+    return [];
+  }
+}
+
+function parseJson(text: string) {
+  if (!text) {
+    return {};
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text.slice(0, 180) };
+  }
 }
