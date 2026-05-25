@@ -294,8 +294,19 @@ export function RideScreen() {
             </View>
           </View>
           {autoTracking.status.pendingCount ? (
-            <Text style={styles.pendingText}>{autoTracking.status.pendingCount} ride waiting to upload.</Text>
+            <View style={styles.pendingUploadBox}>
+              <Text style={styles.pendingText}>
+                {autoTracking.status.pendingCount} ride waiting to upload.
+              </Text>
+              <PrimaryButton
+                label="Retry upload now"
+                icon="cloud-upload"
+                loading={autoTracking.loading}
+                onPress={autoTracking.retryPendingUploads}
+              />
+            </View>
           ) : null}
+          {autoTracking.syncMessage ? <Text style={styles.successText}>{autoTracking.syncMessage}</Text> : null}
         </View>
 
         <RideMap
@@ -481,6 +492,13 @@ const createStyles = (colors: ThemeColors) => ({
   pendingText: {
     color: colors.yellow,
     fontWeight: "700"
+  },
+  pendingUploadBox: {
+    gap: 10
+  },
+  successText: {
+    color: colors.success,
+    fontWeight: "800"
   },
   grid: {
     flexDirection: "row",

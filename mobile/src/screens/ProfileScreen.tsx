@@ -277,6 +277,20 @@ export function ProfileScreen() {
               trackColor={{ false: colors.border, true: colors.surfaceHigh }}
             />
           </View>
+          {autoTracking.status.pendingCount ? (
+            <View style={styles.pendingUploadBox}>
+              <Text style={styles.pendingText}>
+                {autoTracking.status.pendingCount} ride waiting to upload.
+              </Text>
+              <PrimaryButton
+                label="Retry upload now"
+                icon="cloud-upload"
+                loading={autoTracking.loading}
+                onPress={autoTracking.retryPendingUploads}
+              />
+            </View>
+          ) : null}
+          {autoTracking.syncMessage ? <Text style={styles.success}>{autoTracking.syncMessage}</Text> : null}
           {autoTracking.error ? <Text style={styles.error}>{autoTracking.error}</Text> : null}
         </View>
 
@@ -473,6 +487,13 @@ const createStyles = (colors: ThemeColors) => ({
   },
   settingText: {
     flex: 1
+  },
+  pendingUploadBox: {
+    gap: 10
+  },
+  pendingText: {
+    color: colors.yellow,
+    fontWeight: "800"
   },
   diagnosticActions: {
     gap: 10

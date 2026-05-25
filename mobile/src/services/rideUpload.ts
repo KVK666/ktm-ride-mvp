@@ -13,7 +13,14 @@ export type RideUploadPayload = {
   points: RidePoint[];
 };
 
-let pendingSync: Promise<{ uploaded: number; remaining: number }> | null = null;
+export type PendingRideSyncResult = {
+  attempted: number;
+  uploaded: number;
+  remaining: number;
+  lastError?: string;
+};
+
+let pendingSync: Promise<PendingRideSyncResult> | null = null;
 
 export async function uploadRidePayload(payload: RideUploadPayload, token: string) {
   const ride = ensureClientRideId(payload);
@@ -78,12 +85,18 @@ export async function syncPendingAutoRides() {
 async function syncPendingAutoRidesOnce() {
   const token = await AsyncStorage.getItem(MIRRORED_TOKEN_KEY);
   if (!token) {
-    return { uploaded: 0, remaining: await getPendingRideCount() };
+    const remaining = await getPendingRideCount();
+    return {
+      attempted: 0,
+      uploaded: 0,
+      remaining,
+      lastError: remaining ? "Login token unavailable. Log out and log in again, then retry upload." : undefined
+    };
   }
 
   const pending = await readPendingRides();
   if (!pending.length) {
-    return { uploaded: 0, remaining: 0 };
+    return { attempted: 0, uploaded: 0, remaining: 0 };
   }
 
   const uniquePending = uniqueRides(pending);
@@ -93,11 +106,13 @@ async function syncPendingAutoRidesOnce() {
 
   const remaining: RideUploadPayload[] = [];
   let uploaded = 0;
+  let lastError = "";
   for (const ride of uniquePending) {
     try {
       await uploadRidePayload(ride, token);
       uploaded += 1;
     } catch (err) {
+      lastError = readableError(err);
       logDiagnostic({
         level: "warn",
         area: "ride-upload",
@@ -114,7 +129,12 @@ async function syncPendingAutoRidesOnce() {
     await AsyncStorage.removeItem(AUTO_PENDING_RIDES_KEY);
   }
 
-  return { uploaded, remaining: remaining.length };
+  return {
+    attempted: uniquePending.length,
+    uploaded,
+    remaining: remaining.length,
+    lastError: remaining.length ? lastError || "Upload failed. Check internet and backend availability." : undefined
+  };
 }
 
 export async function getPendingRideCount() {
@@ -186,4 +206,11 @@ function parseJson(text: string) {
   } catch {
     return { error: text.slice(0, 180) };
   }
+}
+
+function readableError(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error || "Upload failed");
 }

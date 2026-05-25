@@ -38,6 +38,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Lets users manually start and stop ride tracking.
 - Manual ride tracking is crash-resilient: active ride start time and GPS points are continuously persisted locally and recovered after app restart.
 - If a manual ride save/upload fails, the ride is kept in the local pending upload queue instead of being lost.
+- Pending ride uploads show a `Retry upload now` action on Ride/Profile and report the upload result or failure reason.
 - Tracks GPS points, distance, duration, top speed, average speed, start/end time, and route path.
 - Stores GPS accuracy on new ride points and filters top-speed spikes using accuracy, a 250 km/h cap, and nearby speed support.
 - Ride uploads include a client-generated ride ID so retries do not create duplicate rides.
@@ -170,6 +171,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-05-22: Refreshed core mobile UI surfaces: palette, stat cards, buttons, tab bar, login, dashboard, ride screen, history cards, and map chrome.
 - 2026-05-22: Added Profile theme selector with persisted KTM and Universal app color schemes.
 - 2026-05-25: Hardened long-ride reliability. Manual rides now persist active points continuously, recover after app restart, queue failed uploads locally, compact map rendering for long routes, and surface recoverable rides on Dashboard.
+- 2026-05-25: Added manual pending-upload retry UI with visible success/failure messages for queued rides.
 
 ## Testing Checklist
 
