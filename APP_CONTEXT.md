@@ -20,6 +20,7 @@ Duke Ride is a private React Native ride tracking app for a KTM Duke 250 Gen 3. 
 - GitHub repo: `https://github.com/KVK666/ktm-ride-mvp`.
 - Downloadable Android APK: `releases/Duke-Ride-latest.apk` in the GitHub repo.
 - Official GitHub Release APK: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/v0.1.0`.
+- Automatic latest APK release: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest`.
 - Current working mobile API base URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 - Render fallback API base URL: `https://ktm-ride-mvp.onrender.com/api`.
 - Worker API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
@@ -179,6 +180,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-06-19: Hardened app reliability across mobile, Express backend, and Cloudflare Worker. API responses, token storage, local ride recovery, background location tasks, pending uploads, Maps responses, charts, reports, diagnostics, profile photos, and ride photo import now guard malformed data and storage/network failures.
 - 2026-06-19: Android release APK build succeeded and `releases/Duke-Ride-latest.apk` was refreshed. Phone install/launch could not run because ADB reported zero connected devices.
 - 2026-06-19: Installed the refreshed release APK on connected Moto g34 5G (`ZA222K77F7`) and launched it successfully. Recent crash-filtered logcat output was clean.
+- 2026-06-19: Replaced the APK asset attached to GitHub Release `v0.1.0`. Added GitHub Actions workflow `.github/workflows/release-android-apk.yml` so every push to `ktm-ride-mvp` builds the Android release APK and publishes it to the moving `latest` release. The workflow expects a repository secret named `GOOGLE_MAPS_API_KEY`.
 
 ## Testing Checklist
 
