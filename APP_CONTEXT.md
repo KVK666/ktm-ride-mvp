@@ -54,6 +54,8 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Ride Detail has a Ride Review section for ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
 - Imported ride photos with GPS metadata appear as camera markers on the ride map.
+- Ride Detail can create a local 9:16 ride story image and share it to Instagram/share sheet without using OpenAI API billing.
+- Ride Detail can generate varied ChatGPT image prompts from exact ride stats, time/place mood, and optional Open-Meteo weather; prompts are copied/shared manually into ChatGPT.
 - Shows analytics summary cards and charts for distance, ride count, duration, and top speed.
 - Generates basic reports and can export reports as PDF.
 - Provides a Cloudflare Worker API with the same mobile `/api/*` contract as the Express backend, and the installed app is currently pointed at the Worker.
@@ -81,6 +83,10 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
 - `mobile/src/services/manualRideSession.ts`: crash-resilient local manual ride session storage, recovery, and map point compaction.
 - `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History, with ride review and duplicate cleanup.
+- `mobile/src/components/RideStoryCard.tsx`: local 9:16 ride story image layout rendered for capture/share.
+- `mobile/src/services/rideStoryPrompt.ts`: dynamic ChatGPT image prompt variants and optional Open-Meteo weather mood lookup.
+- `mobile/src/services/rideStoryShare.ts`: Android Instagram/share-sheet handoff for generated story images.
+- `mobile/plugins/withInstagramPackageQuery.js`: Expo config plugin that exposes Instagram to Android package queries for reliable share targeting.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
 - `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and shared runtime palette.
@@ -177,6 +183,8 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-05-25: Added manual pending-upload retry UI with visible success/failure messages for queued rides.
 - 2026-05-25: Added `releases/Duke-Ride-latest.apk` so the app can be downloaded from GitHub onto other Android phones.
 - 2026-05-25: Published official GitHub Release `v0.1.0` with `Duke-Ride-latest.apk` attached.
+- 2026-06-19: Added Ride Detail story sharing with local Instagram Story image generation and dynamic ChatGPT prompt generation without OpenAI API billing.
+- 2026-06-19: Rebuilt the Android release with the completed story feature, installed it successfully on Moto g34 5G (`ZA222K77F7`), and verified `com.example.dukeride` launched and remained running.
 - 2026-06-19: Hardened app reliability across mobile, Express backend, and Cloudflare Worker. API responses, token storage, local ride recovery, background location tasks, pending uploads, Maps responses, charts, reports, diagnostics, profile photos, and ride photo import now guard malformed data and storage/network failures.
 - 2026-06-19: Android release APK build succeeded and `releases/Duke-Ride-latest.apk` was refreshed. Phone install/launch could not run because ADB reported zero connected devices.
 - 2026-06-19: Installed the refreshed release APK on connected Moto g34 5G (`ZA222K77F7`) and launched it successfully. Recent crash-filtered logcat output was clean.
@@ -211,9 +219,11 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
   - History ride map appears.
   - Tapping a History ride opens Ride Detail.
   - Ride Detail shows route map, stat cards, route summary, and speed chart.
-  - Ride Detail `Import ride photos` requests media permission and lists photos taken during the ride time window.
-  - Ride photos with location metadata show camera markers on the ride map.
-  - Full-screen map works and does not hide Google current-location controls.
+- Ride Detail `Import ride photos` requests media permission and lists photos taken during the ride time window.
+- Ride photos with location metadata show camera markers on the ride map.
+- Full-screen map works and does not hide Google current-location controls.
+- Ride Detail `Share story image` creates a 9:16 PNG and opens Instagram Stories when `EXPO_PUBLIC_INSTAGRAM_APP_ID` is configured, otherwise falls back cleanly.
+- Ride Detail `AI story prompt` shows varied prompts, can regenerate styles, copy/share prompt text, and open ChatGPT.
 - Analytics test:
   - Confirm Daily/Monthly/Yearly tabs load.
   - Confirm summary cards and charts use the latest ride buckets.

@@ -40,6 +40,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Ride storage with start/end location, path points, distance, duration, top speed, average speed, and timestamps.
 - Post-ride review with ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
+- Ride Detail story sharing with a local Instagram Story image and dynamic ChatGPT image prompts based on ride details, place mood, time, and optional weather.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
 - Basic charts for distance, ride duration trends, and top speed comparison.
@@ -140,6 +141,14 @@ Set the backend URL:
 ```text
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:4000/api
 ```
+
+Optional direct Instagram Stories handoff:
+
+```text
+EXPO_PUBLIC_INSTAGRAM_APP_ID=your-facebook-app-id
+```
+
+Without this value, Duke Ride still generates the story image and falls back to Instagram image sharing or the Android share sheet.
 
 Use `10.0.2.2` for Android emulator, `http://localhost:4000/api` for iOS simulator, and your machine LAN IP for a physical device.
 

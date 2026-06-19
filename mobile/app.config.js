@@ -24,6 +24,7 @@ module.exports = {
         NSLocationWhenInUseUsageDescription: "Duke Ride uses your location for route navigation and ride tracking.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "Duke Ride uses background location to keep tracking active during rides.",
         NSPhotoLibraryUsageDescription: "Duke Ride reads your photo library only when you import ride photos or choose a profile photo.",
+        LSApplicationQueriesSchemes: ["instagram", "instagram-stories"],
         UIBackgroundModes: ["location"]
       }
     },
@@ -51,6 +52,7 @@ module.exports = {
     },
     plugins: [
       "./plugins/withFullBleedAndroidIcon",
+      "./plugins/withInstagramPackageQuery",
       "expo-font",
       [
         "expo-image-picker",

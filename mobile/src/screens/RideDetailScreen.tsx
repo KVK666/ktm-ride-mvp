@@ -1,25 +1,42 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useFocusEffect, useRoute } from "@react-navigation/native";
-import React, { useCallback, useMemo, useState } from "react";
+import * as Clipboard from "expo-clipboard";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
   Image,
+  Linking,
+  Modal,
   Pressable,
   ScrollView,
+  Share as NativeShare,
   Text,
   TextInput,
   View
 } from "react-native";
 import ImageViewing from "react-native-image-viewing";
 import { LineChart } from "react-native-chart-kit";
+import { captureRef } from "react-native-view-shot";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
+import { RIDE_STORY_HEIGHT, RIDE_STORY_WIDTH, RideStoryCard } from "../components/RideStoryCard";
 import { StatCard } from "../components/StatCard";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
+import {
+  buildRideStoryPrompt,
+  fetchRideWeatherMood,
+  rankStoryPromptVariants,
+  recommendedStoryPromptVariant,
+  StoryPromptVariant,
+  RideWeatherMood,
+  STORY_PROMPT_VARIANTS,
+  StoryPromptVariantId
+} from "../services/rideStoryPrompt";
+import { shareRideStoryImage } from "../services/rideStoryShare";
 import { importRidePhotos } from "../services/ridePhotos";
 import { ThemeColors } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
@@ -52,8 +69,18 @@ export function RideDetailScreen() {
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [photoViewerInitialIndex, setPhotoViewerInitialIndex] = useState(0);
   const [photoError, setPhotoError] = useState("");
+  const [storySharing, setStorySharing] = useState(false);
+  const [storyMessage, setStoryMessage] = useState("");
+  const [promptModalOpen, setPromptModalOpen] = useState(false);
+  const [promptVariantId, setPromptVariantId] = useState<StoryPromptVariantId>("cinematic");
+  const [promptSeed, setPromptSeed] = useState(0);
+  const [promptWeather, setPromptWeather] = useState<RideWeatherMood | null>(null);
+  const [promptWeatherLoading, setPromptWeatherLoading] = useState(false);
+  const [promptWeatherRideId, setPromptWeatherRideId] = useState<string | null>(null);
+  const [promptActionMessage, setPromptActionMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const storyCaptureRef = useRef<View | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -99,10 +126,50 @@ export function RideDetailScreen() {
     }, [load])
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPromptWeather() {
+      if (!promptModalOpen || !ride || promptWeatherRideId === ride.id) {
+        return;
+      }
+
+      setPromptWeatherLoading(true);
+      setPromptWeather(null);
+      setPromptWeatherRideId(ride.id);
+      try {
+        const weather = await fetchRideWeatherMood(ride);
+        if (!cancelled) {
+          setPromptWeather(weather);
+          setPromptVariantId(recommendedStoryPromptVariant(ride, weather));
+        }
+      } finally {
+        setPromptWeatherLoading(false);
+        if (cancelled) {
+          setPromptWeatherRideId((current) => current === ride.id ? null : current);
+        }
+      }
+    }
+
+    loadPromptWeather();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [promptModalOpen, promptWeatherRideId, ride]);
+
   const speedChart = useMemo(() => buildSpeedChart(ride?.points || []), [ride?.points]);
   const needsReview = !ride?.reviewedAt;
   const photosWithLocation = useMemo(() => photos.filter((photo) => photo.hasLocation), [photos]);
   const viewerImages = useMemo(() => photos.map((photo) => ({ uri: photo.uri })), [photos]);
+  const rankedPromptVariants = useMemo(
+    () => ride ? rankStoryPromptVariants(ride, promptWeather) : STORY_PROMPT_VARIANTS,
+    [promptWeather, ride]
+  );
+  const selectedPrompt = useMemo(
+    () => ride ? buildRideStoryPrompt(ride, promptVariantId, promptWeather, promptSeed) : "",
+    [promptSeed, promptVariantId, promptWeather, ride]
+  );
 
   async function saveReview(markReviewed = false) {
     if (!ride || reviewSaving) {
@@ -187,6 +254,104 @@ export function RideDetailScreen() {
     }
   }
 
+  async function handleShareStoryImage() {
+    if (!ride || storySharing) {
+      return;
+    }
+
+    setStorySharing(true);
+    setStoryMessage("");
+    try {
+      if (!storyCaptureRef.current) {
+        throw new Error("Story image is not ready yet");
+      }
+      await waitForCaptureReady();
+      const uri = await captureRef(storyCaptureRef, {
+        fileName: `duke-ride-${ride.id.slice(0, 8)}`,
+        format: "png",
+        quality: 1,
+        result: "tmpfile",
+        width: 1080,
+        height: 1920
+      });
+      const result = await shareRideStoryImage(uri);
+      setStoryMessage(result.message);
+    } catch (err: any) {
+      setStoryMessage(err.message || "Unable to share story image");
+      await logDiagnostic({
+        level: "error",
+        area: "ride-story",
+        message: "Ride story image share failed",
+        details: diagnosticDetails(err)
+      });
+    } finally {
+      setStorySharing(false);
+    }
+  }
+
+  function openPromptModal() {
+    if (!ride) {
+      return;
+    }
+    setPromptActionMessage("");
+    setPromptSeed((current) => current + 1);
+    setPromptVariantId(recommendedStoryPromptVariant(ride, promptWeather));
+    setPromptModalOpen(true);
+  }
+
+  function closePromptModal() {
+    setPromptModalOpen(false);
+    setPromptActionMessage("");
+  }
+
+  function selectPromptVariant(variantId: StoryPromptVariantId) {
+    setPromptVariantId(variantId);
+    setPromptSeed((current) => current + 1);
+    setPromptActionMessage("");
+  }
+
+  function regeneratePrompt() {
+    if (!rankedPromptVariants.length) {
+      return;
+    }
+    const currentIndex = rankedPromptVariants.findIndex((variant) => variant.id === promptVariantId);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % rankedPromptVariants.length : 0;
+    setPromptVariantId(rankedPromptVariants[nextIndex].id);
+    setPromptSeed((current) => current + 1);
+    setPromptActionMessage("");
+  }
+
+  async function copyPrompt() {
+    try {
+      await Clipboard.setStringAsync(selectedPrompt);
+      setPromptActionMessage("Prompt copied. Paste it in ChatGPT to generate the story image.");
+    } catch (err: any) {
+      setPromptActionMessage(err.message || "Unable to copy prompt");
+    }
+  }
+
+  async function sharePrompt() {
+    try {
+      await NativeShare.share({
+        title: "Duke Ride AI story prompt",
+        message: selectedPrompt
+      });
+      setPromptActionMessage("Prompt shared.");
+    } catch (err: any) {
+      setPromptActionMessage(err.message || "Unable to share prompt");
+    }
+  }
+
+  async function openChatGpt() {
+    try {
+      await Clipboard.setStringAsync(selectedPrompt);
+      setPromptActionMessage("Prompt copied. Paste it in ChatGPT after it opens.");
+      await Linking.openURL("https://chatgpt.com/");
+    } catch (err: any) {
+      setPromptActionMessage(err.message || "Unable to open ChatGPT");
+    }
+  }
+
   function openPhotoViewer(index: number) {
     if (!photos[index]) {
       return;
@@ -234,6 +399,31 @@ export function RideDetailScreen() {
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>Ride story</Text>
+              <Text style={styles.sectionMeta}>
+                Share a local story image, or copy a varied ChatGPT prompt for a custom AI image.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.storyActions}>
+            <PrimaryButton
+              label="Share story image"
+              icon="logo-instagram"
+              loading={storySharing}
+              onPress={handleShareStoryImage}
+            />
+            <PrimaryButton
+              label="AI story prompt"
+              icon="sparkles"
+              onPress={openPromptModal}
+            />
+          </View>
+          {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
+        </View>
 
         <View style={[styles.card, needsReview && styles.reviewCard]}>
           <View style={styles.sectionHeader}>
@@ -424,6 +614,26 @@ export function RideDetailScreen() {
           />
         </View>
       </ScrollView>
+      <View pointerEvents="none" style={styles.storyCaptureStage}>
+        <View ref={storyCaptureRef} collapsable={false}>
+          <RideStoryCard ride={ride} />
+        </View>
+      </View>
+      <StoryPromptModal
+        visible={promptModalOpen}
+        variants={rankedPromptVariants}
+        selectedVariantId={promptVariantId}
+        prompt={selectedPrompt}
+        weather={promptWeather}
+        weatherLoading={promptWeatherLoading}
+        actionMessage={promptActionMessage}
+        onClose={closePromptModal}
+        onSelectVariant={selectPromptVariant}
+        onRegenerate={regeneratePrompt}
+        onCopy={copyPrompt}
+        onShare={sharePrompt}
+        onOpenChatGpt={openChatGpt}
+      />
       {viewerImages.length ? (
         <ImageViewing
           images={viewerImages}
@@ -474,6 +684,112 @@ function PhotoViewerFooter({ photo, index, total }: { photo?: RidePhoto; index: 
         {time(photo.createdAt)} - {photo.hasLocation ? "Map location available" : "No map location"}
       </Text>
     </View>
+  );
+}
+
+function StoryPromptModal({
+  visible,
+  variants,
+  selectedVariantId,
+  prompt,
+  weather,
+  weatherLoading,
+  actionMessage,
+  onClose,
+  onSelectVariant,
+  onRegenerate,
+  onCopy,
+  onShare,
+  onOpenChatGpt
+}: {
+  visible: boolean;
+  variants: StoryPromptVariant[];
+  selectedVariantId: StoryPromptVariantId;
+  prompt: string;
+  weather: RideWeatherMood | null;
+  weatherLoading: boolean;
+  actionMessage: string;
+  onClose: () => void;
+  onSelectVariant: (variantId: StoryPromptVariantId) => void;
+  onRegenerate: () => void;
+  onCopy: () => void;
+  onShare: () => void;
+  onOpenChatGpt: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <Screen>
+        <ScrollView contentContainerStyle={styles.promptModalContent}>
+          <View style={styles.promptHeader}>
+            <View style={styles.promptHeaderText}>
+              <Text style={styles.kicker}>ChatGPT image prompt</Text>
+              <Text style={styles.promptTitle}>AI story prompt</Text>
+              <Text style={styles.sectionMeta}>
+                Copy this into ChatGPT to generate a custom story image from exact ride details.
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close prompt modal"
+              onPress={onClose}
+              style={styles.promptClose}
+            >
+              <Ionicons name="close" color={colors.text} size={24} />
+            </Pressable>
+          </View>
+
+          <View style={styles.weatherPill}>
+            <Ionicons name={weatherLoading ? "cloudy" : weather ? "partly-sunny" : "time"} color={colors.orange} size={18} />
+            <Text style={styles.weatherText}>
+              {weatherLoading
+                ? "Checking weather mood..."
+                : weather
+                  ? `Weather mood: ${weather.label}`
+                  : "Weather unavailable, using ride time and place mood"}
+            </Text>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.variantTabs}>
+            {variants.map((variant) => {
+              const selected = variant.id === selectedVariantId;
+              return (
+                <Pressable
+                  key={variant.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => onSelectVariant(variant.id)}
+                  style={({ pressed }) => [
+                    styles.variantTab,
+                    selected && styles.variantTabActive,
+                    pressed && styles.pressedPhoto
+                  ]}
+                >
+                  <Text style={[styles.variantTabText, selected && styles.variantTabTextActive]}>
+                    {variant.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.promptBox}>
+            <Text selectable style={styles.promptText}>{prompt}</Text>
+          </View>
+
+          {actionMessage ? <Text style={styles.reviewMessage}>{actionMessage}</Text> : null}
+
+          <View style={styles.promptActions}>
+            <PrimaryButton label="Regenerate" icon="refresh" onPress={onRegenerate} />
+            <PrimaryButton label="Copy prompt" icon="copy" onPress={onCopy} />
+            <PrimaryButton label="Share prompt" icon="share-social" onPress={onShare} />
+            <PrimaryButton label="Open ChatGPT" icon="open" onPress={onOpenChatGpt} />
+          </View>
+        </ScrollView>
+      </Screen>
+    </Modal>
   );
 }
 
@@ -563,6 +879,14 @@ function optionalNumber(value: unknown) {
 function finiteNumber(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
+}
+
+function waitForCaptureReady() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
 }
 
 const createStyles = (colors: ThemeColors) => ({
@@ -675,6 +999,16 @@ const createStyles = (colors: ThemeColors) => ({
   },
   reviewActions: {
     gap: 10
+  },
+  storyActions: {
+    gap: 10
+  },
+  storyCaptureStage: {
+    position: "absolute",
+    left: -RIDE_STORY_WIDTH - 40,
+    top: 0,
+    width: RIDE_STORY_WIDTH,
+    height: RIDE_STORY_HEIGHT
   },
   duplicateBlock: {
     gap: 10,
@@ -834,6 +1168,93 @@ const createStyles = (colors: ThemeColors) => ({
   },
   error: {
     color: colors.danger
+  },
+  promptModalContent: {
+    padding: 16,
+    gap: 14
+  },
+  promptHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12
+  },
+  promptHeaderText: {
+    flex: 1,
+    minWidth: 0
+  },
+  promptTitle: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: "900",
+    marginTop: 4
+  },
+  promptClose: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1
+  },
+  weatherPill: {
+    minHeight: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  weatherText: {
+    color: colors.text,
+    flex: 1,
+    lineHeight: 19,
+    fontWeight: "700"
+  },
+  variantTabs: {
+    gap: 8,
+    paddingRight: 16
+  },
+  variantTab: {
+    minHeight: 42,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 13,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  variantTabActive: {
+    backgroundColor: colors.orange,
+    borderColor: colors.orange
+  },
+  variantTabText: {
+    color: colors.muted,
+    fontWeight: "900"
+  },
+  variantTabTextActive: {
+    color: colors.text
+  },
+  promptBox: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: 14
+  },
+  promptText: {
+    color: colors.text,
+    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  promptActions: {
+    gap: 10
   },
   viewerHeader: {
     paddingTop: 42,
