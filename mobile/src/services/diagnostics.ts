@@ -32,15 +32,24 @@ export async function logDiagnostic(
 export async function getDiagnostics(): Promise<DiagnosticEvent[]> {
   try {
     const stored = await AsyncStorage.getItem(DIAGNOSTICS_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed.filter(isDiagnosticEvent) : [];
   } catch {
-    await AsyncStorage.removeItem(DIAGNOSTICS_KEY);
+    try {
+      await AsyncStorage.removeItem(DIAGNOSTICS_KEY);
+    } catch {
+      // Ignore cleanup failures.
+    }
     return [];
   }
 }
 
 export async function clearDiagnostics() {
-  await AsyncStorage.removeItem(DIAGNOSTICS_KEY);
+  try {
+    await AsyncStorage.removeItem(DIAGNOSTICS_KEY);
+  } catch {
+    // Diagnostics cleanup should never break the app flow.
+  }
 }
 
 export function diagnosticDetails(error: unknown) {
@@ -66,4 +75,14 @@ export function formatDiagnostics(events: DiagnosticEvent[]) {
         .join("\n")
     )
     .join("\n\n---\n\n");
+}
+
+function isDiagnosticEvent(event: any): event is DiagnosticEvent {
+  return (
+    event &&
+    (event.level === "info" || event.level === "warn" || event.level === "error") &&
+    typeof event.area === "string" &&
+    typeof event.message === "string" &&
+    typeof event.createdAt === "string"
+  );
 }

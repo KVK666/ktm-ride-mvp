@@ -9,6 +9,10 @@ function toRadians(value) {
 }
 
 export function distanceMeters(a, b) {
+  if (!isCoordinate(a) || !isCoordinate(b)) {
+    return 0;
+  }
+
   const dLat = toRadians(b.latitude - a.latitude);
   const dLon = toRadians(b.longitude - a.longitude);
   const lat1 = toRadians(a.latitude);
@@ -22,9 +26,9 @@ export function distanceMeters(a, b) {
 }
 
 export function summarizeRide(points, startedAt, endedAt) {
-  const ordered = [...points].sort(
-    (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
-  );
+  const ordered = (Array.isArray(points) ? points : [])
+    .filter((point) => isCoordinate(point) && Number.isFinite(timestampMs(point.recordedAt)))
+    .sort((a, b) => timestampMs(a.recordedAt) - timestampMs(b.recordedAt));
 
   let distanceM = 0;
   const speedSamples = [];
@@ -41,9 +45,11 @@ export function summarizeRide(points, startedAt, endedAt) {
     speedSamples.push({ point: current, index, speedKmh });
   }
 
-  const startMs = new Date(startedAt).getTime();
-  const endMs = new Date(endedAt).getTime();
-  const durationS = Math.max(0, Math.round((endMs - startMs) / 1000));
+  const startMs = timestampMs(startedAt);
+  const endMs = timestampMs(endedAt);
+  const durationS = Number.isFinite(startMs) && Number.isFinite(endMs)
+    ? Math.max(0, Math.round((endMs - startMs) / 1000))
+    : 0;
   const avgSpeedKmh = durationS > 0 ? (distanceM / 1000 / (durationS / 3600)) : 0;
 
   return {
@@ -66,7 +72,7 @@ function reliableTopSpeed(samples) {
       if (other.index === sample.index) {
         return false;
       }
-      const gapMs = Math.abs(new Date(other.point.recordedAt).getTime() - new Date(sample.point.recordedAt).getTime());
+      const gapMs = Math.abs(timestampMs(other.point.recordedAt) - timestampMs(sample.point.recordedAt));
       return gapMs <= SPEED_SUPPORT_WINDOW_MS && other.speedKmh >= sample.speedKmh * MIN_SUPPORTED_SPEED_RATIO;
     });
     if (supported) {
@@ -86,9 +92,8 @@ function isValidSpeedSample(sample) {
 }
 
 function speedBetween(a, b) {
-  const elapsedS =
-    (new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()) / 1000;
-  if (elapsedS <= 0) {
+  const elapsedS = (timestampMs(b.recordedAt) - timestampMs(a.recordedAt)) / 1000;
+  if (!Number.isFinite(elapsedS) || elapsedS <= 0) {
     return 0;
   }
 
@@ -96,5 +101,20 @@ function speedBetween(a, b) {
 }
 
 function round(value) {
-  return Math.round(value * 10) / 10;
+  return Number.isFinite(value) ? Math.round(value * 10) / 10 : 0;
+}
+
+function isCoordinate(point) {
+  return (
+    point &&
+    Number.isFinite(Number(point.latitude)) &&
+    Number.isFinite(Number(point.longitude)) &&
+    Math.abs(Number(point.latitude)) <= 90 &&
+    Math.abs(Number(point.longitude)) <= 180
+  );
+}
+
+function timestampMs(value) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : Number.NaN;
 }

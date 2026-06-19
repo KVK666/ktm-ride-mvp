@@ -19,15 +19,20 @@ const MAX_MAP_POINTS = 900;
 let writeQueue: Promise<unknown> = Promise.resolve();
 
 export async function startManualRideSession(firstPoint: RidePoint) {
+  const point = normalizeRidePoint(firstPoint);
+  if (!point) {
+    throw new Error("A valid first location point is required to start a ride");
+  }
+
   await enqueueWrite(async () => {
     await AsyncStorage.multiSet([
       [MANUAL_TRACKING_ACTIVE_KEY, "true"],
       [
         MANUAL_RIDE_SESSION_KEY,
         JSON.stringify({
-          startedAt: firstPoint.recordedAt,
-          updatedAt: firstPoint.recordedAt,
-          points: [firstPoint]
+          startedAt: point.recordedAt,
+          updatedAt: point.recordedAt,
+          points: [point]
         } satisfies ManualRideSession)
       ]
     ]);
@@ -45,6 +50,10 @@ export async function appendManualRidePoints(points: RidePoint[]) {
       return;
     }
     const merged = dedupeRidePoints([...current.points, ...points]).slice(-MAX_STORED_MANUAL_POINTS);
+    if (!merged.length) {
+      return;
+    }
+
     await AsyncStorage.setItem(
       MANUAL_RIDE_SESSION_KEY,
       JSON.stringify({
@@ -90,14 +99,18 @@ export async function clearManualRideSession() {
 }
 
 export function compactRidePointsForMap(points: RidePoint[], maxPoints = MAX_MAP_POINTS) {
-  if (points.length <= maxPoints) {
-    return points;
+  const normalized = dedupeRidePoints(points);
+  if (maxPoints <= 1) {
+    return normalized.slice(0, 1);
+  }
+  if (normalized.length <= maxPoints) {
+    return normalized;
   }
 
   const result: RidePoint[] = [];
-  const step = (points.length - 1) / (maxPoints - 1);
+  const step = (normalized.length - 1) / (maxPoints - 1);
   for (let index = 0; index < maxPoints; index += 1) {
-    result.push(points[Math.round(index * step)]);
+    result.push(normalized[Math.round(index * step)]);
   }
   return dedupeRidePoints(result);
 }
@@ -105,8 +118,9 @@ export function compactRidePointsForMap(points: RidePoint[], maxPoints = MAX_MAP
 export function dedupeRidePoints(points: RidePoint[]) {
   const seen = new Set<string>();
   return points
-    .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude) && point.recordedAt)
-    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
+    .map(normalizeRidePoint)
+    .filter((point): point is RidePoint => Boolean(point))
+    .sort((a, b) => timestampMs(a.recordedAt) - timestampMs(b.recordedAt))
     .filter((point) => {
       const key = `${point.recordedAt}-${point.latitude.toFixed(7)}-${point.longitude.toFixed(7)}`;
       if (seen.has(key)) {
@@ -137,17 +151,23 @@ async function readManualRideSessionUnsafe(): Promise<ManualRideSession | null> 
     return null;
   }
   const parsed = JSON.parse(stored) as ManualRideSession;
+  const points = Array.isArray(parsed.points) ? dedupeRidePoints(parsed.points) : [];
+  if (!points.length) {
+    return null;
+  }
+
   return {
-    startedAt: parsed.startedAt,
-    updatedAt: parsed.updatedAt || parsed.points?.[parsed.points.length - 1]?.recordedAt || parsed.startedAt,
-    points: Array.isArray(parsed.points) ? parsed.points : []
+    startedAt: typeof parsed.startedAt === "string" ? parsed.startedAt : points[0].recordedAt,
+    updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : points[points.length - 1].recordedAt,
+    points
   };
 }
 
 async function readBackgroundPoints(): Promise<RidePoint[]> {
   try {
     const stored = await AsyncStorage.getItem(BACKGROUND_POINTS_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? dedupeRidePoints(parsed) : [];
   } catch (err) {
     await logDiagnostic({
       level: "error",
@@ -166,4 +186,42 @@ function enqueueWrite<T>(operation: () => Promise<T>) {
     () => undefined
   );
   return next;
+}
+
+function normalizeRidePoint(point: any): RidePoint | null {
+  if (!point) {
+    return null;
+  }
+
+  const latitude = Number(point.latitude);
+  const longitude = Number(point.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  const recordedAt = typeof point.recordedAt === "string" && Number.isFinite(Date.parse(point.recordedAt))
+    ? point.recordedAt
+    : new Date().toISOString();
+
+  return {
+    latitude,
+    longitude,
+    altitudeM: optionalNumber(point.altitudeM),
+    accuracyM: optionalNumber(point.accuracyM),
+    speedKmh: optionalNumber(point.speedKmh),
+    recordedAt
+  };
+}
+
+function optionalNumber(value: unknown) {
+  if (value == null) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function timestampMs(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }

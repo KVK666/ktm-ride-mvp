@@ -26,6 +26,10 @@ export function LoginScreen() {
   }
 
   async function submit() {
+    if (loading) {
+      return;
+    }
+
     setError("");
     const cleanEmail = email.trim();
     const cleanName = name.trim();

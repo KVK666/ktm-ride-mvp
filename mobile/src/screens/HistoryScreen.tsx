@@ -24,7 +24,7 @@ export function HistoryScreen() {
       setLoading(true);
       setError("");
       const response = await api<{ rides: Ride[] }>(`/rides?period=${period}`);
-      setRides(response.rides);
+      setRides(Array.isArray(response.rides) ? response.rides : []);
     } catch (err: any) {
       setError(err.message || "Ride history unavailable");
     } finally {

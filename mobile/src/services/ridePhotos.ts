@@ -7,11 +7,16 @@ export async function importRidePhotos(ride: Ride): Promise<RidePhoto[]> {
 
   const startedAt = new Date(ride.startedAt).getTime();
   const endedAt = new Date(ride.endedAt || ride.startedAt).getTime();
+  if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt)) {
+    throw new Error("Ride time is unavailable for photo import");
+  }
+
   const photos: RidePhoto[] = [];
   let after: string | undefined;
   let hasNextPage = true;
+  let pageCount = 0;
 
-  while (hasNextPage) {
+  while (hasNextPage && pageCount < 50) {
     const page = await MediaLibrary.getAssetsAsync({
       mediaType: MediaLibrary.MediaType.photo,
       createdAfter: startedAt,
@@ -27,7 +32,7 @@ export async function importRidePhotos(ride: Ride): Promise<RidePhoto[]> {
       photos.push({
         id: asset.id,
         uri: info.localUri || asset.uri,
-        createdAt: new Date(asset.creationTime).toISOString(),
+        createdAt: safeAssetDate(asset.creationTime),
         latitude: location?.latitude || 0,
         longitude: location?.longitude || 0,
         hasLocation: Boolean(location)
@@ -35,7 +40,8 @@ export async function importRidePhotos(ride: Ride): Promise<RidePhoto[]> {
     }
 
     after = page.endCursor;
-    hasNextPage = page.hasNextPage;
+    hasNextPage = Boolean(page.hasNextPage && page.endCursor);
+    pageCount += 1;
   }
 
   return photos.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -94,4 +100,9 @@ function normalizeLocation(location?: MediaLibrary.Location | null) {
     return null;
   }
   return { latitude, longitude };
+}
+
+function safeAssetDate(value: number) {
+  const timestamp = Number(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString();
 }

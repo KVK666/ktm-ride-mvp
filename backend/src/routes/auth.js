@@ -7,6 +7,10 @@ const { requireAuth } = require("../middleware/auth");
 const router = express.Router();
 
 function signToken(user) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
   return jwt.sign(
     { id: user.id, email: user.email },
     process.env.JWT_SECRET,
@@ -25,7 +29,11 @@ function safeUser(row) {
 
 router.post("/register", async (req, res, next) => {
   try {
-    const { email, password, name, bikeModel } = req.body;
+    const body = req.body || {};
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+    const name = String(body.name || "").trim();
+    const bikeModel = String(body.bikeModel || "").trim();
 
     if (!email || !password || password.length < 8) {
       return res.status(400).json({ error: "Email and 8+ character password are required" });
@@ -36,7 +44,7 @@ router.post("/register", async (req, res, next) => {
       `insert into users (email, password_hash, name, bike_model)
        values ($1, $2, $3, $4)
        returning id, email, name, bike_model`,
-      [email.toLowerCase(), passwordHash, name || "Rider", bikeModel || "KTM Duke 250 Gen 3"]
+      [email, passwordHash, name || "Rider", bikeModel || "KTM Duke 250 Gen 3"]
     );
 
     const user = result.rows[0];
@@ -51,15 +59,17 @@ router.post("/register", async (req, res, next) => {
 
 router.post("/login", async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const body = req.body || {};
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
 
     const result = await db.query(
       "select id, email, password_hash, name, bike_model from users where email = $1",
-      [String(email || "").toLowerCase()]
+      [email]
     );
 
     const user = result.rows[0];
-    const valid = user ? await bcrypt.compare(password || "", user.password_hash) : false;
+    const valid = user ? await bcrypt.compare(password, user.password_hash) : false;
     if (!valid) {
       return res.status(401).json({ error: "Invalid email or password" });
     }

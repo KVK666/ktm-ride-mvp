@@ -64,13 +64,17 @@ export function RideDetailScreen() {
       setPhotos([]);
       closePhotoViewer();
       const response = await api<{ ride: Ride }>(`/rides/${route.params.rideId}`);
-      setRide(response.ride);
-      setTitleDraft(response.ride.title || "");
-      setNotesDraft(response.ride.notes || "");
+      if (!response.ride) {
+        throw new Error("Ride detail unavailable");
+      }
+      const nextRide = normalizeRide(response.ride);
+      setRide(nextRide);
+      setTitleDraft(nextRide.title || "");
+      setNotesDraft(nextRide.notes || "");
       setReviewMessage(route.params.reviewMode ? "Review this ride before your next trip." : "");
       try {
         const duplicates = await api<{ duplicates: Ride[] }>(`/rides/${route.params.rideId}/duplicates`);
-        setDuplicateRides(duplicates.duplicates);
+        setDuplicateRides(Array.isArray(duplicates.duplicates) ? duplicates.duplicates.map(normalizeRide) : []);
       } catch (duplicateError: any) {
         setDuplicateRides([]);
         logDiagnostic({
@@ -499,7 +503,7 @@ function RouteRow({
 }
 
 function buildSpeedChart(points: RidePoint[]) {
-  const speeds = points.map((point) => Math.max(0, Math.round(point.speedKmh || 0)));
+  const speeds = points.map((point) => Math.max(0, Math.round(finiteNumber(point.speedKmh))));
   if (!speeds.length) {
     return { labels: ["--"], data: [0] };
   }
@@ -508,11 +512,57 @@ function buildSpeedChart(points: RidePoint[]) {
   const step = Math.max(1, Math.floor(speeds.length / sampleCount));
   const sampled = points.filter((_, index) => index % step === 0).slice(0, sampleCount);
   const labels = sampled.map((point) => time(point.recordedAt));
-  const data = sampled.map((point) => Math.max(0, Math.round(point.speedKmh || 0)));
+  const data = sampled.map((point) => Math.max(0, Math.round(finiteNumber(point.speedKmh))));
   return {
     labels: labels.length ? labels : ["--"],
     data: data.length ? data : [0]
   };
+}
+
+function normalizeRide(ride: any): Ride {
+  return {
+    ...ride,
+    id: String(ride?.id || ""),
+    startLabel: String(ride?.startLabel || "Start point"),
+    endLabel: String(ride?.endLabel || "End point"),
+    distanceM: finiteNumber(ride?.distanceM),
+    durationS: finiteNumber(ride?.durationS),
+    topSpeedKmh: finiteNumber(ride?.topSpeedKmh),
+    avgSpeedKmh: finiteNumber(ride?.avgSpeedKmh),
+    startedAt: typeof ride?.startedAt === "string" ? ride.startedAt : "",
+    points: Array.isArray(ride?.points)
+      ? ride.points.map(normalizeRidePoint).filter((point): point is RidePoint => Boolean(point))
+      : []
+  };
+}
+
+function normalizeRidePoint(point: any): RidePoint | null {
+  const latitude = Number(point?.latitude);
+  const longitude = Number(point?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+  return {
+    latitude,
+    longitude,
+    altitudeM: optionalNumber(point?.altitudeM),
+    accuracyM: optionalNumber(point?.accuracyM),
+    speedKmh: optionalNumber(point?.speedKmh),
+    recordedAt: typeof point?.recordedAt === "string" ? point.recordedAt : ""
+  };
+}
+
+function optionalNumber(value: unknown) {
+  if (value == null) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function finiteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
 const createStyles = (colors: ThemeColors) => ({

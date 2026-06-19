@@ -40,6 +40,7 @@ export function RideScreen() {
   const [active, setActive] = useState(false);
   const [points, setPoints] = useState<RidePoint[]>([]);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const autoTracking = useAutoTracking();
@@ -52,8 +53,8 @@ export function RideScreen() {
       distanceM += distanceMeters(points[index - 1], points[index]);
     }
     const topSpeed = reliableTopSpeed(points);
-    const startMs = startedAt ? new Date(startedAt).getTime() : Date.now();
-    const durationS = active ? Math.floor((Date.now() - startMs) / 1000) : 0;
+    const startMs = startedAt ? timestampMs(startedAt) : Date.now();
+    const durationS = active && startMs ? Math.max(0, Math.floor((Date.now() - startMs) / 1000)) : 0;
     const avgSpeed = durationS > 0 ? (distanceM / 1000 / (durationS / 3600)) : 0;
     return { distanceM, topSpeed, durationS, avgSpeed };
   }, [active, points, startedAt]);
@@ -132,13 +133,28 @@ export function RideScreen() {
       },
       (location) => {
         const point = toRidePoint(location);
-        void appendManualRidePoints([point]);
+        if (!point) {
+          return;
+        }
+        void appendManualRidePoints([point]).catch((err) => {
+          void logDiagnostic({
+            level: "error",
+            area: "manual-ride",
+            message: "Foreground ride point persistence failed",
+            details: diagnosticDetails(err)
+          });
+        });
         setPoints((current) => dedupeRidePoints([...current, point]));
       }
     );
   }
 
   async function startRide() {
+    if (starting || active) {
+      return;
+    }
+
+    setStarting(true);
     try {
       await ensurePermissions();
       await clearManualRideSession();
@@ -146,6 +162,9 @@ export function RideScreen() {
 
       const firstLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       const firstPoint = toRidePoint(firstLocation);
+      if (!firstPoint) {
+        throw new Error("Unable to read a valid GPS point");
+      }
       await startManualRideSession(firstPoint);
       setPoints([firstPoint]);
       setStartedAt(firstPoint.recordedAt);
@@ -156,10 +175,19 @@ export function RideScreen() {
       if (backgroundGranted.status === "granted") {
         await startManualBackgroundTracking();
       }
-      await autoTracking.refresh();
+      await refreshAutoTrackingStatus();
     } catch (err: any) {
-      await setManualTrackingActive(false);
+      await setManualTrackingActive(false).catch((cleanupError) => {
+        void logDiagnostic({
+          level: "warn",
+          area: "manual-ride",
+          message: "Manual tracking cleanup failed after start error",
+          details: diagnosticDetails(cleanupError)
+        });
+      });
       setMessage(err.message || "Unable to start ride");
+    } finally {
+      setStarting(false);
     }
   }
 
@@ -169,8 +197,10 @@ export function RideScreen() {
       try {
         const finalLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         const finalPoint = toRidePoint(finalLocation);
-        await appendManualRidePoints([finalPoint]);
-        setPoints((current) => dedupeRidePoints([...current, finalPoint]));
+        if (finalPoint) {
+          await appendManualRidePoints([finalPoint]);
+          setPoints((current) => dedupeRidePoints([...current, finalPoint]));
+        }
       } catch {
         // A final point is useful, but stopping must still work without it.
       }
@@ -186,7 +216,7 @@ export function RideScreen() {
         setActive(false);
         setStartedAt(null);
         await clearManualRideSession();
-        await autoTracking.refresh();
+        await refreshAutoTrackingStatus();
         setMessage("Ride is too short to save.");
         return;
       }
@@ -215,7 +245,7 @@ export function RideScreen() {
       setActive(false);
       setStartedAt(null);
       await clearManualRideSession();
-      await autoTracking.refresh();
+      await refreshAutoTrackingStatus();
       setMessage("Ride saved. Review the ride before your next trip.");
       navigation.navigate("RideDetail", { rideId: response.rideId, reviewMode: true });
     } catch (err: any) {
@@ -232,12 +262,23 @@ export function RideScreen() {
           endedAt,
           points: merged
         };
-        await queuePendingRide(payload);
-        await clearManualRideSession();
+        try {
+          await queuePendingRide(payload);
+          await clearManualRideSession();
+        } catch (queueError) {
+          await logDiagnostic({
+            level: "error",
+            area: "manual-ride",
+            message: "Manual ride local queue failed after save failure",
+            details: diagnosticDetails(queueError)
+          });
+          setMessage("Unable to upload or queue this ride. Keep the app open and try Stop Ride again.");
+          return;
+        }
         setPoints(merged);
         setActive(false);
         setStartedAt(null);
-        await autoTracking.refresh();
+        await refreshAutoTrackingStatus();
         setMessage("Ride saved locally. It will upload automatically when the backend is reachable.");
         await logDiagnostic({
           level: "warn",
@@ -250,6 +291,19 @@ export function RideScreen() {
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function refreshAutoTrackingStatus() {
+    try {
+      await autoTracking.refresh();
+    } catch (err) {
+      await logDiagnostic({
+        level: "warn",
+        area: "auto-tracking",
+        message: "Auto tracking status refresh failed",
+        details: diagnosticDetails(err)
+      });
     }
   }
 
@@ -325,21 +379,28 @@ export function RideScreen() {
         {active ? (
           <PrimaryButton label="Stop Ride" icon="stop-circle" danger loading={saving} onPress={stopRide} />
         ) : (
-          <PrimaryButton label="Start Ride" icon="play-circle" onPress={startRide} />
+          <PrimaryButton label="Start Ride" icon="play-circle" loading={starting} onPress={startRide} />
         )}
       </ScrollView>
     </Screen>
   );
 }
 
-function toRidePoint(location: Location.LocationObject): RidePoint {
+function toRidePoint(location: Location.LocationObject): RidePoint | null {
+  const latitude = Number(location?.coords?.latitude);
+  const longitude = Number(location?.coords?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  const timestamp = Number(location.timestamp);
   return {
-    latitude: location.coords.latitude,
-    longitude: location.coords.longitude,
-    altitudeM: location.coords.altitude,
-    accuracyM: location.coords.accuracy,
-    speedKmh: Math.max(0, (location.coords.speed || 0) * 3.6),
-    recordedAt: new Date(location.timestamp).toISOString()
+    latitude,
+    longitude,
+    altitudeM: optionalNumber(location.coords.altitude),
+    accuracyM: optionalNumber(location.coords.accuracy),
+    speedKmh: Math.max(0, optionalNumber(location.coords.speed) || 0) * 3.6,
+    recordedAt: Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString()
   };
 }
 
@@ -358,7 +419,7 @@ function reliableTopSpeed(points: RidePoint[]) {
       if (other.index === candidate.index || other.speed == null || candidate.speed == null) {
         return false;
       }
-      const gapMs = Math.abs(new Date(other.point.recordedAt).getTime() - new Date(candidate.point.recordedAt).getTime());
+      const gapMs = Math.abs(timestampMs(other.point.recordedAt) - timestampMs(candidate.point.recordedAt));
       return gapMs <= SPEED_SUPPORT_WINDOW_MS && other.speed >= candidate.speed * 0.75;
     });
     if (supported) {
@@ -371,7 +432,7 @@ function reliableTopSpeed(points: RidePoint[]) {
 
 function validSpeed(point: RidePoint) {
   const speed = point.speedKmh;
-  if (speed == null || speed < 0 || speed > MAX_REASONABLE_SPEED_KMH) {
+  if (speed == null || !Number.isFinite(speed) || speed < 0 || speed > MAX_REASONABLE_SPEED_KMH) {
     return null;
   }
   if (point.accuracyM != null && point.accuracyM > MAX_SPEED_ACCURACY_M) {
@@ -401,7 +462,22 @@ async function getRidePointLabel(point: RidePoint, fallback: string) {
 }
 
 function coordinateLabel(point: RidePoint) {
-  return `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
+  const latitude = Number.isFinite(point.latitude) ? point.latitude : 0;
+  const longitude = Number.isFinite(point.longitude) ? point.longitude : 0;
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
+function optionalNumber(value: unknown) {
+  if (value == null) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function timestampMs(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 const createStyles = (colors: ThemeColors) => ({

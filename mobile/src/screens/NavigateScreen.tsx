@@ -62,6 +62,10 @@ export function NavigateScreen() {
   }, [current, route]);
 
   async function requestRoute() {
+    if (loading) {
+      return;
+    }
+
     if (!destination.trim()) {
       setError("Enter a destination first");
       return;
@@ -92,6 +96,8 @@ export function NavigateScreen() {
       };
       setCurrent(origin);
 
+      subscription.current?.remove();
+      subscription.current = null;
       subscription.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.Highest,
@@ -176,7 +182,7 @@ export function NavigateScreen() {
             <Text style={styles.stepIndex}>{index + 1}</Text>
             <View style={styles.stepText}>
               <Text style={styles.stepInstruction}>{step.instruction}</Text>
-              <Text style={styles.stepMeta}>{step.distanceText} · {step.durationText}</Text>
+              <Text style={styles.stepMeta}>{step.distanceText} / {step.durationText}</Text>
             </View>
           </View>
         ))}
@@ -227,14 +233,20 @@ function NavigationMap({
 }) {
   const localMapRef = useRef<MapView | null>(null);
   const activeRef = mapRef || localMapRef;
+  const coordinates = useMemo(
+    () => (route?.coordinates || []).filter(isCoordinate),
+    [route]
+  );
+  const start = coordinates[0];
+  const destination = coordinates.length ? coordinates[coordinates.length - 1] : null;
 
   useEffect(() => {
-    if (!route?.coordinates.length) {
+    if (!coordinates.length) {
       return;
     }
 
     const timer = setTimeout(() => {
-      activeRef.current?.fitToCoordinates(route.coordinates, {
+      activeRef.current?.fitToCoordinates(coordinates, {
         edgePadding: fullScreen
           ? { top: 80, right: 55, bottom: 110, left: 55 }
           : { top: 70, right: 45, bottom: 70, left: 45 },
@@ -243,7 +255,7 @@ function NavigationMap({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [activeRef, fullScreen, route]);
+  }, [activeRef, coordinates, fullScreen]);
 
   return (
     <MapView
@@ -255,13 +267,17 @@ function NavigationMap({
       followsUserLocation
       initialRegion={{ ...initial, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
     >
-      {route ? <Polyline coordinates={route.coordinates} strokeColor={colors.orange} strokeWidth={5} /> : null}
-      {route?.coordinates[0] ? <Marker coordinate={route.coordinates[0]} title="Start" /> : null}
-      {route?.coordinates.length ? (
-        <Marker coordinate={route.coordinates[route.coordinates.length - 1]} title="Destination" pinColor={colors.orange} />
-      ) : null}
+      {coordinates.length > 1 ? <Polyline coordinates={coordinates} strokeColor={colors.orange} strokeWidth={5} /> : null}
+      {start ? <Marker coordinate={start} title="Start" /> : null}
+      {destination ? <Marker coordinate={destination} title="Destination" pinColor={colors.orange} /> : null}
     </MapView>
   );
+}
+
+function isCoordinate(coordinate?: Coordinate | null) {
+  const latitude = Number(coordinate?.latitude);
+  const longitude = Number(coordinate?.longitude);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
 }
 
 const createStyles = (colors: ThemeColors) => ({

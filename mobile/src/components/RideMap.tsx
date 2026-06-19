@@ -37,7 +37,14 @@ export function RideMap({
   const mapCoordinates = useMemo(() => normalizeCoordinates(coordinates), [coordinates]);
   const renderCoordinates = useMemo(() => sampleCoordinates(mapCoordinates, 1200), [mapCoordinates]);
   const mapPhotoMarkers = useMemo(
-    () => photoMarkers.filter((photo) => photo.hasLocation).map((photo) => ({ ...photo, ...normalizeCoordinate(photo) })),
+    () =>
+      photoMarkers.flatMap((photo) => {
+        if (!photo.hasLocation) {
+          return [];
+        }
+        const coordinate = normalizeCoordinate(photo);
+        return coordinate ? [{ ...photo, ...coordinate }] : [];
+      }),
     [photoMarkers]
   );
   const mapCurrent = current ? normalizeCoordinate(current) : null;
@@ -147,11 +154,11 @@ function normalizeCoordinates(coordinates: Coordinate[]) {
     .filter((coordinate): coordinate is Coordinate => Boolean(coordinate));
 }
 
-function normalizeCoordinate(coordinate: Coordinate) {
-  const latitude = Number(coordinate.latitude);
-  const longitude = Number(coordinate.longitude);
+function normalizeCoordinate(coordinate?: Coordinate | null) {
+  const latitude = Number(coordinate?.latitude);
+  const longitude = Number(coordinate?.longitude);
 
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
     return null;
   }
 
@@ -159,6 +166,10 @@ function normalizeCoordinate(coordinate: Coordinate) {
 }
 
 function sampleCoordinates<T extends Coordinate>(coordinates: T[], maxPoints: number) {
+  if (maxPoints <= 1) {
+    return coordinates.slice(0, 1);
+  }
+
   if (coordinates.length <= maxPoints) {
     return coordinates;
   }

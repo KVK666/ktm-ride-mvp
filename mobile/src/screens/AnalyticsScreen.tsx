@@ -48,7 +48,7 @@ export function AnalyticsScreen() {
     try {
       setError("");
       const response = await api<{ points: AnalyticsPoint[] }>(`/analytics/distance?bucket=${bucket}`);
-      setPoints(response.points);
+      setPoints(Array.isArray(response.points) ? response.points.map(normalizePoint) : []);
     } catch (err: any) {
       setError(err.message || "Analytics unavailable");
     } finally {
@@ -64,9 +64,9 @@ export function AnalyticsScreen() {
 
   const recentPoints = useMemo(() => points.slice(-6), [points]);
   const labels = recentPoints.map((point) => labelFor(point.bucket, bucket));
-  const distance = recentPoints.map((point) => Number((point.distanceM / 1000).toFixed(1)));
-  const durations = recentPoints.map((point) => Number((point.durationS / 60).toFixed(0)));
-  const topSpeeds = recentPoints.map((point) => Number(point.topSpeedKmh));
+  const distance = recentPoints.map((point) => finiteNumber(point.distanceM / 1000));
+  const durations = recentPoints.map((point) => finiteNumber(point.durationS / 60));
+  const topSpeeds = recentPoints.map((point) => finiteNumber(point.topSpeedKmh));
 
   const summary = useMemo<SummaryItem[]>(() => {
     const totalDistanceM = points.reduce((sum, point) => sum + point.distanceM, 0);
@@ -159,7 +159,7 @@ function Chart({
   colors: ThemeColors;
   styles: any;
 }) {
-  const safeData = data.length ? data : [0];
+  const safeData = data.length ? data.map(finiteNumber) : [0];
   const safeLabels = labels.length ? labels : [""];
 
   return (
@@ -199,6 +199,9 @@ function Chart({
 
 function labelFor(value: string, bucket: Bucket) {
   const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return "--";
+  }
   if (bucket === "yearly") {
     return `${date.getFullYear()}`;
   }
@@ -219,20 +222,37 @@ function titleFor(bucket: Bucket) {
 }
 
 function formatNumber(value: number) {
-  if (value >= 100) {
-    return value.toFixed(0);
+  const safeValue = finiteNumber(value);
+  if (safeValue >= 100) {
+    return safeValue.toFixed(0);
   }
-  return value.toFixed(1);
+  return safeValue.toFixed(1);
 }
 
 function formatDuration(seconds: number) {
-  const minutes = Math.round(seconds / 60);
+  const minutes = Math.round(finiteNumber(seconds) / 60);
   if (minutes < 60) {
     return `${minutes} min`;
   }
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function normalizePoint(point: any): AnalyticsPoint {
+  return {
+    bucket: typeof point?.bucket === "string" ? point.bucket : "",
+    distanceM: finiteNumber(point?.distanceM),
+    rideCount: finiteNumber(point?.rideCount),
+    durationS: finiteNumber(point?.durationS),
+    topSpeedKmh: finiteNumber(point?.topSpeedKmh),
+    avgSpeedKmh: finiteNumber(point?.avgSpeedKmh)
+  };
+}
+
+function finiteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
 const createStyles = (colors: ThemeColors) => ({

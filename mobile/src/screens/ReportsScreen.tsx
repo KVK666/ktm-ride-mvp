@@ -46,7 +46,7 @@ export function ReportsScreen() {
     try {
       setError("");
       const response = await api<Report>(`/reports?period=${period}`);
-      setReport(response);
+      setReport(normalizeReport(response, period));
     } catch (err: any) {
       setError(err.message || "Report unavailable");
     }
@@ -98,7 +98,7 @@ export function ReportsScreen() {
 
             <PrimaryButton label="Export PDF" icon="download" loading={exporting} onPress={exportPdf} />
 
-            {report.routes.map((route, index) => (
+            {(report.routes || []).map((route, index) => (
               <View key={`${route.startedAt}-${index}`} style={styles.route}>
                 <Text style={styles.routeTitle}>{route.from} to {route.to}</Text>
                 <Text style={styles.routeMeta}>
@@ -119,8 +119,8 @@ function reportHtml(report: Report) {
       (route) => `
         <tr>
           <td>${shortDate(route.startedAt)}</td>
-          <td>${route.from}</td>
-          <td>${route.to}</td>
+          <td>${escapeHtml(route.from)}</td>
+          <td>${escapeHtml(route.to)}</td>
           <td>${km(route.distanceM)}</td>
           <td>${duration(route.durationS)}</td>
           <td>${kmh(route.topSpeedKmh)}</td>
@@ -141,7 +141,7 @@ function reportHtml(report: Report) {
         </style>
       </head>
       <body>
-        <h1>Duke Ride ${report.period} report</h1>
+        <h1>Duke Ride ${escapeHtml(report.period)} report</h1>
         <div class="summary">
           <div>Ride count: ${report.summary.rideCount}</div>
           <div>Distance: ${km(report.summary.distanceM)}</div>
@@ -158,6 +158,49 @@ function reportHtml(report: Report) {
       </body>
     </html>
   `;
+}
+
+function normalizeReport(report: any, fallbackPeriod: Period): Report {
+  const summary = report?.summary || {};
+  return {
+    period: report?.period === "day" || report?.period === "month" || report?.period === "year"
+      ? report.period
+      : fallbackPeriod,
+    generatedAt: typeof report?.generatedAt === "string" ? report.generatedAt : new Date().toISOString(),
+    summary: {
+      rideCount: finiteNumber(summary.rideCount),
+      distanceM: finiteNumber(summary.distanceM),
+      durationS: finiteNumber(summary.durationS),
+      averageSpeedKmh: finiteNumber(summary.averageSpeedKmh),
+      topSpeedKmh: finiteNumber(summary.topSpeedKmh)
+    },
+    routes: Array.isArray(report?.routes)
+      ? report.routes.map((route: any) => ({
+          from: safeText(route?.from) || "Start point",
+          to: safeText(route?.to) || "End point",
+          distanceM: finiteNumber(route?.distanceM),
+          durationS: finiteNumber(route?.durationS),
+          topSpeedKmh: finiteNumber(route?.topSpeedKmh),
+          startedAt: safeText(route?.startedAt)
+        }))
+      : []
+  };
+}
+
+function finiteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function safeText(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 const createStyles = (colors: ThemeColors) => ({

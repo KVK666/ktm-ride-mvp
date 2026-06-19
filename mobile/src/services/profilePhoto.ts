@@ -4,13 +4,19 @@ import * as ImagePicker from "expo-image-picker";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 
 const PROFILE_PHOTO_KEY_PREFIX = "duke_ride_profile_photo:";
-const PROFILE_PHOTO_DIR = `${FileSystem.documentDirectory || ""}profile-photos/`;
+const PROFILE_PHOTO_DIR = FileSystem.documentDirectory
+  ? `${FileSystem.documentDirectory}profile-photos/`
+  : "";
 
 function storageKey(userId: string) {
   return `${PROFILE_PHOTO_KEY_PREFIX}${userId}`;
 }
 
 async function ensurePhotoDirectory() {
+  if (!PROFILE_PHOTO_DIR) {
+    throw new Error("Local document storage is unavailable");
+  }
+
   const info = await FileSystem.getInfoAsync(PROFILE_PHOTO_DIR);
   if (!info.exists) {
     await FileSystem.makeDirectoryAsync(PROFILE_PHOTO_DIR, { intermediates: true });
@@ -23,12 +29,21 @@ function extensionFor(uri: string) {
 }
 
 async function deleteStoredFile(uri?: string | null) {
-  if (!uri || !uri.startsWith(PROFILE_PHOTO_DIR)) {
+  if (!PROFILE_PHOTO_DIR || !uri || !uri.startsWith(PROFILE_PHOTO_DIR)) {
     return;
   }
-  const info = await FileSystem.getInfoAsync(uri);
-  if (info.exists) {
-    await FileSystem.deleteAsync(uri, { idempotent: true });
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists) {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+    }
+  } catch (err) {
+    await logDiagnostic({
+      level: "warn",
+      area: "profile",
+      message: "Profile photo cleanup failed",
+      details: diagnosticDetails(err)
+    });
   }
 }
 
@@ -36,7 +51,17 @@ export async function getProfilePhotoUri(userId?: string | null) {
   if (!userId) {
     return null;
   }
-  return AsyncStorage.getItem(storageKey(userId));
+  try {
+    return await AsyncStorage.getItem(storageKey(userId));
+  } catch (err) {
+    await logDiagnostic({
+      level: "warn",
+      area: "profile",
+      message: "Profile photo lookup failed",
+      details: diagnosticDetails(err)
+    });
+    return null;
+  }
 }
 
 export async function pickAndSaveProfilePhoto(userId: string) {

@@ -1,14 +1,16 @@
 export function km(meters: number) {
-  return `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km`;
+  const safeMeters = safeNumber(meters);
+  return `${(safeMeters / 1000).toFixed(safeMeters >= 10000 ? 0 : 1)} km`;
 }
 
 export function kmh(value: number) {
-  return `${Math.round(value)} km/h`;
+  return `${Math.round(safeNumber(value))} km/h`;
 }
 
 export function duration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
+  const safeSeconds = Math.max(0, safeNumber(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   }
@@ -16,15 +18,35 @@ export function duration(seconds: number) {
 }
 
 export function shortDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
+  const date = safeDate(value);
+  if (!date) {
+    return "--";
+  }
+
+  return date.toLocaleDateString(undefined, {
     day: "2-digit",
     month: "short"
   });
 }
 
 export function time(value: string) {
-  return new Date(value).toLocaleTimeString(undefined, {
+  const date = safeDate(value);
+  if (!date) {
+    return "--";
+  }
+
+  return date.toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function safeNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function safeDate(value: unknown) {
+  const date = new Date(String(value || ""));
+  return Number.isFinite(date.getTime()) ? date : null;
 }

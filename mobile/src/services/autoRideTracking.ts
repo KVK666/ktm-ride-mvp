@@ -120,23 +120,29 @@ export async function stopManualBackgroundTracking() {
 }
 
 export async function handleBackgroundLocations(locations: Location.LocationObject[]) {
-  if (!locations.length) {
-    return;
-  }
-
-  const manualActive = (await AsyncStorage.getItem(MANUAL_TRACKING_ACTIVE_KEY)) === "true";
-  const points = locations.map(toRidePoint);
-
-  if (manualActive) {
-    await appendManualBackgroundPoints(points);
-    return;
-  }
-
-  if (!(await getAutoTrackingEnabled())) {
-    return;
-  }
-
   try {
+    if (!Array.isArray(locations) || !locations.length) {
+      return;
+    }
+
+    const points = locations
+      .map(toRidePoint)
+      .filter((point): point is RidePoint => Boolean(point));
+
+    if (!points.length) {
+      return;
+    }
+
+    const manualActive = (await AsyncStorage.getItem(MANUAL_TRACKING_ACTIVE_KEY)) === "true";
+    if (manualActive) {
+      await appendManualBackgroundPoints(points);
+      return;
+    }
+
+    if (!(await getAutoTrackingEnabled())) {
+      return;
+    }
+
     let state = await readAutoRideState();
     for (const point of points) {
       state = await updateAutoRideState(state, point);
@@ -247,7 +253,8 @@ async function appendManualBackgroundPoints(points: RidePoint[]) {
   }
   try {
     const stored = await AsyncStorage.getItem(BACKGROUND_POINTS_KEY);
-    const existing: RidePoint[] = stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    const existing: RidePoint[] = Array.isArray(parsed) ? parsed.filter(isRidePoint) : [];
     await AsyncStorage.setItem(BACKGROUND_POINTS_KEY, JSON.stringify([...existing, ...points].slice(-6000)));
   } catch (err) {
     await logDiagnostic({
@@ -286,9 +293,9 @@ async function updateAutoRideState(state: AutoRideState, point: RidePoint): Prom
   const candidateLastMovingAt = moving
     ? point.recordedAt
     : state.candidateLastMovingAt || candidateStartedAt;
-  const durationMs = new Date(point.recordedAt).getTime() - new Date(firstPoint.recordedAt).getTime();
+  const durationMs = timestampMs(point.recordedAt) - timestampMs(firstPoint.recordedAt);
   const distanceM = routeDistance(candidatePoints);
-  const quietMs = new Date(point.recordedAt).getTime() - new Date(candidateLastMovingAt).getTime();
+  const quietMs = timestampMs(point.recordedAt) - timestampMs(candidateLastMovingAt);
 
   if (durationMs >= AUTO_START_DURATION_MS && distanceM >= AUTO_START_DISTANCE_M) {
     await logDiagnostic({
@@ -330,7 +337,7 @@ async function updateActiveRide(
     movement.inferredSpeedKmh > AUTO_STOP_SPEED_KMH ||
     movement.distanceM >= 10;
   const lastMovingAt = moving ? point.recordedAt : state.lastMovingAt;
-  const stoppedMs = new Date(point.recordedAt).getTime() - new Date(lastMovingAt).getTime();
+  const stoppedMs = timestampMs(point.recordedAt) - timestampMs(lastMovingAt);
 
   if (stoppedMs >= AUTO_STOP_DURATION_MS) {
     await finalizeAutoRide(points, state.startedAt, point.recordedAt);
@@ -341,8 +348,21 @@ async function updateActiveRide(
 }
 
 async function finalizeAutoRide(points: RidePoint[], startedAt: string, endedAt: string) {
+  if (points.length < 2) {
+    return;
+  }
+
   const distanceM = routeDistance(points);
-  const durationMs = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+  const durationMs = timestampMs(endedAt) - timestampMs(startedAt);
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    await logDiagnostic({
+      level: "warn",
+      area: "auto-tracking",
+      message: "Automatic ride discarded because timestamps were invalid"
+    });
+    return;
+  }
+
   if (durationMs < MIN_AUTO_RIDE_DURATION_MS || distanceM < MIN_AUTO_RIDE_DISTANCE_M) {
     await logDiagnostic({
       level: "info",
@@ -400,7 +420,10 @@ function createRidePayload(points: RidePoint[], startedAt: string, endedAt: stri
 function routeDistance(points: RidePoint[]) {
   let distanceM = 0;
   for (let index = 1; index < points.length; index += 1) {
-    distanceM += distanceMeters(points[index - 1], points[index]);
+    const segment = distanceMeters(points[index - 1], points[index]);
+    if (Number.isFinite(segment)) {
+      distanceM += segment;
+    }
   }
   return distanceM;
 }
@@ -412,8 +435,7 @@ function movementBetween(previous: RidePoint | undefined, current: RidePoint) {
   }
 
   const distanceM = distanceMeters(previous, current);
-  const elapsedS =
-    (new Date(current.recordedAt).getTime() - new Date(previous.recordedAt).getTime()) / 1000;
+  const elapsedS = (timestampMs(current.recordedAt) - timestampMs(previous.recordedAt)) / 1000;
   const inferredSpeedKmh = elapsedS > 0 ? (distanceM / 1000 / (elapsedS / 3600)) : 0;
   return { distanceM, inferredSpeedKmh, reportedSpeedKmh };
 }
@@ -423,7 +445,7 @@ function recentPoint(previous: RidePoint | undefined, current: RidePoint) {
     return undefined;
   }
 
-  const gapMs = new Date(current.recordedAt).getTime() - new Date(previous.recordedAt).getTime();
+  const gapMs = timestampMs(current.recordedAt) - timestampMs(previous.recordedAt);
   if (gapMs < 0 || gapMs > AUTO_MAX_POINT_GAP_MS) {
     return undefined;
   }
@@ -432,24 +454,38 @@ function recentPoint(previous: RidePoint | undefined, current: RidePoint) {
 }
 
 function coordinateLabel(point: RidePoint) {
-  return `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
+  const latitude = Number.isFinite(point.latitude) ? point.latitude : 0;
+  const longitude = Number.isFinite(point.longitude) ? point.longitude : 0;
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 }
 
-function toRidePoint(location: Location.LocationObject): RidePoint {
+function toRidePoint(location: Location.LocationObject): RidePoint | null {
+  const latitude = Number(location?.coords?.latitude);
+  const longitude = Number(location?.coords?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  const timestamp = Number(location.timestamp);
+  const recordedAt = Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString();
   return {
-    latitude: location.coords.latitude,
-    longitude: location.coords.longitude,
-    altitudeM: location.coords.altitude,
-    accuracyM: location.coords.accuracy,
-    speedKmh: Math.max(0, (location.coords.speed || 0) * 3.6),
-    recordedAt: new Date(location.timestamp).toISOString()
+    latitude,
+    longitude,
+    altitudeM: optionalNumber(location.coords.altitude),
+    accuracyM: optionalNumber(location.coords.accuracy),
+    speedKmh: Math.max(0, optionalNumber(location.coords.speed) || 0) * 3.6,
+    recordedAt
   };
 }
 
 async function readAutoRideState(): Promise<AutoRideState> {
   try {
     const stored = await AsyncStorage.getItem(AUTO_RIDE_STATE_KEY);
-    return stored ? JSON.parse(stored) : { status: "watching" };
+    const parsed = stored ? JSON.parse(stored) : { status: "watching" };
+    if (isAutoRideState(parsed)) {
+      return parsed;
+    }
+    throw new Error("Stored auto ride state was invalid");
   } catch (err) {
     await logDiagnostic({
       level: "error",
@@ -457,19 +493,35 @@ async function readAutoRideState(): Promise<AutoRideState> {
       message: "Auto ride state could not be read; resetting state",
       details: diagnosticDetails(err)
     });
-    await AsyncStorage.removeItem(AUTO_RIDE_STATE_KEY);
+    try {
+      await AsyncStorage.removeItem(AUTO_RIDE_STATE_KEY);
+    } catch {
+      // Ignore cleanup failures; returning a fresh state keeps tracking alive.
+    }
     return { status: "watching" };
   }
 }
 
 async function writeAutoRideState(state: AutoRideState) {
-  await AsyncStorage.setItem(AUTO_RIDE_STATE_KEY, JSON.stringify(state));
+  try {
+    await AsyncStorage.setItem(AUTO_RIDE_STATE_KEY, JSON.stringify(state));
+  } catch (err) {
+    await logDiagnostic({
+      level: "error",
+      area: "auto-tracking",
+      message: "Auto ride state could not be saved",
+      details: diagnosticDetails(err)
+    });
+  }
 }
 
 async function getPendingCount() {
   try {
     const stored = await AsyncStorage.getItem(AUTO_PENDING_RIDES_KEY);
     const pending = stored ? JSON.parse(stored) : [];
+    if (!Array.isArray(pending)) {
+      return 0;
+    }
     return pending.length;
   } catch (err) {
     await logDiagnostic({
@@ -480,4 +532,46 @@ async function getPendingCount() {
     });
     return 0;
   }
+}
+
+function timestampMs(value: string) {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function optionalNumber(value: unknown) {
+  if (value == null) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function isRidePoint(point: any): point is RidePoint {
+  return (
+    point &&
+    Number.isFinite(Number(point.latitude)) &&
+    Number.isFinite(Number(point.longitude)) &&
+    typeof point.recordedAt === "string"
+  );
+}
+
+function isAutoRideState(value: any): value is AutoRideState {
+  if (!value || (value.status !== "watching" && value.status !== "riding")) {
+    return false;
+  }
+
+  if (value.status === "riding") {
+    return (
+      typeof value.startedAt === "string" &&
+      typeof value.lastMovingAt === "string" &&
+      Array.isArray(value.points) &&
+      value.points.every(isRidePoint)
+    );
+  }
+
+  return (
+    (value.candidatePoints == null || (Array.isArray(value.candidatePoints) && value.candidatePoints.every(isRidePoint))) &&
+    (value.lastPoint == null || isRidePoint(value.lastPoint))
+  );
 }

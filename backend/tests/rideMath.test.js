@@ -55,4 +55,21 @@ const cappedSummary = summarizeRide(
 );
 assert.strictEqual(cappedSummary.topSpeedKmh, 52);
 
+assert.strictEqual(distanceMeters({ latitude: "bad", longitude: 77 }, bangaloreA), 0);
+
+const invalidInputSummary = summarizeRide(
+  [
+    { latitude: Number.NaN, longitude: 77.5946, recordedAt: "not-a-date", speedKmh: Number.NaN },
+    { latitude: 12.9736, longitude: 77.5946, recordedAt: "also-bad", speedKmh: 30 }
+  ],
+  "not-a-date",
+  "also-bad"
+);
+assert.deepStrictEqual(invalidInputSummary, {
+  distanceM: 0,
+  durationS: 0,
+  topSpeedKmh: 0,
+  avgSpeedKmh: 0
+});
+
 console.log("rideMath tests passed");

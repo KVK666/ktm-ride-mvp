@@ -6,6 +6,8 @@ const { summarizeRide } = require("../services/rideMath");
 const router = express.Router();
 router.use(requireAuth);
 
+const MAX_RIDE_POINTS = 12000;
+
 function rideSelect() {
   return `
     select
@@ -161,20 +163,20 @@ router.post("/", async (req, res, next) => {
       endedAt,
       points = []
     } = req.body;
-    const rideClientId = clientRideId || req.get("Idempotency-Key") || null;
+    const rideClientId = normalizeOptionalText(clientRideId || req.get("Idempotency-Key"), 300);
 
-    if (!startedAt || !endedAt || points.length < 2) {
+    if (!isValidDate(startedAt) || !isValidDate(endedAt) || !Array.isArray(points) || points.length < 2) {
       return res.status(400).json({ error: "Ride requires start time, end time, and at least 2 points" });
     }
 
-    const normalizedPoints = points.map((point) => ({
-      latitude: Number(point.latitude),
-      longitude: Number(point.longitude),
-      altitudeM: point.altitudeM == null ? null : Number(point.altitudeM),
-      accuracyM: point.accuracyM == null ? null : Number(point.accuracyM),
-      speedKmh: point.speedKmh == null ? null : Number(point.speedKmh),
-      recordedAt: point.recordedAt
-    }));
+    if (points.length > MAX_RIDE_POINTS) {
+      return res.status(413).json({ error: `Ride cannot contain more than ${MAX_RIDE_POINTS} points` });
+    }
+
+    const normalizedPoints = points.map(normalizeRidePoint);
+    if (normalizedPoints.some((point) => !point)) {
+      return res.status(400).json({ error: "Ride points must include valid coordinates and timestamps" });
+    }
 
     const summary = summarizeRide(normalizedPoints, startedAt, endedAt);
     const start = normalizedPoints[0];
@@ -214,8 +216,8 @@ router.post("/", async (req, res, next) => {
        returning id`,
       [
         req.user.id,
-        startLabel || "Start point",
-        endLabel || "End point",
+        normalizeOptionalText(startLabel, 180) || "Start point",
+        normalizeOptionalText(endLabel, 180) || "End point",
         start.latitude,
         start.longitude,
         end.latitude,
@@ -297,6 +299,39 @@ function normalizeOptionalText(value, maxLength) {
   }
   const normalized = String(value).trim();
   return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function normalizeRidePoint(point) {
+  const latitude = Number(point?.latitude);
+  const longitude = Number(point?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return null;
+  }
+
+  if (!isValidDate(point?.recordedAt)) {
+    return null;
+  }
+
+  return {
+    latitude,
+    longitude,
+    altitudeM: optionalNumber(point.altitudeM),
+    accuracyM: optionalNumber(point.accuracyM),
+    speedKmh: optionalNumber(point.speedKmh),
+    recordedAt: point.recordedAt
+  };
+}
+
+function optionalNumber(value) {
+  if (value == null) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function isValidDate(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
 module.exports = router;

@@ -21,16 +21,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setThemeMode] = useState<AppThemeMode>("ktm");
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_MODE_KEY).then((stored) => {
-      if (stored === "ktm" || stored === "universal") {
-        setThemeMode(stored);
-      }
-    });
+    AsyncStorage.getItem(THEME_MODE_KEY)
+      .then((stored) => {
+        if (stored === "ktm" || stored === "universal") {
+          setThemeMode(stored);
+        }
+      })
+      .catch(() => {
+        // Theme persistence should never block the app from opening.
+      });
   }, []);
 
   const setMode = useCallback(async (nextMode: AppThemeMode) => {
     setThemeMode(nextMode);
-    await AsyncStorage.setItem(THEME_MODE_KEY, nextMode);
+    try {
+      await AsyncStorage.setItem(THEME_MODE_KEY, nextMode);
+    } catch {
+      // Keep the in-memory theme even if local persistence is unavailable.
+    }
   }, []);
 
   const value = useMemo(

@@ -48,7 +48,10 @@ export function useAutoTracking() {
         setStatus(nextStatus);
       } catch (err: any) {
         setError(err.message || "Unable to update automatic tracking");
-        setStatus(await getAutoTrackingStatus());
+        const fallbackStatus = await readStatusSafely();
+        if (fallbackStatus) {
+          setStatus(fallbackStatus);
+        }
       } finally {
         setLoading(false);
       }
@@ -75,7 +78,10 @@ export function useAutoTracking() {
       setSyncMessage("No pending ride uploads.");
     } catch (err: any) {
       setError(err.message || "Pending ride upload failed");
-      setStatus(await getAutoTrackingStatus());
+      const fallbackStatus = await readStatusSafely();
+      if (fallbackStatus) {
+        setStatus(fallbackStatus);
+      }
       setSyncMessage("");
     } finally {
       setLoading(false);
@@ -83,4 +89,12 @@ export function useAutoTracking() {
   }, []);
 
   return { status, loading, error, syncMessage, refresh, retryPendingUploads, toggle };
+}
+
+async function readStatusSafely() {
+  try {
+    return await getAutoTrackingStatus();
+  } catch {
+    return null;
+  }
 }

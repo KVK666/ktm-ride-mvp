@@ -9,7 +9,8 @@ router.get("/", async (req, res, next) => {
   try {
     const period = req.query.period || "month";
     const grain = period === "year" ? "year" : period === "day" ? "day" : "month";
-    const anchor = req.query.date ? new Date(req.query.date) : new Date();
+    const requestedAnchor = req.query.date ? new Date(req.query.date) : new Date();
+    const anchor = Number.isFinite(requestedAnchor.getTime()) ? requestedAnchor : new Date();
 
     const result = await db.query(
       `select

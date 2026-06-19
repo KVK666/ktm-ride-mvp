@@ -1,6 +1,6 @@
 # Duke Ride App Context
 
-Last updated: 2026-05-22
+Last updated: 2026-06-19
 
 This file is the living context for the KTM Duke Ride MVP. Keep it updated whenever the app gains a meaningful feature, deployment change, setup change, or known limitation.
 
@@ -176,6 +176,8 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-05-25: Added manual pending-upload retry UI with visible success/failure messages for queued rides.
 - 2026-05-25: Added `releases/Duke-Ride-latest.apk` so the app can be downloaded from GitHub onto other Android phones.
 - 2026-05-25: Published official GitHub Release `v0.1.0` with `Duke-Ride-latest.apk` attached.
+- 2026-06-19: Hardened app reliability across mobile, Express backend, and Cloudflare Worker. API responses, token storage, local ride recovery, background location tasks, pending uploads, Maps responses, charts, reports, diagnostics, profile photos, and ride photo import now guard malformed data and storage/network failures.
+- 2026-06-19: Android release APK build succeeded and `releases/Duke-Ride-latest.apk` was refreshed. Phone install/launch could not run because ADB reported zero connected devices.
 
 ## Testing Checklist
 

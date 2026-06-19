@@ -9,17 +9,72 @@ export const API_BASE_URL =
 const TOKEN_KEY = "duke_ride_token";
 
 export async function saveToken(token: string) {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
-  await AsyncStorage.setItem(MIRRORED_TOKEN_KEY, token);
+  try {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  } catch (error) {
+    await logDiagnostic({
+      level: "warn",
+      area: "auth",
+      message: "Secure token save failed; using mirrored storage only",
+      details: diagnosticDetails(error)
+    });
+  }
+
+  try {
+    await AsyncStorage.setItem(MIRRORED_TOKEN_KEY, token);
+  } catch (error) {
+    await logDiagnostic({
+      level: "warn",
+      area: "auth",
+      message: "Mirrored token save failed",
+      details: diagnosticDetails(error)
+    });
+  }
 }
 
 export async function readToken() {
-  return (await SecureStore.getItemAsync(TOKEN_KEY)) || AsyncStorage.getItem(MIRRORED_TOKEN_KEY);
+  try {
+    const secureToken = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (secureToken) {
+      return secureToken;
+    }
+  } catch (error) {
+    await logDiagnostic({
+      level: "warn",
+      area: "auth",
+      message: "Secure token read failed; trying mirrored storage",
+      details: diagnosticDetails(error)
+    });
+  }
+
+  try {
+    return await AsyncStorage.getItem(MIRRORED_TOKEN_KEY);
+  } catch (error) {
+    await logDiagnostic({
+      level: "warn",
+      area: "auth",
+      message: "Mirrored token read failed",
+      details: diagnosticDetails(error)
+    });
+    return null;
+  }
 }
 
 export async function clearToken() {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await AsyncStorage.removeItem(MIRRORED_TOKEN_KEY);
+  const results = await Promise.allSettled([
+    SecureStore.deleteItemAsync(TOKEN_KEY),
+    AsyncStorage.removeItem(MIRRORED_TOKEN_KEY)
+  ]);
+
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed?.status === "rejected") {
+    await logDiagnostic({
+      level: "warn",
+      area: "auth",
+      message: "Token clear partially failed",
+      details: diagnosticDetails(failed.reason)
+    });
+  }
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -53,8 +108,8 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     clearTimeout(timeout);
   }
 
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : {};
+  const text = await readResponseText(response);
+  const parsed = parseResponseJson(text);
 
   if (!response.ok) {
     logDiagnostic({
@@ -63,8 +118,48 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       message: `API ${response.status} for ${path}`,
       details: text
     });
-    throw new Error(body.error || "Request failed");
+    throw new Error(parsed.valid ? parsed.value?.error || "Request failed" : parsed.error || "Request failed");
   }
 
-  return body as T;
+  if (!parsed.valid) {
+    logDiagnostic({
+      level: "error",
+      area: "api",
+      message: `Invalid JSON response for ${path}`,
+      details: text.slice(0, 1200)
+    });
+    throw new Error("Unexpected response from server");
+  }
+
+  return parsed.value as T;
+}
+
+async function readResponseText(response: Response) {
+  try {
+    return await response.text();
+  } catch (error) {
+    logDiagnostic({
+      level: "error",
+      area: "api",
+      message: "API response body could not be read",
+      details: diagnosticDetails(error)
+    });
+    throw new Error("Unable to read server response");
+  }
+}
+
+function parseResponseJson(text: string): { valid: true; value: any } | { valid: false; error: string } {
+  if (!text) {
+    return { valid: true, value: {} };
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object") {
+      return { valid: true, value: parsed };
+    }
+    return { valid: false, error: "Unexpected response from server" };
+  } catch {
+    return { valid: false, error: text.slice(0, 180) || "Unexpected response from server" };
+  }
 }

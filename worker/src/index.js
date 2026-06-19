@@ -6,6 +6,7 @@ import { Jwt } from "hono/utils/jwt";
 import { summarizeRide } from "./rideMath.js";
 
 const app = new Hono();
+const MAX_RIDE_POINTS = 12000;
 
 app.use(
   "*",
@@ -33,6 +34,8 @@ app.post("/api/auth/register", async (c) => {
   const body = await readJson(c);
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
+  const name = String(body.name || "").trim();
+  const bikeModel = String(body.bikeModel || "").trim();
 
   if (!email || password.length < 8) {
     return c.json({ error: "Email and 8+ character password are required" }, 400);
@@ -44,7 +47,7 @@ app.post("/api/auth/register", async (c) => {
       `insert into users (email, password_hash, name, bike_model)
        values ($1, $2, $3, $4)
        returning id, email, name, bike_model`,
-      [email, passwordHash, body.name || "Rider", body.bikeModel || "KTM Duke 250 Gen 3"]
+      [email, passwordHash, name || "Rider", bikeModel || "KTM Duke 250 Gen 3"]
     );
 
     const user = safeUser(rows[0]);
@@ -200,23 +203,19 @@ app.patch("/api/rides/:id", authRequired, async (c) => {
 app.post("/api/rides", authRequired, async (c) => {
   const body = await readJson(c);
   const { startLabel, endLabel, clientRideId, startedAt, endedAt, points = [] } = body;
-  const rideClientId = clientRideId || c.req.header("Idempotency-Key") || null;
+  const rideClientId = normalizeOptionalText(clientRideId || c.req.header("Idempotency-Key"), 300);
 
-  if (!startedAt || !endedAt || !Array.isArray(points) || points.length < 2) {
+  if (!isValidDate(startedAt) || !isValidDate(endedAt) || !Array.isArray(points) || points.length < 2) {
     return c.json({ error: "Ride requires start time, end time, and at least 2 points" }, 400);
   }
 
-  const normalizedPoints = points.map((point) => ({
-    latitude: Number(point.latitude),
-    longitude: Number(point.longitude),
-    altitudeM: point.altitudeM == null ? null : Number(point.altitudeM),
-    accuracyM: point.accuracyM == null ? null : Number(point.accuracyM),
-    speedKmh: point.speedKmh == null ? null : Number(point.speedKmh),
-    recordedAt: point.recordedAt
-  }));
+  if (points.length > MAX_RIDE_POINTS) {
+    return c.json({ error: `Ride cannot contain more than ${MAX_RIDE_POINTS} points` }, 413);
+  }
 
-  if (normalizedPoints.some((point) => !Number.isFinite(point.latitude) || !Number.isFinite(point.longitude))) {
-    return c.json({ error: "Ride points must include valid latitude and longitude" }, 400);
+  const normalizedPoints = points.map(normalizeRidePoint);
+  if (normalizedPoints.some((point) => !point)) {
+    return c.json({ error: "Ride points must include valid coordinates and timestamps" }, 400);
   }
 
   const summary = summarizeRide(normalizedPoints, startedAt, endedAt);
@@ -225,8 +224,8 @@ app.post("/api/rides", authRequired, async (c) => {
   const sql = db(c.env);
   const params = [
     c.get("user").id,
-    startLabel || "Start point",
-    endLabel || "End point",
+    normalizeOptionalText(startLabel, 180) || "Start point",
+    normalizeOptionalText(endLabel, 180) || "End point",
     start.latitude,
     start.longitude,
     end.latitude,
@@ -516,6 +515,39 @@ function normalizeOptionalText(value, maxLength) {
   }
   const normalized = String(value).trim();
   return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function normalizeRidePoint(point) {
+  const latitude = Number(point?.latitude);
+  const longitude = Number(point?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return null;
+  }
+
+  if (!isValidDate(point?.recordedAt)) {
+    return null;
+  }
+
+  return {
+    latitude,
+    longitude,
+    altitudeM: optionalNumber(point.altitudeM),
+    accuracyM: optionalNumber(point.accuracyM),
+    speedKmh: optionalNumber(point.speedKmh),
+    recordedAt: point.recordedAt
+  };
+}
+
+function optionalNumber(value) {
+  if (value == null) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function isValidDate(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
 async function readJson(c) {

@@ -32,8 +32,8 @@ export function DashboardScreen() {
         api<{ stats: DashboardStats; recentRides: Ride[] }>("/dashboard"),
         hasManualRideSession()
       ]);
-      setStats(response.stats);
-      setRecentRides(response.recentRides);
+      setStats(normalizeStats(response.stats));
+      setRecentRides(Array.isArray(response.recentRides) ? response.recentRides : []);
       setRecoverableRide(activeSession);
     } catch (err: any) {
       setError(err.message || "Dashboard unavailable");
@@ -143,6 +143,23 @@ export function DashboardScreen() {
 
 function rideTitle(ride: Ride) {
   return ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
+}
+
+function normalizeStats(stats: any): DashboardStats {
+  return {
+    todayDistanceM: finiteNumber(stats?.todayDistanceM),
+    monthDistanceM: finiteNumber(stats?.monthDistanceM),
+    yearDistanceM: finiteNumber(stats?.yearDistanceM),
+    totalRides: finiteNumber(stats?.totalRides),
+    unreviewedRides: finiteNumber(stats?.unreviewedRides),
+    bestTopSpeedKmh: finiteNumber(stats?.bestTopSpeedKmh),
+    averageSpeedKmh: finiteNumber(stats?.averageSpeedKmh)
+  };
+}
+
+function finiteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
 const createStyles = (colors: ThemeColors) => ({
