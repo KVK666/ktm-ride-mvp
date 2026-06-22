@@ -1,6 +1,6 @@
-# Duke Ride Cloudflare Worker API
+# RidePulse Cloudflare Worker API
 
-Free-tier backend for the Duke Ride mobile app. It keeps the same API paths as the Express backend:
+Free-tier backend for the RidePulse mobile app. It keeps the same API paths as the Express backend:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`

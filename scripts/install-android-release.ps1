@@ -53,7 +53,7 @@ Write-Host "Installing standalone release APK on $device..."
 & $adb -s $device install -r $apkPath
 Assert-NativeSuccess "APK install"
 
-Write-Host "Launching Duke Ride..."
+Write-Host "Launching RidePulse..."
 & $adb -s $device logcat -c
 Assert-NativeSuccess "Logcat clear"
 & $adb -s $device shell am force-stop com.example.dukeride

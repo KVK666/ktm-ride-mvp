@@ -22,15 +22,15 @@ function Root() {
       card: colors.surface,
       text: colors.text,
       border: colors.border,
-      primary: colors.orange
+      primary: colors.accent
     }
   };
 
   if (loading) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.orange} size="large" />
-        <Text style={[styles.loadingText, { color: colors.text }]}>Starting Duke Ride</Text>
+        <ActivityIndicator color={colors.accent} size="large" />
+        <Text style={[styles.loadingText, { color: colors.text }]}>Starting RidePulse</Text>
       </View>
     );
   }

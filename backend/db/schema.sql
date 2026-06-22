@@ -5,7 +5,7 @@ create table if not exists users (
   email text not null unique,
   password_hash text not null,
   name text not null default 'Rider',
-  bike_model text not null default 'KTM Duke 250 Gen 3',
+  bike_model text not null default 'Motorcycle',
   created_at timestamptz not null default now()
 );
 
@@ -30,6 +30,8 @@ create table if not exists rides (
   ended_at timestamptz not null,
   created_at timestamptz not null default now()
 );
+
+alter table users alter column bike_model set default 'Motorcycle';
 
 alter table rides add column if not exists client_ride_id text;
 alter table rides add column if not exists title text;

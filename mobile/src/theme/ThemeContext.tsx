@@ -12,19 +12,25 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
-  mode: "ktm",
-  colors: themes.ktm,
+  mode: "graphite",
+  colors: themes.graphite,
   setMode: async () => {}
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setThemeMode] = useState<AppThemeMode>("ktm");
+  const [mode, setThemeMode] = useState<AppThemeMode>("graphite");
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_MODE_KEY)
       .then((stored) => {
-        if (stored === "ktm" || stored === "universal") {
+        if (stored === "graphite" || stored === "oled") {
           setThemeMode(stored);
+          return;
+        }
+        if (stored === "ktm" || stored === "universal") {
+          const migratedMode: AppThemeMode = stored === "ktm" ? "graphite" : "oled";
+          setThemeMode(migratedMode);
+          AsyncStorage.setItem(THEME_MODE_KEY, migratedMode).catch(() => {});
         }
       })
       .catch(() => {

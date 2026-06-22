@@ -44,7 +44,7 @@ function ProfileRow({ icon, label, value }: ProfileRowProps) {
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
-        <Ionicons name={icon} color={colors.orange} size={20} />
+        <Ionicons name={icon} color={colors.accent} size={20} />
       </View>
       <View style={styles.rowText}>
         <Text style={styles.rowLabel}>{label}</Text>
@@ -66,7 +66,7 @@ export function ProfileScreen() {
   const [profilePhotoMessage, setProfilePhotoMessage] = useState("");
   const [profilePhotoLoading, setProfilePhotoLoading] = useState(false);
   const displayName = user?.name?.trim() || "Rider";
-  const bikeModel = user?.bikeModel || "KTM Duke 250 Gen 3";
+  const bikeModel = user?.bikeModel || "Motorcycle";
   const riderId = user?.id ? user.id.slice(0, 8).toUpperCase() : "Not available";
 
   const loadDiagnostics = useCallback(async () => {
@@ -166,7 +166,7 @@ export function ProfileScreen() {
             </View>
           </Pressable>
           <View style={styles.heroText}>
-            <Text style={styles.kicker}>Rider profile</Text>
+            <Text style={styles.kicker}>RidePulse profile</Text>
             <Text style={styles.title}>{displayName}</Text>
             <Text style={styles.subtitle}>{bikeModel}</Text>
             {profilePhotoMessage ? <Text style={styles.profilePhotoMessage}>{profilePhotoMessage}</Text> : null}
@@ -208,21 +208,21 @@ export function ProfileScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Theme</Text>
-          <Text style={styles.cardCopy}>Choose the KTM look or a neutral universal color scheme.</Text>
+          <Text style={styles.cardCopy}>Choose a universal dark appearance that works with every motorcycle.</Text>
           <View style={styles.themeOptions}>
             <ThemeOption
-              label="KTM"
-              description="Orange and black bike-focused style"
-              selected={themeMode === "ktm"}
-              color="#ff6a00"
-              onPress={() => setThemeMode("ktm")}
+              label="Graphite"
+              description="Layered graphite with electric cyan"
+              selected={themeMode === "graphite"}
+              color="#19C2FF"
+              onPress={() => setThemeMode("graphite")}
             />
             <ThemeOption
-              label="Universal"
-              description="Neutral blue dark style"
-              selected={themeMode === "universal"}
-              color="#3b82f6"
-              onPress={() => setThemeMode("universal")}
+              label="OLED Black"
+              description="True black surfaces with electric cyan"
+              selected={themeMode === "oled"}
+              color="#19C2FF"
+              onPress={() => setThemeMode("oled")}
             />
           </View>
         </View>
@@ -341,7 +341,7 @@ function buildDiagnosticsHtml(body: string) {
   return `
     <html>
       <body style="font-family: sans-serif; color: #111827;">
-        <h1>Duke Ride diagnostics</h1>
+        <h1>RidePulse diagnostics</h1>
         <p>Generated ${new Date().toLocaleString()}</p>
         <pre style="white-space: pre-wrap; font-size: 12px;">${escapeHtml(body)}</pre>
       </body>
@@ -365,20 +365,20 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 18,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14
+    gap: 12
   },
   avatarButton: {
     position: "relative"
   },
   avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 8,
-    backgroundColor: colors.orange,
+    width: 62,
+    height: 62,
+    borderRadius: 18,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden"
@@ -391,9 +391,9 @@ const createStyles = (colors: ThemeColors) => ({
     position: "absolute",
     right: -5,
     bottom: -5,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: colors.surfaceHigh,
     borderColor: colors.border,
     borderWidth: 1,
@@ -402,7 +402,7 @@ const createStyles = (colors: ThemeColors) => ({
   },
   avatarText: {
     color: colors.text,
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "900"
   },
   heroText: {
@@ -410,14 +410,14 @@ const createStyles = (colors: ThemeColors) => ({
     minWidth: 0
   },
   kicker: {
-    color: colors.orangeSoft,
+    color: colors.accentSoft,
     fontWeight: "900",
     fontSize: 12,
     marginBottom: 4
   },
   title: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "900"
   },
   subtitle: {
@@ -431,7 +431,9 @@ const createStyles = (colors: ThemeColors) => ({
     fontWeight: "700"
   },
   photoActions: {
-    gap: 10
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   pressed: {
     opacity: 0.85
@@ -440,9 +442,9 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
-    gap: 12
+    borderRadius: 16,
+    padding: 12,
+    gap: 10
   },
   row: {
     flexDirection: "row",
@@ -450,9 +452,9 @@ const createStyles = (colors: ThemeColors) => ({
     gap: 12
   },
   rowIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center"
@@ -467,13 +469,13 @@ const createStyles = (colors: ThemeColors) => ({
   },
   rowValue: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
     marginTop: 2
   },
   cardTitle: {
     color: colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900"
   },
   cardCopy: {
@@ -489,33 +491,35 @@ const createStyles = (colors: ThemeColors) => ({
     flex: 1
   },
   pendingUploadBox: {
-    gap: 10
+    gap: 8
   },
   pendingText: {
     color: colors.yellow,
     fontWeight: "800"
   },
   diagnosticActions: {
-    gap: 10
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   themeOptions: {
     gap: 10
   },
   themeOption: {
-    minHeight: 68,
-    borderRadius: 8,
+    minHeight: 60,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 12
+    gap: 10,
+    padding: 10
   },
   themeSwatch: {
-    width: 34,
-    height: 34,
-    borderRadius: 17
+    width: 30,
+    height: 30,
+    borderRadius: 15
   },
   themeText: {
     flex: 1,
@@ -523,7 +527,7 @@ const createStyles = (colors: ThemeColors) => ({
   },
   themeLabel: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900"
   },
   themeDescription: {
@@ -535,12 +539,12 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surfaceHigh,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 14,
     padding: 10,
     gap: 4
   },
   diagnosticMeta: {
-    color: colors.orange,
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "800"
   },

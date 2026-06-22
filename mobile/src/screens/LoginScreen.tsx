@@ -1,5 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
@@ -13,23 +14,22 @@ export function LoginScreen() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [name, setName] = useState("");
+  const [bikeModel, setBikeModel] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function switchMode() {
-    setMode(mode === "login" ? "register" : "login");
-    setEmail("");
+    setMode((current) => current === "login" ? "register" : "login");
     setPassword("");
     setName("");
+    setBikeModel("");
     setError("");
   }
 
   async function submit() {
-    if (loading) {
-      return;
-    }
-
+    if (loading) return;
     setError("");
     const cleanEmail = email.trim();
     const cleanName = name.trim();
@@ -47,7 +47,7 @@ export function LoginScreen() {
       if (mode === "login") {
         await login(cleanEmail, password);
       } else {
-        await register(cleanEmail, password, cleanName);
+        await register(cleanEmail, password, cleanName, bikeModel);
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed");
@@ -58,135 +58,77 @@ export function LoginScreen() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.container}
-      >
-        <View style={styles.brandBlock}>
-          <Image source={require("../../assets/app-logo.png")} style={styles.logo} />
-          <View style={styles.brandText}>
-            <Text style={styles.kicker}>KTM Duke 250 Gen 3</Text>
-            <Text style={styles.title}>Duke Ride</Text>
-            <Text style={styles.subtitle}>Track. Navigate. Analyze.</Text>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.container}>
+          <View style={styles.brandBlock}>
+            <Image source={require("../../assets/ridepulse-logo.png")} style={styles.logo} />
+            <Text style={styles.kicker}>Every road. Every motorcycle.</Text>
+            <Text style={styles.title}>RidePulse</Text>
+            <Text style={styles.subtitle}>Track rides, navigate confidently, and understand every journey.</Text>
           </View>
-        </View>
 
-        <View style={styles.form}>
-          {mode === "register" ? (
-            <TextInput
-              autoComplete="name"
-              textContentType="name"
-              placeholder="Name"
-              placeholderTextColor={colors.muted}
-              value={name}
-              onChangeText={setName}
-              style={styles.input}
-            />
-          ) : null}
-          <TextInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            keyboardType="email-address"
-            placeholder="Email"
-            placeholderTextColor={colors.muted}
-            value={email}
-            onChangeText={setEmail}
-            style={styles.input}
-          />
-          <TextInput
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            textContentType={mode === "login" ? "password" : "newPassword"}
-            placeholder="Password"
-            placeholderTextColor={colors.muted}
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            label={mode === "login" ? "Login" : "Create account"}
-            icon="log-in"
-            loading={loading}
-            onPress={submit}
-          />
-          <Text
-            style={styles.switcher}
-            onPress={switchMode}
-          >
-            {mode === "login" ? "Create a new rider account" : "Back to login"}
-          </Text>
-        </View>
+          <View style={styles.form}>
+            <View style={styles.formHeader}>
+              <Text style={styles.formTitle}>{mode === "login" ? "Welcome back" : "Create your rider profile"}</Text>
+              <Text style={styles.formCopy}>{mode === "login" ? "Sign in to continue your ride history." : "Your motorcycle can be from any brand."}</Text>
+            </View>
+            {mode === "register" ? (
+              <>
+                <Field label="Name">
+                  <TextInput autoComplete="name" textContentType="name" placeholder="Your name" placeholderTextColor={colors.muted} value={name} onChangeText={setName} style={styles.input} />
+                </Field>
+                <Field label="Motorcycle model" optional>
+                  <TextInput placeholder="e.g. CB350, MT-15, Classic 350" placeholderTextColor={colors.muted} value={bikeModel} onChangeText={setBikeModel} style={styles.input} />
+                </Field>
+              </>
+            ) : null}
+            <Field label="Email">
+              <TextInput autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" placeholder="you@example.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} style={styles.input} />
+            </Field>
+            <Field label="Password">
+              <View style={styles.passwordShell}>
+                <TextInput secureTextEntry={!passwordVisible} autoCapitalize="none" autoCorrect={false} autoComplete={mode === "login" ? "current-password" : "new-password"} textContentType={mode === "login" ? "password" : "newPassword"} placeholder="Enter password" placeholderTextColor={colors.muted} value={password} onChangeText={setPassword} style={styles.passwordInput} />
+                <Pressable accessibilityRole="button" accessibilityLabel={passwordVisible ? "Hide password" : "Show password"} onPress={() => setPasswordVisible((current) => !current)} style={styles.visibilityButton}>
+                  <Ionicons name={passwordVisible ? "eye-off" : "eye"} size={21} color={colors.muted} />
+                </Pressable>
+              </View>
+            </Field>
+            {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+            <PrimaryButton label={mode === "login" ? "Sign in" : "Create account"} icon={mode === "login" ? "log-in" : "person-add"} loading={loading} onPress={submit} />
+            <Pressable accessibilityRole="button" onPress={switchMode} style={styles.switchButton}>
+              <Text style={styles.switcher}>{mode === "login" ? "New to RidePulse? Create an account" : "Already have an account? Sign in"}</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
+function Field({ label, optional, children }: { label: string; optional?: boolean; children: React.ReactNode }) {
+  const styles = useThemedStyles(createStyles);
+  return <View style={styles.field}><Text style={styles.label}>{label}{optional ? "  ·  Optional" : ""}</Text>{children}</View>;
+}
+
 const createStyles = (colors: ThemeColors) => ({
-  container: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center"
-  },
-  brandBlock: {
-    marginBottom: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14
-  },
-  logo: {
-    width: 86,
-    height: 86,
-    borderRadius: 8
-  },
-  brandText: {
-    flex: 1,
-    minWidth: 0
-  },
-  kicker: {
-    color: colors.orange,
-    fontWeight: "900",
-    letterSpacing: 0,
-    marginBottom: 6
-  },
-  title: {
-    color: colors.text,
-    fontSize: 38,
-    fontWeight: "900"
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: 16,
-    marginTop: 8
-  },
-  form: {
-    gap: 12,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface
-  },
-  input: {
-    backgroundColor: colors.surfaceHigh,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 8,
-    minHeight: 54,
-    color: colors.text,
-    paddingHorizontal: 14,
-    fontSize: 16
-  },
-  error: {
-    color: colors.danger
-  },
-  switcher: {
-    color: colors.orangeSoft,
-    textAlign: "center",
-    padding: 10,
-    fontWeight: "700"
-  }
+  flex: { flex: 1 },
+  container: { flexGrow: 1, padding: 18, paddingVertical: 28, justifyContent: "center" as const, gap: 22 },
+  brandBlock: { alignItems: "center" as const },
+  logo: { width: 88, height: 88, borderRadius: 22, marginBottom: 14 },
+  kicker: { color: colors.accent, fontWeight: "900", fontSize: 12, textTransform: "uppercase" as const, letterSpacing: 0.8 },
+  title: { color: colors.text, fontSize: 32, lineHeight: 36, fontWeight: "900", marginTop: 4 },
+  subtitle: { color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" as const, marginTop: 6, maxWidth: 320 },
+  form: { gap: 14, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  formHeader: { gap: 4, marginBottom: 2 },
+  formTitle: { color: colors.text, fontSize: 19, fontWeight: "900" },
+  formCopy: { color: colors.muted, lineHeight: 20 },
+  field: { gap: 8 },
+  label: { color: colors.textSoft, fontSize: 13, fontWeight: "800" },
+  input: { backgroundColor: colors.surfaceHigh, borderColor: colors.border, borderWidth: 1, borderRadius: 13, minHeight: 46, color: colors.text, paddingHorizontal: 13, fontSize: 15 },
+  passwordShell: { minHeight: 46, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceHigh, flexDirection: "row" as const, alignItems: "center" as const },
+  passwordInput: { flex: 1, minHeight: 44, color: colors.text, paddingLeft: 13, fontSize: 15 },
+  visibilityButton: { width: 44, minHeight: 44, alignItems: "center" as const, justifyContent: "center" as const },
+  error: { color: colors.danger, fontWeight: "700", lineHeight: 20 },
+  switchButton: { minHeight: 38, alignItems: "center" as const, justifyContent: "center" as const },
+  switcher: { color: colors.accentSoft, textAlign: "center" as const, fontWeight: "800" }
 });

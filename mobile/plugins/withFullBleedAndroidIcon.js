@@ -29,7 +29,7 @@ module.exports = function withFullBleedAndroidIcon(config) {
       const resRoot = path.join(config.modRequest.platformProjectRoot, "app", "src", "main", "res");
       const mipmapAnyDpi = path.join(resRoot, "mipmap-anydpi-v26");
       const drawable = path.join(resRoot, "drawable");
-      const sourceIcon = path.join(projectRoot, "assets", "app-logo.png");
+      const sourceIcon = path.join(projectRoot, "assets", "ridepulse-logo.png");
 
       fs.mkdirSync(mipmapAnyDpi, { recursive: true });
       fs.mkdirSync(drawable, { recursive: true });

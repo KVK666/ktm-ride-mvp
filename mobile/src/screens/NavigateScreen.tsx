@@ -129,6 +129,11 @@ export function NavigateScreen() {
     <Screen>
       <SafetyModal visible={safetyVisible} onAccept={startNavigationAfterSafety} />
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.kicker}>Plan before you move</Text>
+          <Text style={styles.title}>Navigate</Text>
+          <Text style={styles.subtitle}>Set your destination, review the route, then ride safely.</Text>
+        </View>
         <View style={styles.searchRow}>
           <TextInput
             value={destination}
@@ -283,28 +288,55 @@ function isCoordinate(coordinate?: Coordinate | null) {
 const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 16,
+    paddingBottom: 110,
     gap: 14
+  },
+  header: {
+    gap: 4,
+    paddingTop: 4
+  },
+  kicker: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  title: {
+    color: colors.text,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: "900"
+  },
+  subtitle: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 19
   },
   searchRow: {
     flexDirection: "row",
-    gap: 10,
-    alignItems: "center"
+    gap: 8,
+    alignItems: "center",
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1
   },
   input: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.borderStrong,
     borderWidth: 1,
-    borderRadius: 8,
-    minHeight: 58,
+    borderRadius: 12,
+    minHeight: 50,
     color: colors.text,
-    paddingHorizontal: 14,
-    fontSize: 16
+    paddingHorizontal: 12,
+    fontSize: 15
   },
   mapShell: {
     width: "100%",
-    height: 360,
-    borderRadius: 8,
+    height: 320,
+    borderRadius: 18,
     overflow: "hidden",
     backgroundColor: colors.surface
   },
@@ -312,9 +344,9 @@ const createStyles = (colors: ThemeColors) => ({
     position: "absolute",
     right: 12,
     bottom: 22,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(8, 9, 11, 0.82)",
@@ -327,35 +359,35 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 14
+    borderRadius: 16,
+    padding: 12
   },
   metricLabel: {
     color: colors.muted,
-    fontSize: 12
+    fontSize: 11
   },
   metricValue: {
     color: colors.text,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "900",
-    marginTop: 4
+    marginTop: 3
   },
   step: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12
+    padding: 10
   },
   stepIndex: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     textAlign: "center",
     textAlignVertical: "center",
-    backgroundColor: colors.orange,
+    backgroundColor: colors.accent,
     color: colors.text,
     fontWeight: "900"
   },
@@ -364,11 +396,13 @@ const createStyles = (colors: ThemeColors) => ({
   },
   stepInstruction: {
     color: colors.text,
-    fontWeight: "800"
+    fontWeight: "800",
+    fontSize: 14
   },
   stepMeta: {
     color: colors.muted,
-    marginTop: 4
+    marginTop: 3,
+    fontSize: 12
   },
   error: {
     color: colors.danger
@@ -383,7 +417,7 @@ const createStyles = (colors: ThemeColors) => ({
     right: 16,
     bottom: 28,
     minHeight: 58,
-    borderRadius: 8,
+    borderRadius: 18,
     backgroundColor: "rgba(8, 9, 11, 0.88)",
     borderColor: colors.border,
     borderWidth: 1,
@@ -405,6 +439,6 @@ const createStyles = (colors: ThemeColors) => ({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.orange
+    backgroundColor: colors.accent
   }
 });

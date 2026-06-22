@@ -4,7 +4,7 @@ import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 
 export type StoryPromptVariantId =
   | "cinematic"
-  | "sporty-ktm"
+  | "performance"
   | "rainy-monsoon"
   | "sunrise-sunset"
   | "night-city"
@@ -52,14 +52,14 @@ export const STORY_PROMPT_VARIANTS: StoryPromptVariant[] = [
     angles: [
       "make it feel like the final frame of a memorable ride",
       "compose it like a high-energy road-trip poster",
-      "use strong shadows and clean orange highlights"
+      "use strong shadows and clean electric-cyan highlights"
     ]
   },
   {
-    id: "sporty-ktm",
-    label: "Sporty KTM",
-    description: "Aggressive orange-and-black performance look",
-    visualDirection: "sporty naked-bike poster style, black and orange palette, sharp panels, speed lines, performance dashboard energy",
+    id: "performance",
+    label: "Performance",
+    description: "Sharp, brand-neutral performance energy",
+    visualDirection: "unbranded motorcycle performance poster, graphite and electric-cyan palette, sharp panels, speed lines, technical dashboard energy",
     angles: [
       "make the ride feel precise, fast, and mechanical",
       "use angular shapes inspired by a street motorcycle cockpit",
@@ -74,7 +74,7 @@ export const STORY_PROMPT_VARIANTS: StoryPromptVariant[] = [
     angles: [
       "make the road feel freshly rained on without hiding the text",
       "lean into reflective puddles and a stormy riding mood",
-      "use mist, rain streaks, and warm orange highlights"
+      "use mist, rain streaks, and restrained cyan highlights"
     ]
   },
   {
@@ -92,7 +92,7 @@ export const STORY_PROMPT_VARIANTS: StoryPromptVariant[] = [
     id: "night-city",
     label: "Night City",
     description: "Urban night ride with neon and street light",
-    visualDirection: "night city motorcycle ride, neon reflections, dark urban streets, cinematic street lights, high contrast black and orange details",
+    visualDirection: "night city motorcycle ride, neon reflections, dark urban streets, cinematic street lights, high contrast graphite and cyan details",
     angles: [
       "make it feel like a late-night city run",
       "use clean neon accents but keep the stats readable",
@@ -118,14 +118,14 @@ export const STORY_PROMPT_VARIANTS: StoryPromptVariant[] = [
     angles: [
       "make the route feel twisty and scenic",
       "show curved roads and layered hills without inventing exact geography",
-      "use a premium travel-poster mood with orange route energy"
+      "use a premium travel-poster mood with cyan route energy"
     ]
   },
   {
     id: "minimal-stat",
     label: "Minimal",
     description: "Clean graphic poster with strong stat hierarchy",
-    visualDirection: "minimal modern Instagram story poster, black background, orange route line, clean typography blocks, simple premium dashboard style",
+    visualDirection: "minimal modern Instagram story poster, graphite background, cyan route line, clean typography blocks, simple premium dashboard style",
     angles: [
       "make the route line the hero",
       "keep the layout simple, bold, and easy to read",
@@ -140,7 +140,7 @@ export const STORY_PROMPT_VARIANTS: StoryPromptVariant[] = [
     angles: [
       "make it feel like a real memory from this ride",
       "keep the motorcycle-travel mood grounded and believable",
-      "use natural colors with subtle Duke orange accents"
+      "use natural colors with subtle RidePulse cyan accents"
     ]
   }
 ];
@@ -269,9 +269,9 @@ export function buildRideStoryPrompt(
     "Composition rules:",
     "Make it premium and shareable, like a polished motorcycle story poster.",
     "Keep the image vertical, phone-story friendly, and readable on a small screen.",
-    "Use black, dark graphite, white, and Duke-style orange accents.",
+    "Use black, dark graphite, white, and electric-cyan RidePulse accents.",
     "Leave clean space for the ride stats, or include the stats using the exact text above.",
-    "Do not use official KTM logos unless I provide one. A generic sporty naked-bike silhouette is okay.",
+    "Do not use official motorcycle manufacturer logos. A generic unbranded motorcycle silhouette is okay.",
     "Do not add extra claims, fake sponsors, random rider names, license plates, or unsafe riding behavior."
   ].join("\n");
 }
@@ -355,7 +355,7 @@ function scoreVariant(
   if (context.placeMood === "highway" && variantId === "highway-run") score += 7;
   if (context.placeMood === "hills" && variantId === "mountain-ghat") score += 7;
   if (context.placeMood === "city" && variantId === "night-city") score += context.timeMood === "night" ? 3 : 2;
-  if (context.rideMood === "fast run" && (variantId === "sporty-ktm" || variantId === "highway-run")) score += 4;
+  if (context.rideMood === "fast run" && (variantId === "performance" || variantId === "highway-run")) score += 4;
   if ((context.rideMood === "long ride" || context.rideMood === "endurance ride") && variantId === "photo-real-travel") score += 4;
   if (context.rideMood === "relaxed" && variantId === "minimal-stat") score += 2;
 
@@ -364,7 +364,7 @@ function scoreVariant(
   if (weather?.mood === "clear" && variantId === "sunrise-sunset") score += 2;
   if (weather?.mood === "cloudy" && variantId === "cinematic") score += 2;
   if (weather?.mood === "windy" && variantId === "highway-run") score += 2;
-  if (weather?.mood === "hot" && variantId === "sporty-ktm") score += 2;
+  if (weather?.mood === "hot" && variantId === "performance") score += 2;
   if (weather?.mood === "cool" && variantId === "photo-real-travel") score += 2;
 
   return score;

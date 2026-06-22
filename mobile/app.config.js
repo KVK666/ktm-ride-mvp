@@ -3,17 +3,17 @@ const googleMapsApiKey =
 
 module.exports = {
   expo: {
-    name: "Duke Ride",
+    name: "RidePulse",
     slug: "duke-ride",
     version: "0.1.0",
     orientation: "portrait",
     userInterfaceStyle: "dark",
     scheme: "dukeride",
-    icon: "./assets/app-logo.png",
+    icon: "./assets/ridepulse-logo.png",
     splash: {
-      image: "./assets/app-logo.png",
+      image: "./assets/ridepulse-logo.png",
       resizeMode: "contain",
-      backgroundColor: "#08090b"
+      backgroundColor: "#080B0F"
     },
     ios: {
       bundleIdentifier: "com.example.dukeride",
@@ -21,9 +21,9 @@ module.exports = {
         googleMapsApiKey
       },
       infoPlist: {
-        NSLocationWhenInUseUsageDescription: "Duke Ride uses your location for route navigation and ride tracking.",
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Duke Ride uses background location to keep tracking active during rides.",
-        NSPhotoLibraryUsageDescription: "Duke Ride reads your photo library only when you import ride photos or choose a profile photo.",
+        NSLocationWhenInUseUsageDescription: "RidePulse uses your location for route navigation and ride tracking.",
+        NSLocationAlwaysAndWhenInUseUsageDescription: "RidePulse uses background location to keep tracking active during rides.",
+        NSPhotoLibraryUsageDescription: "RidePulse reads your photo library only when you import ride photos or choose a profile photo.",
         LSApplicationQueriesSchemes: ["instagram", "instagram-stories"],
         UIBackgroundModes: ["location"]
       }
@@ -31,8 +31,8 @@ module.exports = {
     android: {
       package: "com.example.dukeride",
       adaptiveIcon: {
-        foregroundImage: "./assets/app-logo.png",
-        backgroundColor: "#0b0b0d"
+        foregroundImage: "./assets/ridepulse-logo.png",
+        backgroundColor: "#080B0F"
       },
       config: {
         googleMaps: {
@@ -57,20 +57,20 @@ module.exports = {
       [
         "expo-image-picker",
         {
-          photosPermission: "Allow Duke Ride to choose a profile photo from your gallery."
+          photosPermission: "Allow RidePulse to choose a profile photo from your gallery."
         }
       ],
       [
         "expo-media-library",
         {
-          photosPermission: "Allow Duke Ride to find photos taken during your rides.",
+          photosPermission: "Allow RidePulse to find photos taken during your rides.",
           isAccessMediaLocationEnabled: true
         }
       ],
       [
         "expo-location",
         {
-          locationAlwaysAndWhenInUsePermission: "Allow Duke Ride to track rides in the background."
+          locationAlwaysAndWhenInUsePermission: "Allow RidePulse to track rides in the background."
         }
       ]
     ]

@@ -82,7 +82,7 @@ export async function enableAutoTracking() {
   await ensureBackgroundPermissions();
   await AsyncStorage.setItem(AUTO_TRACKING_ENABLED_KEY, "true");
   await writeAutoRideState({ status: "watching" });
-  await startBackgroundLocationUpdates("Duke Ride auto tracking is watching for rides.", true);
+  await startBackgroundLocationUpdates("RidePulse auto tracking is watching for rides.", true);
   await AsyncStorage.setItem(AUTO_TRACKING_SERVICE_VERSION_KEY, AUTO_TRACKING_SERVICE_VERSION);
   await logDiagnostic({
     level: "info",
@@ -202,7 +202,7 @@ async function ensureAutoTrackingServiceCurrent() {
     return;
   }
 
-  await startBackgroundLocationUpdates("Duke Ride auto tracking is watching for rides.", true);
+  await startBackgroundLocationUpdates("RidePulse auto tracking is watching for rides.", true);
   await AsyncStorage.setItem(AUTO_TRACKING_SERVICE_VERSION_KEY, AUTO_TRACKING_SERVICE_VERSION);
   await logDiagnostic({
     level: "info",
@@ -227,7 +227,7 @@ async function startBackgroundLocationUpdates(notificationBody: string, restart 
     mayShowUserSettingsDialog: true,
     showsBackgroundLocationIndicator: true,
     foregroundService: {
-      notificationTitle: "Duke Ride tracking",
+      notificationTitle: "RidePulse tracking",
       notificationBody
     }
   });

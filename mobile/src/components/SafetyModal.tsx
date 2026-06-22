@@ -14,13 +14,13 @@ export function SafetyModal({
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.overlay}>
-        <View style={[styles.modal, { backgroundColor: colors.surfaceHigh, borderColor: colors.orange }]}>
+        <View style={[styles.modal, { backgroundColor: colors.surfaceHigh, borderColor: colors.accent }]}>
           <Text style={[styles.title, { color: colors.text }]}>Ride safely</Text>
           <Text style={[styles.message, { color: colors.text }]}>
             Set your destination before riding. Do not interact with the phone while riding.
           </Text>
-          <Pressable style={[styles.button, { backgroundColor: colors.orange }]} onPress={onAccept}>
-            <Text style={[styles.buttonText, { color: colors.text }]}>I understand</Text>
+          <Pressable style={[styles.button, { backgroundColor: colors.accent }]} onPress={onAccept}>
+            <Text style={[styles.buttonText, { color: colors.onAccent }]}>I understand</Text>
           </Pressable>
         </View>
       </View>
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   modal: {
     width: "100%",
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 22,
     padding: 22
   },
   title: {
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 52,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center"
   },

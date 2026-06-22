@@ -47,7 +47,7 @@ app.post("/api/auth/register", async (c) => {
       `insert into users (email, password_hash, name, bike_model)
        values ($1, $2, $3, $4)
        returning id, email, name, bike_model`,
-      [email, passwordHash, name || "Rider", bikeModel || "KTM Duke 250 Gen 3"]
+      [email, passwordHash, name || "Rider", bikeModel || "Motorcycle"]
     );
 
     const user = safeUser(rows[0]);

@@ -72,6 +72,11 @@ export function ReportsScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.kicker}>Exportable insights</Text>
+          <Text style={styles.headerTitle}>Ride reports</Text>
+          <Text style={styles.headerCopy}>Turn your recent journeys into a clean, shareable PDF.</Text>
+        </View>
         <View style={styles.tabs}>
           {(["day", "month", "year"] as Period[]).map((item) => (
             <Pressable
@@ -89,11 +94,13 @@ export function ReportsScreen() {
           <>
             <View style={styles.summary}>
               <Text style={styles.title}>{period} report</Text>
-              <Text style={styles.metric}>Ride count: {report.summary.rideCount}</Text>
-              <Text style={styles.metric}>Distance: {km(report.summary.distanceM)}</Text>
-              <Text style={styles.metric}>Total duration: {duration(report.summary.durationS)}</Text>
-              <Text style={styles.metric}>Average speed: {kmh(report.summary.averageSpeedKmh)}</Text>
-              <Text style={styles.metric}>Top speed: {kmh(report.summary.topSpeedKmh)}</Text>
+              <View style={styles.metricGrid}>
+                <View style={styles.metricBox}><Text style={styles.metricLabel}>Rides</Text><Text style={styles.metricValue}>{report.summary.rideCount}</Text></View>
+                <View style={styles.metricBox}><Text style={styles.metricLabel}>Distance</Text><Text style={styles.metricValue}>{km(report.summary.distanceM)}</Text></View>
+                <View style={styles.metricBox}><Text style={styles.metricLabel}>Duration</Text><Text style={styles.metricValue}>{duration(report.summary.durationS)}</Text></View>
+                <View style={styles.metricBox}><Text style={styles.metricLabel}>Top speed</Text><Text style={styles.metricValue}>{kmh(report.summary.topSpeedKmh)}</Text></View>
+              </View>
+              <Text style={styles.metric}>Average speed · {kmh(report.summary.averageSpeedKmh)}</Text>
             </View>
 
             <PrimaryButton label="Export PDF" icon="download" loading={exporting} onPress={exportPdf} />
@@ -134,14 +141,14 @@ function reportHtml(report: Report) {
       <head>
         <style>
           body { font-family: Arial, sans-serif; color: #111; padding: 24px; }
-          h1 { color: #ff6a00; }
+          h1 { color: #087EA4; }
           table { width: 100%; border-collapse: collapse; margin-top: 24px; }
           th, td { border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }
           .summary { line-height: 1.7; }
         </style>
       </head>
       <body>
-        <h1>Duke Ride ${escapeHtml(report.period)} report</h1>
+        <h1>RidePulse ${escapeHtml(report.period)} report</h1>
         <div class="summary">
           <div>Ride count: ${report.summary.rideCount}</div>
           <div>Distance: ${km(report.summary.distanceM)}</div>
@@ -206,59 +213,105 @@ function escapeHtml(value: string) {
 const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 16,
+    paddingBottom: 30,
     gap: 14
+  },
+  header: {
+    gap: 4
+  },
+  kicker: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  headerTitle: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "900"
+  },
+  headerCopy: {
+    color: colors.muted,
+    lineHeight: 20
   },
   tabs: {
     flexDirection: "row",
-    gap: 8
+    gap: 6
   },
   tab: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 38,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     borderColor: colors.border,
     borderWidth: 1
   },
   activeTab: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange
+    backgroundColor: colors.accent,
+    borderColor: colors.accent
   },
   tabText: {
     color: colors.muted,
     fontWeight: "800",
+    fontSize: 13,
     textTransform: "capitalize"
   },
   activeTabText: {
-    color: colors.text
+    color: colors.onAccent
   },
   summary: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    gap: 6
+    borderRadius: 18,
+    padding: 14,
+    gap: 12
   },
   title: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: "900",
     textTransform: "capitalize",
-    marginBottom: 6
+    marginBottom: 4
+  },
+  metricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  metricBox: {
+    width: "48%",
+    minHeight: 68,
+    borderRadius: 13,
+    padding: 10,
+    justifyContent: "center",
+    backgroundColor: colors.surfaceHigh
+  },
+  metricLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  metricValue: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900",
+    marginTop: 4
   },
   metric: {
-    color: colors.text,
-    fontSize: 16
+    color: colors.textSoft,
+    fontSize: 14,
+    fontWeight: "700"
   },
   route: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 16,
     borderColor: colors.border,
     borderWidth: 1,
-    padding: 14
+    padding: 12
   },
   routeTitle: {
     color: colors.text,
@@ -266,7 +319,8 @@ const createStyles = (colors: ThemeColors) => ({
   },
   routeMeta: {
     color: colors.muted,
-    marginTop: 6
+    marginTop: 4,
+    fontSize: 13
   },
   error: {
     color: colors.danger

@@ -1,48 +1,59 @@
-export type AppThemeMode = "ktm" | "universal";
+export type AppThemeMode = "graphite" | "oled";
 
-export type ThemeColors = typeof ktmColors;
-
-const ktmColors = {
-  background: "#07080a",
-  surface: "#111318",
-  surfaceHigh: "#1a1d24",
-  elevated: "#20242c",
-  orange: "#ff6a00",
-  orangeSoft: "#ff9345",
-  text: "#f7f7f4",
-  textSoft: "#d7d9df",
-  muted: "#8f98a8",
-  border: "#272c35",
-  borderStrong: "#39404d",
-  danger: "#ef4444",
-  success: "#22c55e",
-  blue: "#38bdf8",
-  yellow: "#facc15",
-  overlay: "rgba(7, 8, 10, 0.88)"
+const graphiteColors = {
+  background: "#080B0F",
+  surface: "#11161D",
+  surfaceHigh: "#18212B",
+  elevated: "#202B36",
+  accent: "#19C2FF",
+  accentSoft: "#82DCFF",
+  onAccent: "#03151D",
+  text: "#F5F7FA",
+  textSoft: "#D8DEE7",
+  muted: "#8C99A8",
+  border: "#25303B",
+  borderStrong: "#374555",
+  danger: "#F45B69",
+  success: "#2DD4A7",
+  blue: "#7C8CFF",
+  yellow: "#F4B942",
+  overlay: "rgba(8, 11, 15, 0.92)",
+  // Compatibility aliases for components that have not moved to semantic names yet.
+  orange: "#19C2FF",
+  orangeSoft: "#82DCFF"
 };
 
-const universalColors: ThemeColors = {
-  background: "#0b1020",
-  surface: "#111827",
-  surfaceHigh: "#1f2937",
-  elevated: "#263244",
-  orange: "#3b82f6",
-  orangeSoft: "#60a5fa",
-  text: "#f8fafc",
-  textSoft: "#e2e8f0",
-  muted: "#94a3b8",
-  border: "#273449",
-  borderStrong: "#3b4a61",
-  danger: "#f43f5e",
-  success: "#10b981",
-  blue: "#06b6d4",
-  yellow: "#f59e0b",
-  overlay: "rgba(11, 16, 32, 0.9)"
+export type ThemeColors = typeof graphiteColors;
+
+const oledColors: ThemeColors = {
+  ...graphiteColors,
+  background: "#000000",
+  surface: "#090D11",
+  surfaceHigh: "#111820",
+  elevated: "#18212B",
+  border: "#1E2933",
+  borderStrong: "#334250",
+  overlay: "rgba(0, 0, 0, 0.94)"
 };
 
 export const themes: Record<AppThemeMode, ThemeColors> = {
-  ktm: ktmColors,
-  universal: universalColors
+  graphite: graphiteColors,
+  oled: oledColors
 };
 
-export const colors = themes.ktm;
+export const colors = themes.graphite;
+
+export const layout = {
+  screenPadding: 18,
+  sectionGap: 20,
+  cardRadius: 18,
+  controlRadius: 16,
+  compactRadius: 12,
+  minTouchTarget: 44
+} as const;
+
+export const motion = {
+  fast: 120,
+  standard: 180,
+  relaxed: 240
+} as const;

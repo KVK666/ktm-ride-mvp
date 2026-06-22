@@ -36,7 +36,7 @@ function Set-WorkerSecret {
   $Value | npx wrangler secret put $Name
 }
 
-Write-Host "Duke Ride Cloudflare Worker secret setup"
+Write-Host "RidePulse Cloudflare Worker secret setup"
 Write-Host "Paste the Neon pooled PostgreSQL URL when prompted. Input is hidden."
 
 $databaseUrl = ConvertTo-PlainText (Read-Host "DATABASE_URL" -AsSecureString)

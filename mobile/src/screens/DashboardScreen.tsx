@@ -16,7 +16,7 @@ export function DashboardScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<any>();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const displayName = user?.name?.trim() || "Rider";
   const firstName = displayName.split(/\s+/)[0] || displayName;
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -60,20 +60,40 @@ export function DashboardScreen() {
     <Screen>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.orange} />}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.accent} />}
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.kicker}>Welcome back</Text>
             <Text style={styles.title}>Hi, {firstName}</Text>
-            <Text style={styles.subtitle}>{user?.bikeModel || "KTM Duke 250 Gen 3"}</Text>
+            <Text style={styles.subtitle}>{user?.bikeModel || "Motorcycle"}</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Logout" onPress={logout} style={styles.iconButton}>
-            <Ionicons name="exit" color={colors.text} size={22} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open profile and settings"
+            onPress={() => navigation.navigate("More", { screen: "Profile" })}
+            style={styles.iconButton}
+          >
+            <Ionicons name="person" color={colors.accent} size={22} />
           </Pressable>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate("Ride")}
+          style={({ pressed }) => [styles.rideAction, pressed && styles.pressedCard]}
+        >
+          <View style={styles.rideActionIcon}>
+            <Ionicons name={recoverableRide ? "play" : "radio-button-on"} color={colors.onAccent} size={27} />
+          </View>
+          <View style={styles.rideText}>
+            <Text style={styles.rideActionKicker}>{recoverableRide ? "Ride ready to recover" : "Ready when you are"}</Text>
+            <Text style={styles.rideActionTitle}>{recoverableRide ? "Continue your ride" : "Start a new ride"}</Text>
+          </View>
+          <Ionicons name="arrow-forward" color={colors.accent} size={23} />
+        </Pressable>
 
         {recoverableRide ? (
           <Pressable
@@ -92,7 +112,7 @@ export function DashboardScreen() {
         ) : null}
 
         <View style={styles.grid}>
-          <StatCard label="Today" value={km(stats?.todayDistanceM || 0)} accent={colors.orange} />
+          <StatCard label="Today" value={km(stats?.todayDistanceM || 0)} accent={colors.accent} />
           <StatCard label="This month" value={km(stats?.monthDistanceM || 0)} />
           <StatCard label="This year" value={km(stats?.yearDistanceM || 0)} />
           <StatCard label="Total rides" value={`${stats?.totalRides || 0}`} />
@@ -168,74 +188,73 @@ const createStyles = (colors: ThemeColors) => ({
     justifyContent: "center"
   },
   content: {
-    padding: 18,
-    gap: 18
+    padding: 16,
+    paddingBottom: 110,
+    gap: 14
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     gap: 14,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1
+    paddingTop: 2
   },
   headerText: {
     flex: 1
   },
   kicker: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900",
     fontSize: 11,
     textTransform: "uppercase"
   },
   title: {
     color: colors.text,
-    fontSize: 30,
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: "900"
   },
   subtitle: {
     color: colors.muted,
-    marginTop: 3
+    marginTop: 2,
+    fontSize: 14
   },
   iconButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12
+    gap: 10
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: "900"
   },
   rideCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 16,
+    padding: 14,
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12
   },
   reviewCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.orange,
+    borderColor: colors.accent,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 16,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12
@@ -244,27 +263,27 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.success,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 16,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12
   },
   activeRideIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.success
   },
   reviewIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.orange
+    backgroundColor: colors.accent
   },
   reviewIconText: {
     color: colors.text,
@@ -273,12 +292,13 @@ const createStyles = (colors: ThemeColors) => ({
   },
   reviewTitle: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900"
   },
   reviewMeta: {
     color: colors.muted,
-    marginTop: 3
+    marginTop: 2,
+    fontSize: 13
   },
   pressedCard: {
     opacity: 0.82
@@ -289,12 +309,13 @@ const createStyles = (colors: ThemeColors) => ({
   },
   rideTitle: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800"
   },
   rideMeta: {
     color: colors.muted,
-    marginTop: 4
+    marginTop: 3,
+    fontSize: 13
   },
   rideStats: {
     alignItems: "flex-end",
@@ -302,11 +323,42 @@ const createStyles = (colors: ThemeColors) => ({
     maxWidth: 112
   },
   rideDistance: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900",
-    fontSize: 18
+    fontSize: 16
   },
   error: {
     color: colors.danger
+  },
+  rideAction: {
+    minHeight: 82,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.borderStrong,
+    borderWidth: 1
+  },
+  rideActionIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent
+  },
+  rideActionKicker: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  rideActionTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 2
   }
 });

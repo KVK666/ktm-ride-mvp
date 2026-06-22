@@ -1,4 +1,5 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { api } from "../api/client";
@@ -41,6 +42,11 @@ export function HistoryScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.kicker}>Your journeys</Text>
+          <Text style={styles.title}>Ride history</Text>
+          <Text style={styles.subtitle}>Every route, ready to revisit.</Text>
+        </View>
         <View style={styles.tabs}>
           {(["today", "month", "year"] as Period[]).map((item) => (
             <Pressable
@@ -53,14 +59,14 @@ export function HistoryScreen() {
           ))}
         </View>
 
-        {loading ? <ActivityIndicator color={colors.orange} /> : null}
+        {loading ? <ActivityIndicator color={colors.accent} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {rides.map((ride) => (
           <Pressable
             key={ride.id}
             onPress={() => navigation.navigate("RideDetail", { rideId: ride.id, reviewMode: !ride.reviewedAt })}
-            style={styles.card}
+            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
           >
             <View style={styles.cardHeader}>
               <View style={styles.routeText}>
@@ -77,6 +83,13 @@ export function HistoryScreen() {
             </View>
           </Pressable>
         ))}
+        {!loading && !error && !rides.length ? (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}><Ionicons name="map" size={24} color={colors.accent} /></View>
+            <Text style={styles.emptyTitle}>No rides here yet</Text>
+            <Text style={styles.emptyCopy}>Complete a ride and it will appear in this timeline.</Text>
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -88,42 +101,64 @@ function rideTitle(ride: Ride) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 18,
+    padding: 16,
+    paddingBottom: 110,
     gap: 14
+  },
+  header: {
+    gap: 4,
+    paddingTop: 4
+  },
+  kicker: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  title: {
+    color: colors.text,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: "900"
+  },
+  subtitle: {
+    color: colors.muted,
+    fontSize: 14
   },
   tabs: {
     flexDirection: "row",
-    gap: 8
+    gap: 6
   },
   tab: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 40,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border
   },
   activeTab: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange
+    backgroundColor: colors.accent,
+    borderColor: colors.accent
   },
   tabText: {
     color: colors.muted,
     fontWeight: "800",
+    fontSize: 13,
     textTransform: "capitalize"
   },
   activeTabText: {
-    color: colors.text
+    color: colors.onAccent
   },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    gap: 12
+    borderRadius: 16,
+    padding: 14,
+    gap: 10
   },
   cardHeader: {
     flexDirection: "row",
@@ -137,16 +172,17 @@ const createStyles = (colors: ThemeColors) => ({
   route: {
     color: colors.text,
     fontWeight: "900",
-    fontSize: 17
+    fontSize: 15
   },
   meta: {
     color: colors.muted,
-    marginTop: 4
+    marginTop: 3,
+    fontSize: 13
   },
   distance: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900",
-    fontSize: 20,
+    fontSize: 17,
     flexShrink: 0,
     maxWidth: 118,
     textAlign: "right"
@@ -154,18 +190,52 @@ const createStyles = (colors: ThemeColors) => ({
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10
+    gap: 8
   },
   metric: {
     color: colors.muted,
+    fontSize: 12,
     flexShrink: 1
   },
   reviewMetric: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900",
+    fontSize: 12,
     flexShrink: 1
   },
   error: {
     color: colors.danger
+  },
+  pressed: {
+    opacity: 0.84,
+    transform: [{ scale: 0.992 }]
+  },
+  empty: {
+    alignItems: "center",
+    padding: 22,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1
+  },
+  emptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceHigh,
+    marginBottom: 14
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  emptyCopy: {
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 20
   }
 });

@@ -82,11 +82,11 @@ export function RideMap({
         }}
       >
         {renderCoordinates.length > 1 ? (
-          <Polyline coordinates={renderCoordinates} strokeColor={colors.orange} strokeWidth={5} />
+          <Polyline coordinates={renderCoordinates} strokeColor={colors.accent} strokeWidth={5} />
         ) : null}
         {mapCoordinates[0] ? <Marker coordinate={mapCoordinates[0]} title="Start" pinColor={colors.success} /> : null}
         {mapCoordinates.length > 1 ? (
-          <Marker coordinate={mapCoordinates[mapCoordinates.length - 1]} title="End" pinColor={colors.orange} />
+          <Marker coordinate={mapCoordinates[mapCoordinates.length - 1]} title="End" pinColor={colors.accent} />
         ) : null}
         {mapPhotoMarkers.map((photo, index) => (
           <Marker
@@ -137,7 +137,7 @@ export function RideMap({
               accessibilityRole="button"
               accessibilityLabel="Close full screen map"
               onPress={() => setFullScreenVisible(false)}
-              style={[styles.closeButton, { backgroundColor: colors.orange }]}
+              style={[styles.closeButton, { backgroundColor: colors.accent }]}
             >
               <Ionicons name="close" size={26} color={colors.text} />
             </Pressable>
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   shell: {
     width: "100%",
     height: 260,
-    borderRadius: 8,
+    borderRadius: 20,
     overflow: "hidden",
     borderWidth: 1
   },
@@ -194,9 +194,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 12,
     bottom: 22,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1
@@ -215,24 +215,24 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: 28,
-    minHeight: 58,
-    borderRadius: 8,
+    minHeight: 50,
+    borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingLeft: 14,
+    gap: 10,
+    paddingLeft: 12,
     paddingRight: 8
   },
   fullScreenTitle: {
     flex: 1,
     fontWeight: "900",
-    fontSize: 16
+    fontSize: 15
   },
   closeButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center"
   },

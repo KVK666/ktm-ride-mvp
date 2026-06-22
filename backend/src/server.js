@@ -44,5 +44,5 @@ app.use((error, _req, res, _next) => {
 });
 
 app.listen(port, () => {
-  console.log(`KTM Ride backend listening on port ${port}`);
+  console.log(`RidePulse backend listening on port ${port}`);
 });

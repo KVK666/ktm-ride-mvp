@@ -3,8 +3,8 @@ values (
   '11111111-1111-1111-1111-111111111111',
   'rider@example.com',
   '$2a$10$pT.63lftPN9UNETXPQmMveMsjjz2kq1cihN27sws/jk4Skf6U23r6',
-  'Duke Rider',
-  'KTM Duke 250 Gen 3'
+  'Sample Rider',
+  'Motorcycle'
 )
 on conflict (email) do nothing;
 

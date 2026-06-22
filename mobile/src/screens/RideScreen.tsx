@@ -333,7 +333,7 @@ export function RideScreen() {
               value={autoTracking.status.enabled}
               disabled={autoTracking.loading || active}
               onValueChange={autoTracking.toggle}
-              thumbColor={autoTracking.status.enabled ? colors.orange : colors.muted}
+              thumbColor={autoTracking.status.enabled ? colors.accent : colors.muted}
               trackColor={{ false: colors.border, true: colors.surfaceHigh }}
             />
           </View>
@@ -370,7 +370,7 @@ export function RideScreen() {
         />
 
         <View style={styles.grid}>
-          <StatCard label="Distance" value={km(stats.distanceM)} accent={colors.orange} />
+          <StatCard label="Distance" value={km(stats.distanceM)} accent={colors.accent} />
           <StatCard label="Duration" value={duration(stats.durationS)} />
           <StatCard label="Top speed" value={kmh(stats.topSpeed)} accent={colors.yellow} />
           <StatCard label="Average" value={kmh(stats.avgSpeed)} accent={colors.blue} />
@@ -482,37 +482,39 @@ function timestampMs(value: string) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 18,
-    gap: 18
+    padding: 16,
+    paddingBottom: 110,
+    gap: 14
   },
   hero: {
     gap: 6,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    padding: 15,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.borderStrong,
     borderWidth: 1
   },
   kicker: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900",
     fontSize: 11,
     textTransform: "uppercase"
   },
   title: {
     color: colors.text,
-    fontSize: 30,
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: "900"
   },
   safety: {
     color: colors.muted,
-    fontSize: 14
+    fontSize: 13
   },
   message: {
     color: colors.yellow,
     backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 14,
+    padding: 10,
     borderColor: colors.border,
     borderWidth: 1
   },
@@ -520,9 +522,9 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    gap: 14
+    borderRadius: 16,
+    padding: 14,
+    gap: 12
   },
   autoHeader: {
     flexDirection: "row",
@@ -534,24 +536,25 @@ const createStyles = (colors: ThemeColors) => ({
   },
   autoTitle: {
     color: colors.text,
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: "900"
   },
   autoCopy: {
     color: colors.muted,
-    marginTop: 4,
-    lineHeight: 19
+    marginTop: 3,
+    lineHeight: 18,
+    fontSize: 13
   },
   statusRow: {
     flexDirection: "row",
-    gap: 12
+    gap: 10
   },
   statusPill: {
     flex: 1,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 10,
     backgroundColor: colors.surfaceHigh
   },
   statusLabel: {
@@ -560,10 +563,10 @@ const createStyles = (colors: ThemeColors) => ({
     fontWeight: "800"
   },
   statusValue: {
-    color: colors.orange,
-    fontSize: 15,
+    color: colors.accent,
+    fontSize: 14,
     fontWeight: "900",
-    marginTop: 4
+    marginTop: 3
   },
   pendingText: {
     color: colors.yellow,
@@ -579,6 +582,6 @@ const createStyles = (colors: ThemeColors) => ({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12
+    gap: 10
   }
 });

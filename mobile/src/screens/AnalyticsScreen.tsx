@@ -75,7 +75,7 @@ export function AnalyticsScreen() {
     const topSpeed = points.reduce((max, point) => Math.max(max, point.topSpeedKmh), 0);
 
     return [
-      { label: "Distance", value: `${formatNumber(totalDistanceM / 1000)} km`, icon: "map", color: colors.orange },
+      { label: "Distance", value: `${formatNumber(totalDistanceM / 1000)} km`, icon: "map", color: colors.accent },
       { label: "Rides", value: String(totalRides), icon: "bicycle", color: colors.blue },
       { label: "Time", value: formatDuration(totalDurationS), icon: "time", color: colors.yellow },
       { label: "Top speed", value: `${Math.round(topSpeed)} km/h`, icon: "flash", color: colors.success }
@@ -86,14 +86,14 @@ export function AnalyticsScreen() {
     <Screen>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.orange} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
       >
         <View style={styles.header}>
           <View>
             <Text style={styles.kicker}>Ride analytics</Text>
             <Text style={styles.title}>{titleFor(bucket)}</Text>
           </View>
-          {loading ? <ActivityIndicator color={colors.orange} /> : null}
+          {loading ? <ActivityIndicator color={colors.accent} /> : null}
         </View>
 
         <View style={styles.tabs}>
@@ -126,13 +126,13 @@ export function AnalyticsScreen() {
 
         {!points.length && !loading ? (
           <View style={styles.empty}>
-            <Ionicons name="analytics" color={colors.orange} size={26} />
+            <Ionicons name="analytics" color={colors.accent} size={26} />
             <Text style={styles.emptyTitle}>No rides in this range yet</Text>
             <Text style={styles.emptyText}>Complete a ride and this screen will show distance, time, and speed trends.</Text>
           </View>
         ) : null}
 
-        <Chart title="Distance" suffix=" km" labels={labels} data={distance} color={colors.orange} width={chartWidth} colors={colors} styles={styles} />
+        <Chart title="Distance" suffix=" km" labels={labels} data={distance} color={colors.accent} width={chartWidth} colors={colors} styles={styles} />
         <Chart title="Ride duration" suffix=" min" labels={labels} data={durations} color={colors.blue} width={chartWidth} colors={colors} styles={styles} />
         <Chart title="Top speed" suffix=" km/h" labels={labels} data={topSpeeds} color={colors.yellow} width={chartWidth} colors={colors} styles={styles} />
       </ScrollView>
@@ -257,8 +257,9 @@ function finiteNumber(value: unknown) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 16,
-    gap: 14
+    padding: 18,
+    paddingBottom: 36,
+    gap: 18
   },
   header: {
     flexDirection: "row",
@@ -267,14 +268,14 @@ const createStyles = (colors: ThemeColors) => ({
     gap: 12
   },
   kicker: {
-    color: colors.orangeSoft,
+    color: colors.accentSoft,
     fontWeight: "900",
     fontSize: 12,
     marginBottom: 4
   },
   title: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "900"
   },
   tabs: {
@@ -287,13 +288,13 @@ const createStyles = (colors: ThemeColors) => ({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 14,
     borderColor: colors.border,
     borderWidth: 1
   },
   activeTab: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange
+    backgroundColor: colors.accent,
+    borderColor: colors.accent
   },
   tabText: {
     color: colors.muted,
@@ -301,7 +302,7 @@ const createStyles = (colors: ThemeColors) => ({
     textTransform: "capitalize"
   },
   activeTabText: {
-    color: colors.text
+    color: colors.onAccent
   },
   summaryGrid: {
     flexDirection: "row",
@@ -314,13 +315,13 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12
+    borderRadius: 18,
+    padding: 14
   },
   summaryIcon: {
     width: 34,
     height: 34,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10
@@ -340,7 +341,7 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 20,
     overflow: "hidden",
     paddingTop: 12
   },
@@ -362,14 +363,14 @@ const createStyles = (colors: ThemeColors) => ({
     fontWeight: "800"
   },
   chart: {
-    borderRadius: 8
+    borderRadius: 18
   },
   empty: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     gap: 8
   },
   emptyTitle: {

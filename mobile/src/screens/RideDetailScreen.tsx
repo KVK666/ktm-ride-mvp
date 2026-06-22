@@ -267,7 +267,7 @@ export function RideDetailScreen() {
       }
       await waitForCaptureReady();
       const uri = await captureRef(storyCaptureRef, {
-        fileName: `duke-ride-${ride.id.slice(0, 8)}`,
+        fileName: `ridepulse-${ride.id.slice(0, 8)}`,
         format: "png",
         quality: 1,
         result: "tmpfile",
@@ -333,7 +333,7 @@ export function RideDetailScreen() {
   async function sharePrompt() {
     try {
       await NativeShare.share({
-        title: "Duke Ride AI story prompt",
+        title: "RidePulse AI story prompt",
         message: selectedPrompt
       });
       setPromptActionMessage("Prompt shared.");
@@ -411,14 +411,16 @@ export function RideDetailScreen() {
           </View>
           <View style={styles.storyActions}>
             <PrimaryButton
-              label="Share story image"
+              label="Share story"
               icon="logo-instagram"
+              compact
               loading={storySharing}
               onPress={handleShareStoryImage}
             />
             <PrimaryButton
-              label="AI story prompt"
+              label="AI prompt"
               icon="sparkles"
+              compact
               onPress={openPromptModal}
             />
           </View>
@@ -468,14 +470,16 @@ export function RideDetailScreen() {
 
           <View style={styles.reviewActions}>
             <PrimaryButton
-              label="Save review"
+              label="Save"
               icon="save"
+              compact
               loading={reviewSaving}
               onPress={() => saveReview(false)}
             />
             <PrimaryButton
-              label={needsReview ? "Mark reviewed" : "Reviewed"}
+              label={needsReview ? "Reviewed" : "Done"}
               icon="checkmark-circle"
+              compact
               disabled={!needsReview}
               loading={reviewSaving}
               onPress={() => saveReview(true)}
@@ -551,12 +555,13 @@ export function RideDetailScreen() {
               </Text>
             </View>
           </View>
-          <PrimaryButton
-            label="Import ride photos"
-            icon="images"
-            loading={importingPhotos}
-            onPress={handleImportRidePhotos}
-          />
+            <PrimaryButton
+              label="Import ride photos"
+              icon="images"
+              compact
+              loading={importingPhotos}
+              onPress={handleImportRidePhotos}
+            />
           {photoError ? <Text style={styles.error}>{photoError}</Text> : null}
           {photos.length ? (
             <>
@@ -782,10 +787,10 @@ function StoryPromptModal({
           {actionMessage ? <Text style={styles.reviewMessage}>{actionMessage}</Text> : null}
 
           <View style={styles.promptActions}>
-            <PrimaryButton label="Regenerate" icon="refresh" onPress={onRegenerate} />
-            <PrimaryButton label="Copy prompt" icon="copy" onPress={onCopy} />
-            <PrimaryButton label="Share prompt" icon="share-social" onPress={onShare} />
-            <PrimaryButton label="Open ChatGPT" icon="open" onPress={onOpenChatGpt} />
+            <PrimaryButton label="Refresh" icon="refresh" compact onPress={onRegenerate} />
+            <PrimaryButton label="Copy" icon="copy" compact onPress={onCopy} />
+            <PrimaryButton label="Share" icon="share-social" compact onPress={onShare} />
+            <PrimaryButton label="ChatGPT" icon="open" compact onPress={onOpenChatGpt} />
           </View>
         </ScrollView>
       </Screen>
@@ -900,18 +905,20 @@ const createStyles = (colors: ThemeColors) => ({
   },
   content: {
     padding: 16,
+    paddingBottom: 30,
     gap: 16
   },
   hero: {
     gap: 4
   },
   kicker: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "900"
   },
   title: {
     color: colors.text,
-    fontSize: 30,
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: "900"
   },
   subtitle: {
@@ -920,7 +927,7 @@ const createStyles = (colors: ThemeColors) => ({
   },
   emptyMap: {
     minHeight: 180,
-    borderRadius: 8,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -935,29 +942,29 @@ const createStyles = (colors: ThemeColors) => ({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12
+    gap: 10
   },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 18,
     padding: 14,
-    gap: 12
+    gap: 10
   },
   reviewCard: {
-    borderColor: colors.orange
+    borderColor: colors.accent
   },
   reviewBadge: {
-    minWidth: 58,
-    height: 32,
+    minWidth: 52,
+    height: 28,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10
   },
   reviewBadgeOpen: {
-    backgroundColor: colors.orange
+    backgroundColor: colors.accent
   },
   reviewBadgeDone: {
     backgroundColor: colors.surfaceHigh,
@@ -978,30 +985,34 @@ const createStyles = (colors: ThemeColors) => ({
     fontWeight: "900"
   },
   input: {
-    minHeight: 48,
-    borderRadius: 8,
+    minHeight: 44,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceHigh,
     color: colors.text,
     paddingHorizontal: 12,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700"
   },
   notesInput: {
-    minHeight: 104,
-    paddingTop: 12,
-    lineHeight: 20
+    minHeight: 90,
+    paddingTop: 10,
+    lineHeight: 18
   },
   reviewMessage: {
     color: colors.yellow,
     fontWeight: "800"
   },
   reviewActions: {
-    gap: 10
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   storyActions: {
-    gap: 10
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   storyCaptureStage: {
     position: "absolute",
@@ -1018,16 +1029,16 @@ const createStyles = (colors: ThemeColors) => ({
   },
   duplicateTitle: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900"
   },
   duplicateCard: {
-    minHeight: 62,
-    borderRadius: 8,
+    minHeight: 56,
+    borderRadius: 12,
     borderColor: colors.border,
     borderWidth: 1,
     backgroundColor: colors.surfaceHigh,
-    padding: 10,
+    padding: 9,
     flexDirection: "row",
     alignItems: "center",
     gap: 10
@@ -1042,12 +1053,13 @@ const createStyles = (colors: ThemeColors) => ({
   },
   duplicateMeta: {
     color: colors.muted,
-    marginTop: 3
+    marginTop: 2,
+    fontSize: 12
   },
   deleteDuplicateButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.danger
@@ -1062,15 +1074,16 @@ const createStyles = (colors: ThemeColors) => ({
   },
   sectionHeader: {
     flexDirection: "row",
-    gap: 12
+    gap: 10
   },
   sectionHeaderText: {
     flex: 1
   },
   sectionMeta: {
     color: colors.muted,
-    marginTop: 4,
-    lineHeight: 19
+    marginTop: 3,
+    lineHeight: 18,
+    fontSize: 13
   },
   routeRow: {
     flexDirection: "row",
@@ -1078,9 +1091,9 @@ const createStyles = (colors: ThemeColors) => ({
     gap: 12
   },
   routeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center"
@@ -1095,7 +1108,7 @@ const createStyles = (colors: ThemeColors) => ({
   },
   routeValue: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     marginTop: 2
   },
@@ -1103,15 +1116,15 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingTop: 14
+    borderRadius: 18,
+    paddingTop: 12
   },
   chart: {
     borderRadius: 8,
     marginTop: 8
   },
   photoMeta: {
-    color: colors.orange,
+    color: colors.accent,
     fontWeight: "800"
   },
   photoGrid: {
@@ -1122,7 +1135,7 @@ const createStyles = (colors: ThemeColors) => ({
   photoTile: {
     width: "31%",
     minWidth: 96,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: "hidden",
     backgroundColor: colors.surfaceHigh,
     borderColor: colors.border,
@@ -1148,7 +1161,7 @@ const createStyles = (colors: ThemeColors) => ({
     fontWeight: "800"
   },
   photoEmpty: {
-    borderRadius: 8,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceHigh,
@@ -1171,7 +1184,7 @@ const createStyles = (colors: ThemeColors) => ({
   },
   promptModalContent: {
     padding: 16,
-    gap: 14
+    gap: 12
   },
   promptHeader: {
     flexDirection: "row",
@@ -1184,14 +1197,14 @@ const createStyles = (colors: ThemeColors) => ({
   },
   promptTitle: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "900",
-    marginTop: 4
+    marginTop: 3
   },
   promptClose: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
@@ -1199,12 +1212,12 @@ const createStyles = (colors: ThemeColors) => ({
     borderWidth: 1
   },
   weatherPill: {
-    minHeight: 46,
-    borderRadius: 8,
+    minHeight: 42,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 10
@@ -1220,18 +1233,18 @@ const createStyles = (colors: ThemeColors) => ({
     paddingRight: 16
   },
   variantTab: {
-    minHeight: 42,
-    borderRadius: 8,
+    minHeight: 38,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center"
   },
   variantTabActive: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange
+    backgroundColor: colors.accent,
+    borderColor: colors.accent
   },
   variantTabText: {
     color: colors.muted,
@@ -1241,20 +1254,22 @@ const createStyles = (colors: ThemeColors) => ({
     color: colors.text
   },
   promptBox: {
-    borderRadius: 8,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    padding: 14
+    padding: 12
   },
   promptText: {
     color: colors.text,
-    lineHeight: 20,
-    fontSize: 13,
+    lineHeight: 18,
+    fontSize: 12,
     fontWeight: "700"
   },
   promptActions: {
-    gap: 10
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   viewerHeader: {
     paddingTop: 42,
@@ -1272,7 +1287,7 @@ const createStyles = (colors: ThemeColors) => ({
   viewerClose: {
     width: 44,
     height: 44,
-    borderRadius: 8,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.12)"

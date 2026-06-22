@@ -9,7 +9,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, bikeModel?: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -67,10 +67,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         await completeAuth(response);
       },
-      register: async (email, password, name) => {
+      register: async (email, password, name, bikeModel) => {
         const response = await api<{ token: string; user: User }>("/auth/register", {
           method: "POST",
-          body: JSON.stringify({ email, password, name, bikeModel: "KTM Duke 250 Gen 3" })
+          body: JSON.stringify({ email, password, name, bikeModel: bikeModel?.trim() || "Motorcycle" })
         });
         await completeAuth(response);
       },

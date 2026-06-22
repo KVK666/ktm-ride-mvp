@@ -39,7 +39,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
 
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Duke Ride hit a screen error</Text>
+        <Text style={styles.title}>RidePulse hit a screen error</Text>
         <Text style={styles.copy}>
           The error was saved in local diagnostics. Close and reopen the app if this keeps happening.
         </Text>

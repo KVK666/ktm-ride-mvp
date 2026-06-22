@@ -44,7 +44,7 @@ router.post("/register", async (req, res, next) => {
       `insert into users (email, password_hash, name, bike_model)
        values ($1, $2, $3, $4)
        returning id, email, name, bike_model`,
-      [email, passwordHash, name || "Rider", bikeModel || "KTM Duke 250 Gen 3"]
+      [email, passwordHash, name || "Rider", bikeModel || "Motorcycle"]
     );
 
     const user = result.rows[0];

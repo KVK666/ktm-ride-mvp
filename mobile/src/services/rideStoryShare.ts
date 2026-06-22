@@ -34,8 +34,8 @@ export async function shareRideStoryImage(uri: string): Promise<RideStoryShareRe
         social: Social.InstagramStories,
         appId: INSTAGRAM_APP_ID,
         backgroundImage: uri,
-        backgroundTopColor: "#07080a",
-        backgroundBottomColor: "#ff6a00",
+        backgroundTopColor: "#080B0F",
+        backgroundBottomColor: "#19C2FF",
         useInternalStorage: true
       });
       return {
@@ -63,7 +63,7 @@ export async function shareRideStoryImage(uri: string): Promise<RideStoryShareRe
       social: Social.Instagram,
       url: uri,
       type: "image/png",
-      title: "Duke Ride story",
+      title: "RidePulse story",
       forceDialog: true,
       useInternalStorage: true
     });
@@ -111,7 +111,7 @@ async function isInstagramInstalled() {
 
 async function openShareSheet(uri: string) {
   await Share.open({
-    title: "Share Duke Ride story",
+    title: "Share RidePulse story",
     url: uri,
     type: "image/png",
     failOnCancel: false,

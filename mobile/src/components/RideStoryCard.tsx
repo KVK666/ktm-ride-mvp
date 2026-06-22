@@ -13,7 +13,7 @@ const ROUTE_HEIGHT = 140;
 export function RideStoryCard({ ride }: { ride: Ride }) {
   const routeCoordinates = useMemo(() => storyCoordinates(ride), [ride]);
   const routePath = useMemo(() => buildRoutePath(routeCoordinates, ROUTE_WIDTH, ROUTE_HEIGHT), [routeCoordinates]);
-  const title = ride.title?.trim() || "Duke Ride";
+  const title = ride.title?.trim() || "My Ride";
   const mood = rideMoodLabel(ride);
 
   return (
@@ -21,7 +21,7 @@ export function RideStoryCard({ ride }: { ride: Ride }) {
       <View style={styles.orangeBar} />
       <View style={styles.header}>
         <View>
-          <Text style={styles.brand}>DUKE RIDE</Text>
+          <Text style={styles.brand}>RIDEPULSE</Text>
           <Text numberOfLines={2} adjustsFontSizeToFit style={styles.title}>{title}</Text>
         </View>
         <View style={styles.badge}>
@@ -41,7 +41,7 @@ export function RideStoryCard({ ride }: { ride: Ride }) {
           {routePath ? (
             <>
               <Path d={routePath} stroke="#2f3744" strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <Path d={routePath} stroke="#ff6a00" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <Path d={routePath} stroke="#19C2FF" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
               {routeCoordinates[0] ? (
                 <Circle
                   cx={routePoint(routeCoordinates, ROUTE_WIDTH, ROUTE_HEIGHT, 0).x}
@@ -60,7 +60,7 @@ export function RideStoryCard({ ride }: { ride: Ride }) {
               ) : null}
             </>
           ) : (
-            <Path d="M42 122 C86 58 132 126 178 70 C210 34 238 62 248 46" stroke="#ff6a00" strokeWidth={7} strokeLinecap="round" fill="none" />
+            <Path d="M42 122 C86 58 132 126 178 70 C210 34 238 62 248 46" stroke="#19C2FF" strokeWidth={7} strokeLinecap="round" fill="none" />
           )}
         </Svg>
       </View>
@@ -79,7 +79,7 @@ export function RideStoryCard({ ride }: { ride: Ride }) {
 
       <View style={styles.footer}>
         <View style={styles.footerLine} />
-        <Text style={styles.footerText}>Tracked with Duke Ride</Text>
+        <Text style={styles.footerText}>Tracked with RidePulse</Text>
       </View>
     </View>
   );
@@ -96,7 +96,7 @@ function RouteLabel({
 }) {
   return (
     <View style={styles.routeLabel}>
-      <Ionicons name={icon} color="#ff9345" size={15} />
+      <Ionicons name={icon} color="#82DCFF" size={15} />
       <View style={styles.routeLabelText}>
         <Text style={styles.routeLabelTitle}>{label}</Text>
         <Text numberOfLines={2} style={styles.routeLabelValue}>{value || "Unknown point"}</Text>
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   story: {
     width: RIDE_STORY_WIDTH,
     height: RIDE_STORY_HEIGHT,
-    backgroundColor: "#07080a",
+    backgroundColor: "#080B0F",
     overflow: "hidden",
     padding: 24
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 10,
-    backgroundColor: "#ff6a00"
+    backgroundColor: "#19C2FF"
   },
   header: {
     marginTop: 8,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     gap: 12
   },
   brand: {
-    color: "#ff9345",
+    color: "#82DCFF",
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 0
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8
   },
   badgeText: {
-    color: "#07080a",
+    color: "#03151D",
     fontSize: 9,
     fontWeight: "900"
   },
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   dateDot: {
-    color: "#ff6a00",
+    color: "#19C2FF",
     fontWeight: "900"
   },
   routePanel: {
@@ -275,9 +275,9 @@ const styles = StyleSheet.create({
     height: 176,
     marginTop: 18,
     borderRadius: 8,
-    backgroundColor: "#111318",
+    backgroundColor: "#11161D",
     borderWidth: 1,
-    borderColor: "#272c35",
+    borderColor: "#25303B",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -290,8 +290,8 @@ const styles = StyleSheet.create({
     width: 151,
     minHeight: 62,
     borderRadius: 8,
-    backgroundColor: "#111318",
-    borderColor: "#272c35",
+    backgroundColor: "#11161D",
+    borderColor: "#25303B",
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -325,8 +325,8 @@ const styles = StyleSheet.create({
     width: 151,
     minHeight: 56,
     borderRadius: 8,
-    backgroundColor: "#1a1d24",
-    borderColor: "#39404d",
+    backgroundColor: "#18212B",
+    borderColor: "#374555",
     borderWidth: 1,
     justifyContent: "center",
     paddingHorizontal: 12
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   footerLine: {
     height: 2,
-    backgroundColor: "#ff6a00"
+    backgroundColor: "#19C2FF"
   },
   footerText: {
     color: "#8f98a8",
