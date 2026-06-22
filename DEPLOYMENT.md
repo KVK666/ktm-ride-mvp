@@ -114,7 +114,7 @@ EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 GOOGLE_MAPS_API_KEY=your-google-maps-key
 ```
 
-Then rebuild and install the standalone APK:
+Then rebuild and install the standalone RidePulse APK:
 
 ```powershell
 cd "C:\Users\BBS001\Documents\New project\mobile"

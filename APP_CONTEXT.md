@@ -1,12 +1,12 @@
-# Duke Ride App Context
+# RidePulse App Context
 
-Last updated: 2026-06-19
+Last updated: 2026-06-22
 
-This file is the living context for the KTM Duke Ride MVP. Keep it updated whenever the app gains a meaningful feature, deployment change, setup change, or known limitation.
+This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
 ## Current Purpose
 
-Duke Ride is a private React Native ride tracking app for a KTM Duke 250 Gen 3. It is meant to replace the core useful parts of KTM Connect for a small rider group: tracking rides, viewing route history, checking speed/distance analytics, and using Google Maps based navigation.
+RidePulse is a private React Native ride tracking app for a small rider group across any motorcycle brand. It focuses on the core useful parts riders actually need: tracking rides, viewing route history, checking speed and distance analytics, using Google Maps based navigation, and exporting ride reports.
 
 ## Current Stack
 
@@ -18,12 +18,14 @@ Duke Ride is a private React Native ride tracking app for a KTM Duke 250 Gen 3. 
 - Authentication: Email/password with JWT.
 - Main repo branch: `ktm-ride-mvp`.
 - GitHub repo: `https://github.com/KVK666/ktm-ride-mvp`.
-- Downloadable Android APK: `releases/Duke-Ride-latest.apk` in the GitHub repo.
+- Downloadable Android APK: `releases/RidePulse-latest.apk` in the GitHub repo when refreshed, though legacy asset names may still exist during migration.
 - Official GitHub Release APK: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/v0.1.0`.
 - Automatic latest APK release: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest`.
 - Current working mobile API base URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 - Render fallback API base URL: `https://ktm-ride-mvp.onrender.com/api`.
 - Worker API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
+
+Important compatibility rule: keep package IDs, deep links, API URLs, and legacy storage keys such as `duke_ride_*` stable unless a migration is explicitly planned and tested.
 
 Do not commit `.env` files, API keys, database passwords, or Neon connection strings.
 
@@ -31,10 +33,11 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 
 - Lets a rider register and log in with email/password.
 - Shows the logged-in rider name on the dashboard.
+- Shows a More area with Profile, Analytics, and Reports destinations.
 - Shows a Profile tab with local profile photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
-- Supports two persisted app themes from Profile: KTM orange/black and a neutral Universal dark blue scheme.
-- UI uses a modernized dark cockpit style with tighter cards, clearer stat hierarchy, compact nav chrome, and the Duke Ride logo on login.
-- Shows an Android app icon based on `mobile/assets/app-logo.png`.
+- Supports two persisted app themes from Profile: Graphite and OLED Black, with legacy `ktm` and `universal` values migrated safely.
+- UI uses the RidePulse visual system: graphite and cyan palette, compact controls, floating bottom nav, and a brand-neutral launcher icon.
+- Shows an Android app icon based on `mobile/assets/ridepulse-logo.png`.
 - Uses Google Maps in navigation, ride, and history views.
 - Lets users search a destination and view route/directions in the Navigate tab.
 - Shows a safety warning before navigation.
@@ -89,8 +92,8 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/plugins/withInstagramPackageQuery.js`: Expo config plugin that exposes Instagram to Android package queries for reliable share targeting.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
-- `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and shared runtime palette.
-- `mobile/src/theme/colors.ts`: KTM and Universal color palettes.
+- `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and legacy theme migration.
+- `mobile/src/theme/colors.ts`: Graphite and OLED theme palettes plus shared layout/motion tokens.
 - `mobile/src/services/profilePhoto.ts`: local per-user profile photo picker/storage.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
@@ -178,7 +181,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - Required before deploy: update the Cloudflare Worker `DATABASE_URL` secret to the Neon database that contains `public.users`, `public.rides`, and `public.ride_points`; then run the schema migration so `rides.title`, `rides.notes`, and `rides.reviewed_at` exist.
 - 2026-05-22: Added speed accuracy fix. New points store `accuracy_m`; top speed ignores poor-accuracy points, ignores readings above `250 km/h`, and requires nearby speed support so one GPS spike does not become the ride top speed.
 - 2026-05-22: Refreshed core mobile UI surfaces: palette, stat cards, buttons, tab bar, login, dashboard, ride screen, history cards, and map chrome.
-- 2026-05-22: Added Profile theme selector with persisted KTM and Universal app color schemes.
+- 2026-05-22: Added Profile theme selector support, later migrated to the current Graphite and OLED Black app themes.
 - 2026-05-25: Hardened long-ride reliability. Manual rides now persist active points continuously, recover after app restart, queue failed uploads locally, compact map rendering for long routes, and surface recoverable rides on Dashboard.
 - 2026-05-25: Added manual pending-upload retry UI with visible success/failure messages for queued rides.
 - 2026-05-25: Added `releases/Duke-Ride-latest.apk` so the app can be downloaded from GitHub onto other Android phones.
@@ -189,6 +192,10 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-06-19: Android release APK build succeeded and `releases/Duke-Ride-latest.apk` was refreshed. Phone install/launch could not run because ADB reported zero connected devices.
 - 2026-06-19: Installed the refreshed release APK on connected Moto g34 5G (`ZA222K77F7`) and launched it successfully. Recent crash-filtered logcat output was clean.
 - 2026-06-19: Replaced the APK asset attached to GitHub Release `v0.1.0`. Added GitHub Actions workflow `.github/workflows/release-android-apk.yml` so every push to `ktm-ride-mvp` builds the Android release APK and publishes it to the moving `latest` release. The workflow expects a repository secret named `GOOGLE_MAPS_API_KEY`.
+- 2026-06-22: Rebranded the user-facing app to RidePulse while preserving package IDs, API URLs, deep links, and legacy `duke_ride_*` storage keys for upgrade safety.
+- 2026-06-22: Replaced KTM-specific user-facing copy and visuals with a brand-neutral graphite and cyan system, including Graphite and OLED Black themes, a new More screen, a five-tab nav, a neutral RidePulse launcher name, and a new route-and-pulse icon asset.
+- 2026-06-22: Compacted the mobile UI after on-device review: buttons, pills, cards, map overlays, and ride-detail actions were reduced in size, and the Android safe-area top crop was fixed in the shared screen wrapper.
+- 2026-06-22: Built and installed the updated Android release on connected Moto g34 5G (`ZA222K77F7`) and verified the latest RidePulse home screen renders correctly on-device.
 
 ## Testing Checklist
 
@@ -234,12 +241,12 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - Do not interact with the phone while riding.
 - Mount the phone securely.
 - Android background tracking reliability depends on location permission and battery optimization.
-- For best field testing, allow location all the time and disable battery optimization for Duke Ride.
+- For best field testing, allow location all the time and disable battery optimization for RidePulse.
 - Cloudflare Workers avoids the Render free-tier sleeping issue; Neon can still have occasional database cold latency.
 
 ## Known Gaps / Future Ideas
 
-- True Google Maps trip import is not implemented; the app only tracks rides through Duke Ride.
+- True Google Maps trip import is not implemented; the app only tracks rides through RidePulse.
 - Imported ride photos are currently scanned/displayed from the local phone library and are not uploaded to the backend.
 - Profile photos are local to the phone and are not uploaded to the backend.
 - No password reset yet.

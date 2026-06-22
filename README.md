@@ -1,6 +1,6 @@
-# Duke Ride
+# RidePulse
 
-A React Native and Node/PostgreSQL MVP for replacing KTM Connect-style ride tracking on a KTM Duke 250 Gen 3. The app is dark themed, KTM orange/black, and includes login, Google Maps route navigation, manual ride tracking, history, dashboard stats, analytics charts, and PDF reports.
+A React Native and Node/PostgreSQL ride tracking app with a brand-neutral RidePulse identity. It includes login, Google Maps route navigation, manual and automatic ride tracking, history, dashboard stats, analytics charts, reports, and ride-story sharing.
 
 For the latest living summary of what the app currently does, deployed URLs, testing notes, and known gaps, see [APP_CONTEXT.md](APP_CONTEXT.md).
 
@@ -46,6 +46,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Basic charts for distance, ride duration trends, and top speed comparison.
 - JSON report endpoint and in-app PDF export.
 - Location permission, background location prompt, battery optimization warning copy, and internet/API error messages.
+- Brand-neutral RidePulse launcher name, icon, Graphite and OLED Black themes, and compact mobile UI controls.
 
 ## Required API Keys
 
@@ -148,7 +149,7 @@ Optional direct Instagram Stories handoff:
 EXPO_PUBLIC_INSTAGRAM_APP_ID=your-facebook-app-id
 ```
 
-Without this value, Duke Ride still generates the story image and falls back to Instagram image sharing or the Android share sheet.
+Without this value, RidePulse still generates the story image and falls back to Instagram image sharing or the Android share sheet.
 
 Use `10.0.2.2` for Android emulator, `http://localhost:4000/api` for iOS simulator, and your machine LAN IP for a physical device.
 
@@ -192,6 +193,10 @@ This app is designed so the destination can be set before riding and ride tracki
 ## Online Deployment
 
 Use [DEPLOYMENT.md](DEPLOYMENT.md) to deploy the Cloudflare Worker backend with Neon PostgreSQL and point the mobile app at the public API URL.
+
+## Maintenance Note
+
+When shipping meaningful UX, branding, deployment, or behavior changes, update [APP_CONTEXT.md](APP_CONTEXT.md) in the same change set so the repo context stays current.
 
 ## Next Production Steps
 
