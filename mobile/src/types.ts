@@ -43,6 +43,7 @@ export type Ride = {
   endedAt?: string;
   createdAt?: string;
   points?: RidePoint[];
+  routePreview?: Coordinate[];
 };
 
 export type DashboardStats = {
@@ -53,4 +54,6 @@ export type DashboardStats = {
   unreviewedRides?: number;
   bestTopSpeedKmh: number;
   averageSpeedKmh: number;
+  previousMonthDistanceM?: number;
+  longestRideDistanceM?: number;
 };

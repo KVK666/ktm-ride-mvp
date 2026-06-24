@@ -10,10 +10,10 @@ import {
   useWindowDimensions,
   View
 } from "react-native";
-import { LineChart } from "react-native-chart-kit";
+import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { api } from "../api/client";
 import { Screen } from "../components/Screen";
-import { ThemeColors } from "../theme/colors";
+import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 
 type Bucket = "daily" | "monthly" | "yearly";
@@ -41,7 +41,7 @@ export function AnalyticsScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { width } = useWindowDimensions();
-  const chartWidth = Math.max(260, width - 32);
+  const chartWidth = Math.max(260, width - 40);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,6 +161,15 @@ function Chart({
 }) {
   const safeData = data.length ? data.map(finiteNumber) : [0];
   const safeLabels = labels.length ? labels : [""];
+  const height = 190;
+  const horizontalPadding = 18;
+  const verticalPadding = 18;
+  const max = Math.max(...safeData, 1);
+  const chartPoints = safeData.map((value, index) => ({
+    x: horizontalPadding + (index / Math.max(1, safeData.length - 1)) * (width - horizontalPadding * 2),
+    y: height - verticalPadding - (value / max) * (height - verticalPadding * 2)
+  }));
+  const points = chartPoints.map((point) => `${point.x},${point.y}`).join(" ");
 
   return (
     <View style={styles.chartBlock}>
@@ -168,31 +177,14 @@ function Chart({
         <Text style={styles.chartTitle}>{title}</Text>
         <Text style={styles.chartMeta}>Last {data.length || 0}</Text>
       </View>
-      <LineChart
-        width={width}
-        height={216}
-        data={{
-          labels: safeLabels,
-          datasets: [{ data: safeData }]
-        }}
-        yAxisSuffix={suffix}
-        fromZero
-        segments={4}
-        chartConfig={{
-          backgroundGradientFrom: colors.surface,
-          backgroundGradientTo: colors.surface,
-          color: () => color,
-          labelColor: () => colors.muted,
-          decimalPlaces: 0,
-          propsForBackgroundLines: {
-            stroke: colors.border,
-            strokeDasharray: "4 8"
-          },
-          propsForDots: { r: "4", strokeWidth: "2", stroke: color }
-        }}
-        bezier
-        style={styles.chart}
-      />
+      <View accessibilityLabel={`${title} trend, maximum ${Math.round(max)}${suffix}`}>
+        <Svg width={width} height={height}>
+          {[0.25, 0.5, 0.75].map((position) => <Line key={position} x1={horizontalPadding} x2={width - horizontalPadding} y1={height * position} y2={height * position} stroke={colors.border} strokeDasharray="3 8" />)}
+          <Polyline points={points} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          {chartPoints.map((point, index) => <Circle key={index} cx={point.x} cy={point.y} r="4" fill={colors.surface} stroke={color} strokeWidth="3" />)}
+        </Svg>
+        <View style={styles.chartLabels}>{safeLabels.map((label, index) => <Text key={`${label}-${index}`} numberOfLines={1} style={[styles.chartLabel, { color: colors.muted }]}>{label}</Text>)}</View>
+      </View>
     </View>
   );
 }
@@ -257,7 +249,7 @@ function finiteNumber(value: unknown) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 18,
+    padding: 20,
     paddingBottom: 36,
     gap: 18
   },
@@ -269,14 +261,14 @@ const createStyles = (colors: ThemeColors) => ({
   },
   kicker: {
     color: colors.accentSoft,
-    fontWeight: "900",
+    fontFamily: typography.bold,
     fontSize: 12,
     marginBottom: 4
   },
   title: {
     color: colors.text,
     fontSize: 30,
-    fontWeight: "900"
+    fontFamily: typography.extraBold
   },
   tabs: {
     flexDirection: "row",
@@ -339,9 +331,7 @@ const createStyles = (colors: ThemeColors) => ({
   },
   chartBlock: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 26,
     overflow: "hidden",
     paddingTop: 12
   },
@@ -362,9 +352,8 @@ const createStyles = (colors: ThemeColors) => ({
     fontSize: 12,
     fontWeight: "800"
   },
-  chart: {
-    borderRadius: 18
-  },
+  chartLabels: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 15 },
+  chartLabel: { flex: 1, textAlign: "center", fontFamily: typography.medium, fontSize: 9 },
   empty: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

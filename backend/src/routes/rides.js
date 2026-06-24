@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../config/db");
 const { requireAuth } = require("../middleware/auth");
 const { summarizeRide } = require("../services/rideMath");
+const { attachRoutePreviews } = require("../services/routePreviews");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -51,7 +52,7 @@ router.get("/", async (req, res, next) => {
       params
     );
 
-    return res.json({ rides: result.rows });
+    return res.json({ rides: await attachRoutePreviews(db, result.rows) });
   } catch (error) {
     return next(error);
   }

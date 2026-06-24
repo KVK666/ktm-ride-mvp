@@ -18,7 +18,11 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "ktm-ride-backend" });
+  res.json({
+    ok: true,
+    service: "ktm-ride-backend",
+    commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || "local"
+  });
 });
 
 app.use("/api/auth", authRoutes);

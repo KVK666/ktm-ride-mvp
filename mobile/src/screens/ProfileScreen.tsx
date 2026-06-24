@@ -17,7 +17,7 @@ import {
   logDiagnostic
 } from "../services/diagnostics";
 import { getProfilePhotoUri, pickAndSaveProfilePhoto, removeProfilePhoto } from "../services/profilePhoto";
-import { ThemeColors } from "../theme/colors";
+import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 
 type ProfileRowProps = {
@@ -208,20 +208,20 @@ export function ProfileScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Theme</Text>
-          <Text style={styles.cardCopy}>Choose a universal dark appearance that works with every motorcycle.</Text>
+          <Text style={styles.cardCopy}>Choose the cinematic dark appearance that feels best on your display.</Text>
           <View style={styles.themeOptions}>
             <ThemeOption
-              label="Graphite"
-              description="Layered graphite with electric cyan"
+              label="Midnight"
+              description="Layered charcoal with electric lime"
               selected={themeMode === "graphite"}
-              color="#19C2FF"
+              color="#C8FF5A"
               onPress={() => setThemeMode("graphite")}
             />
             <ThemeOption
-              label="OLED Black"
-              description="True black surfaces with electric cyan"
+              label="True Black"
+              description="OLED black with electric lime"
               selected={themeMode === "oled"}
-              color="#19C2FF"
+              color="#C8FF5A"
               onPress={() => setThemeMode("oled")}
             />
           </View>
@@ -358,15 +358,14 @@ function escapeHtml(value: string) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 16,
-    gap: 16
+    padding: 20,
+    paddingBottom: 38,
+    gap: 18
   },
   hero: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 26,
+    padding: 17,
     flexDirection: "row",
     alignItems: "center",
     gap: 12
@@ -401,9 +400,9 @@ const createStyles = (colors: ThemeColors) => ({
     justifyContent: "center"
   },
   avatarText: {
-    color: colors.text,
+    color: colors.onAccent,
     fontSize: 22,
-    fontWeight: "900"
+    fontFamily: typography.extraBold
   },
   heroText: {
     flex: 1,
@@ -411,19 +410,21 @@ const createStyles = (colors: ThemeColors) => ({
   },
   kicker: {
     color: colors.accentSoft,
-    fontWeight: "900",
-    fontSize: 12,
+    fontFamily: typography.bold,
+    fontSize: 10,
+    letterSpacing: 1.2,
     marginBottom: 4
   },
   title: {
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900"
+    fontSize: 25,
+    fontFamily: typography.extraBold
   },
   subtitle: {
     color: colors.muted,
     marginTop: 4,
-    fontSize: 14
+    fontSize: 13,
+    fontFamily: typography.medium
   },
   profilePhotoMessage: {
     color: colors.success,
@@ -440,10 +441,8 @@ const createStyles = (colors: ThemeColors) => ({
   },
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 24,
+    padding: 16,
     gap: 10
   },
   row: {
@@ -476,11 +475,12 @@ const createStyles = (colors: ThemeColors) => ({
   cardTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: "900"
+    fontFamily: typography.extraBold
   },
   cardCopy: {
     color: colors.muted,
-    lineHeight: 20
+    lineHeight: 20,
+    fontFamily: typography.regular
   },
   settingRow: {
     flexDirection: "row",
@@ -507,10 +507,8 @@ const createStyles = (colors: ThemeColors) => ({
   },
   themeOption: {
     minHeight: 60,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceHigh,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,

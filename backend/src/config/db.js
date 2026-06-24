@@ -7,7 +7,11 @@ const sslRequired =
 
 const pool = new Pool({
   connectionString,
-  ssl: sslRequired ? { rejectUnauthorized: false } : undefined
+  ssl: sslRequired ? { rejectUnauthorized: false } : undefined,
+  max: Math.max(1, Number(process.env.DB_POOL_MAX) || 5),
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  keepAlive: true
 });
 
 module.exports = {

@@ -41,7 +41,7 @@ export function RideStoryCard({ ride }: { ride: Ride }) {
           {routePath ? (
             <>
               <Path d={routePath} stroke="#2f3744" strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <Path d={routePath} stroke="#19C2FF" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <Path d={routePath} stroke="#C8FF5A" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
               {routeCoordinates[0] ? (
                 <Circle
                   cx={routePoint(routeCoordinates, ROUTE_WIDTH, ROUTE_HEIGHT, 0).x}
@@ -60,7 +60,7 @@ export function RideStoryCard({ ride }: { ride: Ride }) {
               ) : null}
             </>
           ) : (
-            <Path d="M42 122 C86 58 132 126 178 70 C210 34 238 62 248 46" stroke="#19C2FF" strokeWidth={7} strokeLinecap="round" fill="none" />
+            <Path d="M42 122 C86 58 132 126 178 70 C210 34 238 62 248 46" stroke="#C8FF5A" strokeWidth={7} strokeLinecap="round" fill="none" />
           )}
         </Svg>
       </View>
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 10,
-    backgroundColor: "#19C2FF"
+    backgroundColor: "#C8FF5A"
   },
   header: {
     marginTop: 8,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   dateDot: {
-    color: "#19C2FF",
+    color: "#C8FF5A",
     fontWeight: "900"
   },
   routePanel: {
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   footerLine: {
     height: 2,
-    backgroundColor: "#19C2FF"
+    backgroundColor: "#C8FF5A"
   },
   footerText: {
     color: "#8f98a8",

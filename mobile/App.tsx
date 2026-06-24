@@ -2,6 +2,14 @@ import "./src/services/locationTask";
 
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+  useFonts
+} from "@expo-google-fonts/manrope";
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
@@ -56,6 +64,18 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <AppErrorBoundary>
       <ThemeProvider>

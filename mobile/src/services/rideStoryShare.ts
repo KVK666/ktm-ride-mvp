@@ -35,7 +35,7 @@ export async function shareRideStoryImage(uri: string): Promise<RideStoryShareRe
         appId: INSTAGRAM_APP_ID,
         backgroundImage: uri,
         backgroundTopColor: "#080B0F",
-        backgroundBottomColor: "#19C2FF",
+        backgroundBottomColor: "#C8FF5A",
         useInternalStorage: true
       });
       return {

@@ -13,7 +13,7 @@ module.exports = {
     splash: {
       image: "./assets/ridepulse-logo.png",
       resizeMode: "contain",
-      backgroundColor: "#080B0F"
+      backgroundColor: "#080A0C"
     },
     ios: {
       bundleIdentifier: "com.example.dukeride",
@@ -32,7 +32,7 @@ module.exports = {
       package: "com.example.dukeride",
       adaptiveIcon: {
         foregroundImage: "./assets/ridepulse-logo.png",
-        backgroundColor: "#080B0F"
+        backgroundColor: "#080A0C"
       },
       config: {
         googleMaps: {

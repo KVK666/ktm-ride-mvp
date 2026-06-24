@@ -1,12 +1,12 @@
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, Switch, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
-import { StatCard } from "../components/StatCard";
+import { Metric } from "../components/Metric";
 import { useAutoTracking } from "../hooks/useAutoTracking";
 import {
   setManualTrackingActive,
@@ -23,7 +23,7 @@ import {
 } from "../services/manualRideSession";
 import { createRideClientId, queuePendingRide } from "../services/rideUpload";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
-import { ThemeColors } from "../theme/colors";
+import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
@@ -43,6 +43,7 @@ export function RideScreen() {
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [finishVisible, setFinishVisible] = useState(false);
   const autoTracking = useAutoTracking();
   const subscription = useRef<Location.LocationSubscription | null>(null);
   const restoring = useRef(false);
@@ -309,15 +310,40 @@ export function RideScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content}>
+      <Modal visible={finishVisible} transparent animationType="fade" onRequestClose={() => setFinishVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setFinishVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Finish this ride?</Text>
+            <Text style={styles.sheetCopy}>RidePulse will stop recording, save every available point, and open your new journal entry.</Text>
+            <View style={styles.sheetActions}>
+              <Pressable onPress={() => setFinishVisible(false)} style={styles.cancelButton}><Text style={styles.cancelText}>Keep riding</Text></Pressable>
+              <PrimaryButton label="Finish & save" icon="checkmark" danger loading={saving} onPress={() => { setFinishVisible(false); void stopRide(); }} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Text style={styles.kicker}>Live ride tracking</Text>
-          <Text style={styles.title}>{active ? "Ride in progress" : "Ready to ride"}</Text>
-          <Text style={styles.safety}>Set your phone up before moving and keep interactions off the road.</Text>
+          <View style={styles.recordRow}><View style={[styles.recordDot, active && styles.recordDotActive]} /><Text style={styles.kicker}>{active ? "RECORDING NOW" : "RIDE COCKPIT"}</Text></View>
+          <Text style={styles.title}>{active ? "The road is yours" : "Ready when you are"}</Text>
+          <Text style={styles.safety}>Set up before moving. Keep your eyes on the road and your phone mounted.</Text>
         </View>
 
         {message ? <Text style={styles.message}>{message}</Text> : null}
         {autoTracking.error ? <Text style={styles.message}>{autoTracking.error}</Text> : null}
+
+        <View style={styles.mapShell}><RideMap coordinates={compactRidePointsForMap(points)} current={points[points.length - 1]} title={active ? "Live ride route" : "Ride map"} /></View>
+
+        {active ? <View style={styles.speedHero}><Text style={styles.speedValue}>{Math.round(points[points.length - 1]?.speedKmh || 0)}</Text><Text style={styles.speedUnit}>km/h</Text></View> : null}
+
+        <View style={styles.metrics}>
+          <Metric label="DISTANCE" value={km(stats.distanceM)} accent />
+          <View style={styles.metricDivider} /><Metric label="DURATION" value={duration(stats.durationS)} />
+          <View style={styles.metricDivider} /><Metric label="TOP SPEED" value={kmh(stats.topSpeed)} />
+        </View>
+
+        {active ? <PrimaryButton block label="Finish ride" icon="stop-circle" danger loading={saving} onPress={() => setFinishVisible(true)} /> : <PrimaryButton block label="Start recording" icon="play" loading={starting} onPress={startRide} />}
 
         <View style={styles.autoCard}>
           <View style={styles.autoHeader}>
@@ -363,24 +389,6 @@ export function RideScreen() {
           {autoTracking.syncMessage ? <Text style={styles.successText}>{autoTracking.syncMessage}</Text> : null}
         </View>
 
-        <RideMap
-          coordinates={compactRidePointsForMap(points)}
-          current={points[points.length - 1]}
-          title={active ? "Live ride route" : "Ride map"}
-        />
-
-        <View style={styles.grid}>
-          <StatCard label="Distance" value={km(stats.distanceM)} accent={colors.accent} />
-          <StatCard label="Duration" value={duration(stats.durationS)} />
-          <StatCard label="Top speed" value={kmh(stats.topSpeed)} accent={colors.yellow} />
-          <StatCard label="Average" value={kmh(stats.avgSpeed)} accent={colors.blue} />
-        </View>
-
-        {active ? (
-          <PrimaryButton label="Stop Ride" icon="stop-circle" danger loading={saving} onPress={stopRide} />
-        ) : (
-          <PrimaryButton label="Start Ride" icon="play-circle" loading={starting} onPress={startRide} />
-        )}
       </ScrollView>
     </Screen>
   );
@@ -482,34 +490,41 @@ function timestampMs(value: string) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 16,
-    paddingBottom: 110,
-    gap: 14
+    padding: 20,
+    paddingBottom: 118,
+    gap: 18
   },
   hero: {
-    gap: 6,
-    padding: 15,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceHigh,
-    borderColor: colors.borderStrong,
-    borderWidth: 1
+    gap: 5,
+    paddingTop: 2
   },
+  recordRow: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8 },
+  recordDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted },
+  recordDotActive: { backgroundColor: colors.danger },
   kicker: {
     color: colors.accent,
-    fontWeight: "900",
-    fontSize: 11,
-    textTransform: "uppercase"
+    fontFamily: typography.bold,
+    fontSize: 10,
+    letterSpacing: 1.35
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "900"
+    fontSize: 32,
+    lineHeight: 39,
+    fontFamily: typography.extraBold
   },
   safety: {
     color: colors.muted,
-    fontSize: 13
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: typography.regular
   },
+  mapShell: { height: 340, borderRadius: 28, overflow: "hidden" as const },
+  speedHero: { alignItems: "center" as const, justifyContent: "center" as const, paddingVertical: 4 },
+  speedValue: { color: colors.text, fontFamily: typography.extraBold, fontSize: 76, lineHeight: 84, letterSpacing: -4 },
+  speedUnit: { color: colors.muted, fontFamily: typography.bold, fontSize: 12, letterSpacing: 1.2, marginTop: -4 },
+  metrics: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, padding: 17, backgroundColor: colors.surface, borderRadius: 24 },
+  metricDivider: { width: 1, height: 42, backgroundColor: colors.border },
   message: {
     color: colors.yellow,
     backgroundColor: colors.surface,
@@ -520,10 +535,8 @@ const createStyles = (colors: ThemeColors) => ({
   },
   autoCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 24,
+    padding: 17,
     gap: 12
   },
   autoHeader: {
@@ -537,13 +550,14 @@ const createStyles = (colors: ThemeColors) => ({
   autoTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: "900"
+    fontFamily: typography.extraBold
   },
   autoCopy: {
     color: colors.muted,
     marginTop: 3,
     lineHeight: 18,
-    fontSize: 13
+    fontSize: 12,
+    fontFamily: typography.regular
   },
   statusRow: {
     flexDirection: "row",
@@ -551,21 +565,19 @@ const createStyles = (colors: ThemeColors) => ({
   },
   statusPill: {
     flex: 1,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 10,
     backgroundColor: colors.surfaceHigh
   },
   statusLabel: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "800"
+    fontFamily: typography.bold
   },
   statusValue: {
     color: colors.accent,
     fontSize: 14,
-    fontWeight: "900",
+    fontFamily: typography.extraBold,
     marginTop: 3
   },
   pendingText: {
@@ -579,9 +591,12 @@ const createStyles = (colors: ThemeColors) => ({
     color: colors.success,
     fontWeight: "800"
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
-  }
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.72)", justifyContent: "flex-end" as const },
+  sheet: { backgroundColor: colors.elevated, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 22, paddingBottom: 34, gap: 14 },
+  sheetHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, alignSelf: "center" as const },
+  sheetTitle: { color: colors.text, fontFamily: typography.extraBold, fontSize: 24, marginTop: 5 },
+  sheetCopy: { color: colors.muted, fontFamily: typography.regular, lineHeight: 21 },
+  sheetActions: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "flex-end" as const, gap: 10, marginTop: 4 },
+  cancelButton: { minHeight: 42, paddingHorizontal: 12, justifyContent: "center" as const },
+  cancelText: { color: colors.textSoft, fontFamily: typography.bold, fontSize: 13 }
 });

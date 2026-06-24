@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
+import { typography } from "../theme/colors";
 
 type Props = {
   label: string;
@@ -16,12 +18,16 @@ type Props = {
 
 export function PrimaryButton({ label, icon, onPress, disabled, loading, danger, compact, block }: Props) {
   const { colors } = useTheme();
+  const handlePress = () => {
+    Haptics.selectionAsync().catch(() => {});
+    onPress();
+  };
 
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled || loading}
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.button,
         compact && styles.buttonCompact,
@@ -47,8 +53,8 @@ export function PrimaryButton({ label, icon, onPress, disabled, loading, danger,
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 38,
-    borderRadius: 12,
+    minHeight: 48,
+    borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -56,16 +62,14 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     gap: 7,
     paddingHorizontal: 12,
-    borderColor: "rgba(255,255,255,0.14)",
-    borderWidth: 1,
     shadowColor: "#000000",
     shadowOpacity: 0.16,
     shadowRadius: 8,
     elevation: 2
   },
   buttonCompact: {
-    minHeight: 34,
-    borderRadius: 10,
+    minHeight: 40,
+    borderRadius: 14,
     gap: 6,
     paddingHorizontal: 10
   },
@@ -81,7 +85,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: "900"
+    fontFamily: typography.bold
   },
   labelCompact: {
     fontSize: 12

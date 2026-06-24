@@ -13,6 +13,7 @@ import { ReportsScreen } from "../screens/ReportsScreen";
 import { RideDetailScreen } from "../screens/RideDetailScreen";
 import { RideScreen } from "../screens/RideScreen";
 import { useTheme } from "../theme/ThemeContext";
+import { typography } from "../theme/colors";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -23,7 +24,7 @@ const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
   Navigate: "navigate",
   Ride: "radio-button-on",
   History: "time",
-  More: "grid"
+  More: "person-circle"
 };
 
 function MoreNavigator() {
@@ -35,7 +36,7 @@ function MoreNavigator() {
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: "800" },
+          headerTitleStyle: { fontFamily: typography.bold },
         contentStyle: { backgroundColor: colors.background }
       }}
     >
@@ -76,14 +77,20 @@ function MainTabs() {
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
           backgroundColor: colors.overlay,
-          borderTopColor: colors.border,
-          height: 70,
-          paddingTop: 7,
-          paddingBottom: 9
+          borderTopColor: "transparent",
+          height: 76,
+          paddingTop: 9,
+          paddingBottom: 10,
+          position: "absolute",
+          left: 12,
+          right: 12,
+          bottom: 10,
+          borderRadius: 25,
+          elevation: 12
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "800" },
+        tabBarLabelStyle: { fontSize: 9, fontFamily: typography.bold },
         tabBarIcon: ({ color, size }) => (
           <Ionicons name={icons[route.name]} color={color} size={size} />
         )
@@ -96,8 +103,8 @@ function MainTabs() {
         component={RideScreen}
         options={{ tabBarButton: (props) => <RideTabButton {...props} />, tabBarLabel: "Ride" }}
       />
-      <Tab.Screen name="History" component={HistoryScreen} />
-      <Tab.Screen name="More" component={MoreNavigator} options={{ headerShown: false }} />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ title: "Journal" }} />
+      <Tab.Screen name="More" component={MoreNavigator} options={{ headerShown: false, title: "You" }} />
     </Tab.Navigator>
   );
 }
@@ -111,7 +118,7 @@ export function AppNavigator() {
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: "800" },
+        headerTitleStyle: { fontFamily: typography.bold },
         contentStyle: { backgroundColor: colors.background }
       }}
     >
@@ -134,9 +141,9 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#19C2FF",
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
+    shadowColor: "#C8FF5A",
+    shadowOpacity: 0.24,
+    shadowRadius: 14,
     elevation: 7
   },
   rideButtonPressed: {

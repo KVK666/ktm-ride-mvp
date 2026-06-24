@@ -1,4 +1,5 @@
 create extension if not exists "uuid-ossp";
+create extension if not exists pgcrypto;
 
 create table if not exists users (
   id uuid primary key default uuid_generate_v4(),

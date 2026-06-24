@@ -1,26 +1,26 @@
 export type AppThemeMode = "graphite" | "oled";
 
 const graphiteColors = {
-  background: "#080B0F",
-  surface: "#11161D",
-  surfaceHigh: "#18212B",
-  elevated: "#202B36",
-  accent: "#19C2FF",
-  accentSoft: "#82DCFF",
-  onAccent: "#03151D",
-  text: "#F5F7FA",
-  textSoft: "#D8DEE7",
-  muted: "#8C99A8",
-  border: "#25303B",
-  borderStrong: "#374555",
-  danger: "#F45B69",
-  success: "#2DD4A7",
-  blue: "#7C8CFF",
-  yellow: "#F4B942",
-  overlay: "rgba(8, 11, 15, 0.92)",
+  background: "#080A0C",
+  surface: "#111419",
+  surfaceHigh: "#181C22",
+  elevated: "#20262E",
+  accent: "#C8FF5A",
+  accentSoft: "#E2FFA7",
+  onAccent: "#101606",
+  text: "#F5F2EA",
+  textSoft: "#DAD8D1",
+  muted: "#979DA6",
+  border: "#232830",
+  borderStrong: "#343B46",
+  danger: "#FF626B",
+  success: "#55D6A5",
+  blue: "#67A7FF",
+  yellow: "#FFC857",
+  overlay: "rgba(8, 10, 12, 0.94)",
   // Compatibility aliases for components that have not moved to semantic names yet.
-  orange: "#19C2FF",
-  orangeSoft: "#82DCFF"
+  orange: "#C8FF5A",
+  orangeSoft: "#E2FFA7"
 };
 
 export type ThemeColors = typeof graphiteColors;
@@ -28,11 +28,11 @@ export type ThemeColors = typeof graphiteColors;
 const oledColors: ThemeColors = {
   ...graphiteColors,
   background: "#000000",
-  surface: "#090D11",
-  surfaceHigh: "#111820",
-  elevated: "#18212B",
-  border: "#1E2933",
-  borderStrong: "#334250",
+  surface: "#090B0E",
+  surfaceHigh: "#111419",
+  elevated: "#191E24",
+  border: "#1D2229",
+  borderStrong: "#303741",
   overlay: "rgba(0, 0, 0, 0.94)"
 };
 
@@ -44,16 +44,24 @@ export const themes: Record<AppThemeMode, ThemeColors> = {
 export const colors = themes.graphite;
 
 export const layout = {
-  screenPadding: 18,
-  sectionGap: 20,
-  cardRadius: 18,
-  controlRadius: 16,
-  compactRadius: 12,
+  screenPadding: 20,
+  sectionGap: 24,
+  cardRadius: 24,
+  controlRadius: 18,
+  compactRadius: 14,
   minTouchTarget: 44
 } as const;
 
 export const motion = {
-  fast: 120,
-  standard: 180,
-  relaxed: 240
+  fast: 140,
+  standard: 200,
+  relaxed: 280
+} as const;
+
+export const typography = {
+  regular: "Manrope_400Regular",
+  medium: "Manrope_500Medium",
+  semibold: "Manrope_600SemiBold",
+  bold: "Manrope_700Bold",
+  extraBold: "Manrope_800ExtraBold"
 } as const;

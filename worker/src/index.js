@@ -1,5 +1,4 @@
 import { neon } from "@neondatabase/serverless";
-import bcrypt from "bcryptjs";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { Jwt } from "hono/utils/jwt";
@@ -42,12 +41,11 @@ app.post("/api/auth/register", async (c) => {
   }
 
   try {
-    const passwordHash = await bcrypt.hash(password, 12);
     const rows = await sql(
       `insert into users (email, password_hash, name, bike_model)
-       values ($1, $2, $3, $4)
+       values ($1, crypt($2, gen_salt('bf', 10)), $3, $4)
        returning id, email, name, bike_model`,
-      [email, passwordHash, name || "Rider", bikeModel || "Motorcycle"]
+      [email, password, name || "Rider", bikeModel || "Motorcycle"]
     );
 
     const user = safeUser(rows[0]);
@@ -67,13 +65,14 @@ app.post("/api/auth/login", async (c) => {
   const password = String(body.password || "");
 
   const rows = await sql(
-    "select id, email, password_hash, name, bike_model from users where email = $1",
-    [email]
+    `select id, email, name, bike_model
+     from users
+     where email = $1 and password_hash = crypt($2, password_hash)`,
+    [email, password]
   );
 
   const row = rows[0];
-  const valid = row ? await bcrypt.compare(password, row.password_hash) : false;
-  if (!valid) {
+  if (!row) {
     return c.json({ error: "Invalid email or password" }, 401);
   }
 
@@ -112,7 +111,7 @@ app.get("/api/rides", authRequired, async (c) => {
     params
   );
 
-  return c.json({ rides: rows });
+  return c.json({ rides: await attachRoutePreviews(db(c.env), rows) });
 });
 
 app.get("/api/rides/:id/duplicates", authRequired, async (c) => {
@@ -324,6 +323,11 @@ app.get("/api/dashboard", authRequired, async (c) => {
        coalesce(sum(distance_m) filter (where started_at >= date_trunc('day', now())), 0) as today_distance_m,
        coalesce(sum(distance_m) filter (where started_at >= date_trunc('month', now())), 0) as month_distance_m,
        coalesce(sum(distance_m) filter (where started_at >= date_trunc('year', now())), 0) as year_distance_m,
+       coalesce(sum(distance_m) filter (
+         where started_at >= date_trunc('month', now()) - interval '1 month'
+           and started_at < date_trunc('month', now())
+       ), 0) as previous_month_distance_m,
+       coalesce(max(distance_m), 0) as longest_ride_distance_m,
        count(*)::int as total_rides,
        count(*) filter (where reviewed_at is null)::int as unreviewed_rides,
        coalesce(max(top_speed_kmh), 0) as best_top_speed_kmh,
@@ -335,6 +339,8 @@ app.get("/api/dashboard", authRequired, async (c) => {
 
   const recentRides = await sql(
     `select id, start_label as "startLabel", end_label as "endLabel",
+            start_latitude as "startLatitude", start_longitude as "startLongitude",
+            end_latitude as "endLatitude", end_longitude as "endLongitude",
             title, notes, reviewed_at as "reviewedAt",
             distance_m as "distanceM", duration_s as "durationS",
             top_speed_kmh as "topSpeedKmh", avg_speed_kmh as "avgSpeedKmh",
@@ -355,9 +361,11 @@ app.get("/api/dashboard", authRequired, async (c) => {
       totalRides: row.total_rides,
       unreviewedRides: row.unreviewed_rides,
       bestTopSpeedKmh: Number(row.best_top_speed_kmh),
-      averageSpeedKmh: Number(row.average_speed_kmh)
+      averageSpeedKmh: Number(row.average_speed_kmh),
+      previousMonthDistanceM: Number(row.previous_month_distance_m),
+      longestRideDistanceM: Number(row.longest_ride_distance_m)
     },
-    recentRides
+    recentRides: await attachRoutePreviews(sql, recentRides)
   });
 });
 
@@ -637,6 +645,41 @@ function rideSelect() {
       r.created_at as "createdAt"
     from rides r
   `;
+}
+
+async function attachRoutePreviews(sql, rides) {
+  if (!Array.isArray(rides) || !rides.length) return rides || [];
+  const ids = rides.map((ride) => ride.id).filter(Boolean);
+  if (!ids.length) return rides;
+
+  const points = await sql(
+    `with numbered as (
+       select ride_id, latitude, longitude,
+              row_number() over (partition by ride_id order by recorded_at) as point_number,
+              count(*) over (partition by ride_id) as point_count
+       from ride_points
+       where ride_id = any($1::uuid[])
+     )
+     select ride_id as "rideId", latitude, longitude
+     from numbered
+     where point_number = 1
+        or point_number = point_count
+        or mod(point_number - 1, greatest(1, ceil(point_count / 46.0)::int)) = 0
+     order by ride_id, point_number`,
+    [ids]
+  );
+
+  const previews = new Map();
+  for (const point of points) {
+    const latitude = Number(point.latitude);
+    const longitude = Number(point.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) continue;
+    const preview = previews.get(point.rideId) || [];
+    if (preview.length < 48) preview.push({ latitude, longitude });
+    previews.set(point.rideId, preview);
+  }
+
+  return rides.map((ride) => ({ ...ride, routePreview: previews.get(ride.id) || [] }));
 }
 
 export default app;

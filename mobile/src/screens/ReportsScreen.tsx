@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
-import { ThemeColors } from "../theme/colors";
+import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { duration, km, kmh, shortDate } from "../utils/format";
 
@@ -212,27 +212,28 @@ function escapeHtml(value: string) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 16,
-    paddingBottom: 30,
-    gap: 14
+    padding: 20,
+    paddingBottom: 38,
+    gap: 18
   },
   header: {
     gap: 4
   },
   kicker: {
     color: colors.accent,
-    fontSize: 12,
-    fontWeight: "900",
-    textTransform: "uppercase"
+    fontSize: 10,
+    fontFamily: typography.bold,
+    letterSpacing: 1.35
   },
   headerTitle: {
     color: colors.text,
-    fontSize: 26,
-    fontWeight: "900"
+    fontSize: 32,
+    fontFamily: typography.extraBold
   },
   headerCopy: {
     color: colors.muted,
-    lineHeight: 20
+    lineHeight: 20,
+    fontFamily: typography.regular
   },
   tabs: {
     flexDirection: "row",
@@ -240,13 +241,11 @@ const createStyles = (colors: ThemeColors) => ({
   },
   tab: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderColor: colors.border,
-    borderWidth: 1
+    borderRadius: 15
   },
   activeTab: {
     backgroundColor: colors.accent,
@@ -254,7 +253,7 @@ const createStyles = (colors: ThemeColors) => ({
   },
   tabText: {
     color: colors.muted,
-    fontWeight: "800",
+    fontFamily: typography.bold,
     fontSize: 13,
     textTransform: "capitalize"
   },
@@ -263,16 +262,14 @@ const createStyles = (colors: ThemeColors) => ({
   },
   summary: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 26,
+    padding: 18,
     gap: 12
   },
   title: {
     color: colors.text,
     fontSize: 21,
-    fontWeight: "900",
+    fontFamily: typography.extraBold,
     textTransform: "capitalize",
     marginBottom: 4
   },
@@ -284,21 +281,21 @@ const createStyles = (colors: ThemeColors) => ({
   metricBox: {
     width: "48%",
     minHeight: 68,
-    borderRadius: 13,
-    padding: 10,
+    borderRadius: 18,
+    padding: 13,
     justifyContent: "center",
     backgroundColor: colors.surfaceHigh
   },
   metricLabel: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "800",
+    fontFamily: typography.bold,
     textTransform: "uppercase"
   },
   metricValue: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: "900",
+    fontFamily: typography.extraBold,
     marginTop: 4
   },
   metric: {
@@ -308,10 +305,8 @@ const createStyles = (colors: ThemeColors) => ({
   },
   route: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderColor: colors.border,
-    borderWidth: 1,
-    padding: 12
+    borderRadius: 20,
+    padding: 15
   },
   routeTitle: {
     color: colors.text,

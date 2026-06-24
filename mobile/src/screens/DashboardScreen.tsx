@@ -1,31 +1,32 @@
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
+import { JournalCard } from "../components/JournalCard";
+import { Metric } from "../components/Metric";
 import { Screen } from "../components/Screen";
-import { StatCard } from "../components/StatCard";
 import { useAuth } from "../context/AuthContext";
 import { hasManualRideSession } from "../services/manualRideSession";
-import { ThemeColors } from "../theme/colors";
-import { useTheme, useThemedStyles } from "../theme/ThemeContext";
+import { typography } from "../theme/colors";
+import { useTheme } from "../theme/ThemeContext";
 import { DashboardStats, Ride } from "../types";
-import { duration, km, kmh, shortDate } from "../utils/format";
+import { km } from "../utils/format";
 
 export function DashboardScreen() {
   const { colors } = useTheme();
-  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const displayName = user?.name?.trim() || "Rider";
-  const firstName = displayName.split(/\s+/)[0] || displayName;
+  const firstName = (user?.name?.trim() || "Rider").split(/\s+/)[0];
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentRides, setRecentRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [recoverableRide, setRecoverableRide] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
+    refresh ? setRefreshing(true) : setLoading(true);
     try {
       setError("");
       const [response, activeSession] = await Promise.all([
@@ -36,329 +37,124 @@ export function DashboardScreen() {
       setRecentRides(Array.isArray(response.recentRides) ? response.recentRides : []);
       setRecoverableRide(activeSession);
     } catch (err: any) {
-      setError(err.message || "Dashboard unavailable");
+      setError(err.message || "Your journal is unavailable right now");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  if (loading) {
-    return (
-      <Screen style={styles.center}>
-        <ActivityIndicator color={colors.orange} />
-      </Screen>
-    );
-  }
+  const latestRide = recentRides[0];
+  const previousMonth = stats?.previousMonthDistanceM || 0;
+  const monthChange = previousMonth > 0 ? Math.round((((stats?.monthDistanceM || 0) - previousMonth) / previousMonth) * 100) : null;
+  const longest = latestRide && stats?.longestRideDistanceM && latestRide.distanceM >= stats.longestRideDistanceM * 0.999;
 
   return (
     <Screen>
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.accent} />}
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.kicker}>Welcome back</Text>
-            <Text style={styles.title}>Hi, {firstName}</Text>
-            <Text style={styles.subtitle}>{user?.bikeModel || "Motorcycle"}</Text>
+            <Text style={[styles.eyebrow, { color: colors.muted }]}>GOOD TO SEE YOU</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Ready, {firstName}?</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>{user?.bikeModel || "Your motorcycle"}</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open profile and settings"
-            onPress={() => navigation.navigate("More", { screen: "Profile" })}
-            style={styles.iconButton}
-          >
-            <Ionicons name="person" color={colors.accent} size={22} />
+          <Pressable accessibilityLabel="Open your profile" onPress={() => navigation.navigate("More", { screen: "Profile" })} style={[styles.avatar, { backgroundColor: colors.surfaceHigh }]}>
+            <Text style={[styles.avatarText, { color: colors.accent }]}>{firstName.charAt(0).toUpperCase()}</Text>
           </Pressable>
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? (
+          <Pressable onPress={() => load()} style={[styles.banner, { backgroundColor: `${colors.danger}16` }]}>
+            <Ionicons name="cloud-offline" color={colors.danger} size={20} />
+            <View style={styles.flex}><Text style={[styles.bannerTitle, { color: colors.text }]}>Couldn’t refresh your journal</Text><Text style={[styles.bannerCopy, { color: colors.muted }]}>{error} · Tap to retry</Text></View>
+          </Pressable>
+        ) : null}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate("Ride")}
-          style={({ pressed }) => [styles.rideAction, pressed && styles.pressedCard]}
-        >
-          <View style={styles.rideActionIcon}>
-            <Ionicons name={recoverableRide ? "play" : "radio-button-on"} color={colors.onAccent} size={27} />
+        <Pressable onPress={() => navigation.navigate("Ride")} style={({ pressed }) => [styles.startRide, { backgroundColor: colors.accent }, pressed && styles.pressed]}>
+          <View style={styles.startIcon}><Ionicons name={recoverableRide ? "play" : "radio-button-on"} color={colors.onAccent} size={24} /></View>
+          <View style={styles.flex}>
+            <Text style={[styles.startKicker, { color: colors.onAccent }]}>{recoverableRide ? "RECOVERABLE RIDE" : "THE ROAD IS OPEN"}</Text>
+            <Text style={[styles.startTitle, { color: colors.onAccent }]}>{recoverableRide ? "Continue recording" : "Start a ride"}</Text>
           </View>
-          <View style={styles.rideText}>
-            <Text style={styles.rideActionKicker}>{recoverableRide ? "Ride ready to recover" : "Ready when you are"}</Text>
-            <Text style={styles.rideActionTitle}>{recoverableRide ? "Continue your ride" : "Start a new ride"}</Text>
-          </View>
-          <Ionicons name="arrow-forward" color={colors.accent} size={23} />
+          <Ionicons name="arrow-forward" color={colors.onAccent} size={24} />
         </Pressable>
 
-        {recoverableRide ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate("Ride")}
-            style={({ pressed }) => [styles.activeRideCard, pressed && styles.pressedCard]}
-          >
-            <View style={styles.activeRideIcon}>
-              <Ionicons name="radio-button-on" color={colors.text} size={20} />
-            </View>
-            <View style={styles.rideText}>
-              <Text style={styles.reviewTitle}>Ride recording is recoverable</Text>
-              <Text style={styles.reviewMeta}>Open Ride and tap Stop Ride to save the stored route.</Text>
-            </View>
-          </Pressable>
-        ) : null}
+        {loading ? (
+          <View style={[styles.loadingCard, { backgroundColor: colors.surface }]}><ActivityIndicator color={colors.accent} /><Text style={[styles.loadingText, { color: colors.muted }]}>Opening your journal</Text></View>
+        ) : latestRide ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeading}><Text style={[styles.sectionTitle, { color: colors.text }]}>Latest journey</Text><Text style={[styles.sectionMeta, { color: colors.muted }]}>Your road, remembered</Text></View>
+            <JournalCard featured ride={latestRide} onPress={() => navigation.navigate("RideDetail", { rideId: latestRide.id })} />
+          </View>
+        ) : (
+          <View style={[styles.empty, { backgroundColor: colors.surface }]}>
+            <Ionicons name="map-outline" color={colors.accent} size={30} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Your first route starts here</Text>
+            <Text style={[styles.emptyCopy, { color: colors.muted }]}>Record a ride and RidePulse will turn the route into a journal you can revisit.</Text>
+          </View>
+        )}
 
-        <View style={styles.grid}>
-          <StatCard label="Today" value={km(stats?.todayDistanceM || 0)} accent={colors.accent} />
-          <StatCard label="This month" value={km(stats?.monthDistanceM || 0)} />
-          <StatCard label="This year" value={km(stats?.yearDistanceM || 0)} />
-          <StatCard label="Total rides" value={`${stats?.totalRides || 0}`} />
-          <StatCard label="Best top speed" value={kmh(stats?.bestTopSpeedKmh || 0)} accent={colors.yellow} />
-          <StatCard label="Average speed" value={kmh(stats?.averageSpeedKmh || 0)} accent={colors.blue} />
+        <View style={styles.section}>
+          <View style={styles.sectionHeading}><Text style={[styles.sectionTitle, { color: colors.text }]}>This month</Text><Text style={[styles.sectionMeta, { color: colors.muted }]}>{monthChange == null ? "A fresh chapter" : `${monthChange >= 0 ? "+" : ""}${monthChange}% vs last month`}</Text></View>
+          <View style={[styles.metrics, { backgroundColor: colors.surface }]}>
+            <Metric label="DISTANCE" value={km(stats?.monthDistanceM || 0)} accent />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <Metric label="ALL RIDES" value={String(stats?.totalRides || 0)} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <Metric label="BEST SPEED" value={`${Math.round(stats?.bestTopSpeedKmh || 0)} km/h`} />
+          </View>
         </View>
 
-        {stats?.unreviewedRides ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate("History")}
-            style={({ pressed }) => [styles.reviewCard, pressed && styles.pressedCard]}
-          >
-            <View style={styles.reviewIcon}>
-              <Text style={styles.reviewIconText}>!</Text>
+        {(longest || isRideMilestone(stats?.totalRides || 0) || stats?.unreviewedRides) ? (
+          <View style={[styles.highlight, { backgroundColor: colors.surfaceHigh }]}>
+            <View style={[styles.highlightIcon, { backgroundColor: `${colors.accent}1F` }]}><Ionicons name={longest ? "trophy" : stats?.unreviewedRides ? "sparkles" : "flag"} color={colors.accent} size={21} /></View>
+            <View style={styles.flex}>
+              <Text style={[styles.highlightTitle, { color: colors.text }]}>{longest ? "A new personal distance best" : stats?.unreviewedRides ? `${stats.unreviewedRides} ${stats.unreviewedRides === 1 ? "journey" : "journeys"} waiting for your story` : `${stats?.totalRides} rides recorded`}</Text>
+              <Text style={[styles.highlightCopy, { color: colors.muted }]}>{longest ? "That latest route is your longest ride yet." : stats?.unreviewedRides ? "Add a name or note while the road is still fresh." : "A quiet milestone worth remembering."}</Text>
             </View>
-            <View style={styles.rideText}>
-              <Text style={styles.reviewTitle}>Rides to review</Text>
-              <Text style={styles.reviewMeta}>
-                {stats.unreviewedRides} {stats.unreviewedRides === 1 ? "ride needs" : "rides need"} a name or review.
-              </Text>
-            </View>
-          </Pressable>
+          </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Recent rides</Text>
-        {recentRides.map((ride) => (
-          <Pressable
-            key={ride.id}
-            accessibilityRole="button"
-            onPress={() => navigation.navigate("RideDetail", { rideId: ride.id })}
-            style={({ pressed }) => [styles.rideCard, pressed && styles.pressedCard]}
-          >
-            <View style={styles.rideText}>
-              <Text numberOfLines={2} style={styles.rideTitle}>{rideTitle(ride)}</Text>
-              <Text numberOfLines={1} style={styles.rideMeta}>{shortDate(ride.startedAt)} - {duration(ride.durationS)}</Text>
-            </View>
-            <View style={styles.rideStats}>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.rideDistance}>{km(ride.distanceM)}</Text>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.rideMeta}>{kmh(ride.topSpeedKmh)}</Text>
-            </View>
-          </Pressable>
-        ))}
+        {recentRides.length > 1 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeading}><Text style={[styles.sectionTitle, { color: colors.text }]}>Recent journeys</Text><Pressable onPress={() => navigation.navigate("History")}><Text style={[styles.seeAll, { color: colors.accent }]}>See journal</Text></Pressable></View>
+            {recentRides.slice(1, 4).map((ride) => <JournalCard key={ride.id} ride={ride} onPress={() => navigation.navigate("RideDetail", { rideId: ride.id })} />)}
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
 
-function rideTitle(ride: Ride) {
-  return ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
-}
-
 function normalizeStats(stats: any): DashboardStats {
+  const number = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
   return {
-    todayDistanceM: finiteNumber(stats?.todayDistanceM),
-    monthDistanceM: finiteNumber(stats?.monthDistanceM),
-    yearDistanceM: finiteNumber(stats?.yearDistanceM),
-    totalRides: finiteNumber(stats?.totalRides),
-    unreviewedRides: finiteNumber(stats?.unreviewedRides),
-    bestTopSpeedKmh: finiteNumber(stats?.bestTopSpeedKmh),
-    averageSpeedKmh: finiteNumber(stats?.averageSpeedKmh)
+    todayDistanceM: number(stats?.todayDistanceM), monthDistanceM: number(stats?.monthDistanceM), yearDistanceM: number(stats?.yearDistanceM),
+    totalRides: number(stats?.totalRides), unreviewedRides: number(stats?.unreviewedRides), bestTopSpeedKmh: number(stats?.bestTopSpeedKmh),
+    averageSpeedKmh: number(stats?.averageSpeedKmh), previousMonthDistanceM: number(stats?.previousMonthDistanceM), longestRideDistanceM: number(stats?.longestRideDistanceM)
   };
 }
 
-function finiteNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
+function isRideMilestone(count: number) { return [1, 5, 10, 25, 50, 100, 250, 500].includes(count); }
 
-const createStyles = (colors: ThemeColors) => ({
-  center: {
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 110,
-    gap: 14
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 14,
-    paddingTop: 2
-  },
-  headerText: {
-    flex: 1
-  },
-  kicker: {
-    color: colors.accent,
-    fontWeight: "900",
-    fontSize: 11,
-    textTransform: "uppercase"
-  },
-  title: {
-    color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "900"
-  },
-  subtitle: {
-    color: colors.muted,
-    marginTop: 2,
-    fontSize: 14
-  },
-  iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "900"
-  },
-  rideCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12
-  },
-  reviewCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12
-  },
-  activeRideCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.success,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12
-  },
-  activeRideIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.success
-  },
-  reviewIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.accent
-  },
-  reviewIconText: {
-    color: colors.text,
-    fontWeight: "900",
-    fontSize: 20
-  },
-  reviewTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "900"
-  },
-  reviewMeta: {
-    color: colors.muted,
-    marginTop: 2,
-    fontSize: 13
-  },
-  pressedCard: {
-    opacity: 0.82
-  },
-  rideText: {
-    flex: 1,
-    minWidth: 0
-  },
-  rideTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  rideMeta: {
-    color: colors.muted,
-    marginTop: 3,
-    fontSize: 13
-  },
-  rideStats: {
-    alignItems: "flex-end",
-    flexShrink: 0,
-    maxWidth: 112
-  },
-  rideDistance: {
-    color: colors.accent,
-    fontWeight: "900",
-    fontSize: 16
-  },
-  error: {
-    color: colors.danger
-  },
-  rideAction: {
-    minHeight: 82,
-    borderRadius: 18,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.surfaceHigh,
-    borderColor: colors.borderStrong,
-    borderWidth: 1
-  },
-  rideActionIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.accent
-  },
-  rideActionKicker: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase"
-  },
-  rideActionTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "900",
-    marginTop: 2
-  }
+const styles = StyleSheet.create({
+  content: { padding: 20, paddingBottom: 118, gap: 26 },
+  header: { flexDirection: "row", alignItems: "center", gap: 16, paddingTop: 2 }, headerText: { flex: 1 }, flex: { flex: 1 },
+  eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.4 }, title: { fontFamily: typography.extraBold, fontSize: 31, lineHeight: 38, marginTop: 3 }, subtitle: { fontFamily: typography.medium, fontSize: 13, marginTop: 1 },
+  avatar: { width: 48, height: 48, borderRadius: 18, alignItems: "center", justifyContent: "center" }, avatarText: { fontFamily: typography.extraBold, fontSize: 18 },
+  startRide: { minHeight: 88, borderRadius: 26, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }, startIcon: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, borderColor: "rgba(0,0,0,0.16)", alignItems: "center", justifyContent: "center" },
+  startKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, opacity: 0.68 }, startTitle: { fontFamily: typography.extraBold, fontSize: 19, marginTop: 2 },
+  section: { gap: 14 }, sectionHeading: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 }, sectionTitle: { fontFamily: typography.extraBold, fontSize: 20 }, sectionMeta: { fontFamily: typography.medium, fontSize: 11 }, seeAll: { fontFamily: typography.bold, fontSize: 12 },
+  metrics: { flexDirection: "row", alignItems: "center", padding: 17, borderRadius: 24, gap: 12 }, divider: { width: 1, height: 42 },
+  highlight: { flexDirection: "row", alignItems: "center", borderRadius: 24, padding: 16, gap: 13 }, highlightIcon: { width: 44, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center" }, highlightTitle: { fontFamily: typography.bold, fontSize: 14 }, highlightCopy: { fontFamily: typography.regular, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  banner: { flexDirection: "row", gap: 12, padding: 15, borderRadius: 20 }, bannerTitle: { fontFamily: typography.bold, fontSize: 13 }, bannerCopy: { fontFamily: typography.regular, fontSize: 11, marginTop: 2 },
+  loadingCard: { height: 210, borderRadius: 26, alignItems: "center", justifyContent: "center", gap: 10 }, loadingText: { fontFamily: typography.medium },
+  empty: { padding: 26, borderRadius: 26, gap: 9 }, emptyTitle: { fontFamily: typography.extraBold, fontSize: 20 }, emptyCopy: { fontFamily: typography.regular, fontSize: 13, lineHeight: 20 },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.992 }] }
 });

@@ -7,7 +7,7 @@ import { fetchRoute, geocodeDestination, RouteDetails } from "../api/googleMaps"
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SafetyModal } from "../components/SafetyModal";
 import { Screen } from "../components/Screen";
-import { ThemeColors } from "../theme/colors";
+import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Coordinate } from "../types";
 
@@ -130,15 +130,15 @@ export function NavigateScreen() {
       <SafetyModal visible={safetyVisible} onAccept={startNavigationAfterSafety} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.kicker}>Plan before you move</Text>
-          <Text style={styles.title}>Navigate</Text>
-          <Text style={styles.subtitle}>Set your destination, review the route, then ride safely.</Text>
+          <Text style={styles.kicker}>PLAN BEFORE YOU MOVE</Text>
+          <Text style={styles.title}>Route planner</Text>
+          <Text style={styles.subtitle}>A clear route preview for the road ahead—not turn-by-turn navigation.</Text>
         </View>
         <View style={styles.searchRow}>
           <TextInput
             value={destination}
             onChangeText={setDestination}
-            placeholder="Enter destination"
+            placeholder="Where are you riding?"
             placeholderTextColor={colors.muted}
             style={styles.input}
           />
@@ -287,9 +287,9 @@ function isCoordinate(coordinate?: Coordinate | null) {
 
 const createStyles = (colors: ThemeColors) => ({
   content: {
-    padding: 16,
-    paddingBottom: 110,
-    gap: 14
+    padding: 20,
+    paddingBottom: 118,
+    gap: 16
   },
   header: {
     gap: 4,
@@ -297,46 +297,45 @@ const createStyles = (colors: ThemeColors) => ({
   },
   kicker: {
     color: colors.accent,
-    fontSize: 12,
-    fontWeight: "900",
-    textTransform: "uppercase"
+    fontSize: 10,
+    fontFamily: typography.bold,
+    letterSpacing: 1.35
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "900"
+    fontSize: 34,
+    lineHeight: 41,
+    fontFamily: typography.extraBold
   },
   subtitle: {
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 19
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: typography.regular
   },
   searchRow: {
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
     padding: 8,
-    borderRadius: 16,
+    borderRadius: 22,
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1
+    elevation: 5
   },
   input: {
     flex: 1,
     backgroundColor: colors.surfaceHigh,
-    borderColor: colors.borderStrong,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     minHeight: 50,
     color: colors.text,
     paddingHorizontal: 12,
-    fontSize: 15
+    fontSize: 15,
+    fontFamily: typography.medium
   },
   mapShell: {
     width: "100%",
-    height: 320,
-    borderRadius: 18,
+    height: 430,
+    borderRadius: 28,
     overflow: "hidden",
     backgroundColor: colors.surface
   },
@@ -357,29 +356,26 @@ const createStyles = (colors: ThemeColors) => ({
     flexDirection: "row",
     justifyContent: "space-between",
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12
+    borderRadius: 22,
+    padding: 16
   },
   metricLabel: {
     color: colors.muted,
-    fontSize: 11
+    fontSize: 10,
+    fontFamily: typography.bold
   },
   metricValue: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: "900",
+    fontFamily: typography.extraBold,
     marginTop: 3
   },
   step: {
     flexDirection: "row",
     gap: 10,
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 10
+    borderRadius: 20,
+    padding: 14
   },
   stepIndex: {
     width: 26,

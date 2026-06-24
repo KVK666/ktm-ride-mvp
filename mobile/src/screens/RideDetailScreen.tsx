@@ -17,14 +17,15 @@ import {
   View
 } from "react-native";
 import ImageViewing from "react-native-image-viewing";
-import { LineChart } from "react-native-chart-kit";
+import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { captureRef } from "react-native-view-shot";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { Metric } from "../components/Metric";
+import { RouteArtwork } from "../components/RouteArtwork";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
 import { RIDE_STORY_HEIGHT, RIDE_STORY_WIDTH, RideStoryCard } from "../components/RideStoryCard";
-import { StatCard } from "../components/StatCard";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import {
   buildRideStoryPrompt,
@@ -38,7 +39,7 @@ import {
 } from "../services/rideStoryPrompt";
 import { shareRideStoryImage } from "../services/rideStoryShare";
 import { importRidePhotos } from "../services/ridePhotos";
-import { ThemeColors } from "../theme/colors";
+import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Ride, RidePhoto, RidePoint } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
@@ -50,7 +51,7 @@ type RideDetailParams = {
   };
 };
 
-const chartWidth = Dimensions.get("window").width - 32;
+const chartWidth = Dimensions.get("window").width - 40;
 
 export function RideDetailScreen() {
   const { colors } = useTheme();
@@ -390,8 +391,9 @@ export function RideDetailScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
+        <RouteArtwork coordinates={ride.points} start={{ latitude: ride.startLatitude, longitude: ride.startLongitude }} end={{ latitude: ride.endLatitude, longitude: ride.endLongitude }} height={270} />
         <View style={styles.hero}>
-          <Text style={styles.kicker}>Ride detail</Text>
+          <Text style={styles.kicker}>JOURNEY</Text>
           <Text style={styles.title}>{rideTitle(ride)}</Text>
           <Text style={styles.subtitle}>
             {time(ride.startedAt)} to {ride.endedAt ? time(ride.endedAt) : "--"}
@@ -531,11 +533,12 @@ export function RideDetailScreen() {
           </View>
         )}
 
-        <View style={styles.grid}>
-          <StatCard label="Distance" value={km(ride.distanceM)} accent={colors.orange} />
-          <StatCard label="Duration" value={duration(ride.durationS)} />
-          <StatCard label="Top speed" value={kmh(ride.topSpeedKmh)} accent={colors.yellow} />
-          <StatCard label="Average" value={kmh(ride.avgSpeedKmh)} accent={colors.blue} />
+        <View style={styles.metricStrip}>
+          <Metric label="DISTANCE" value={km(ride.distanceM)} accent />
+          <View style={styles.metricDivider} />
+          <Metric label="DURATION" value={duration(ride.durationS)} />
+          <View style={styles.metricDivider} />
+          <Metric label="TOP SPEED" value={kmh(ride.topSpeedKmh)} />
         </View>
 
         <View style={styles.card}>
@@ -598,25 +601,7 @@ export function RideDetailScreen() {
 
         <View style={styles.chartBlock}>
           <Text style={styles.sectionTitle}>Speed over time</Text>
-          <LineChart
-            width={chartWidth}
-            height={220}
-            data={{
-              labels: speedChart.labels,
-              datasets: [{ data: speedChart.data }]
-            }}
-            yAxisSuffix=" km/h"
-            chartConfig={{
-              backgroundGradientFrom: colors.surface,
-              backgroundGradientTo: colors.surface,
-              color: () => colors.orange,
-              labelColor: () => colors.muted,
-              decimalPlaces: 0,
-              propsForDots: { r: "4", strokeWidth: "2", stroke: colors.orange }
-            }}
-            bezier
-            style={styles.chart}
-          />
+          <SpeedTrend data={speedChart.data} labels={speedChart.labels} width={chartWidth} colors={colors} />
         </View>
       </ScrollView>
       <View pointerEvents="none" style={styles.storyCaptureStage}>
@@ -823,6 +808,28 @@ function RouteRow({
   );
 }
 
+function SpeedTrend({ data, labels, width, colors }: { data: number[]; labels: string[]; width: number; colors: ThemeColors }) {
+  const styles = useThemedStyles(createStyles);
+  const safeData = data.length ? data.map(finiteNumber) : [0];
+  const height = 190;
+  const padding = 18;
+  const max = Math.max(...safeData, 1);
+  const points = safeData.map((value, index) => ({
+    x: padding + (index / Math.max(1, safeData.length - 1)) * (width - padding * 2),
+    y: height - padding - (value / max) * (height - padding * 2)
+  }));
+  return (
+    <View accessibilityLabel={`Speed trend, maximum ${Math.round(max)} kilometres per hour`}>
+      <Svg width={width} height={height}>
+        {[0.25, 0.5, 0.75].map((position) => <Line key={position} x1={padding} x2={width - padding} y1={height * position} y2={height * position} stroke={colors.border} strokeDasharray="3 8" />)}
+        <Polyline points={points.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke={colors.accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point, index) => <Circle key={index} cx={point.x} cy={point.y} r="4" fill={colors.surface} stroke={colors.accent} strokeWidth="3" />)}
+      </Svg>
+      <View style={styles.speedLabels}>{labels.map((label, index) => <Text key={`${label}-${index}`} style={styles.speedLabel}>{label}</Text>)}</View>
+    </View>
+  );
+}
+
 function buildSpeedChart(points: RidePoint[]) {
   const speeds = points.map((point) => Math.max(0, Math.round(finiteNumber(point.speedKmh))));
   if (!speeds.length) {
@@ -904,26 +911,29 @@ const createStyles = (colors: ThemeColors) => ({
     justifyContent: "center"
   },
   content: {
-    padding: 16,
-    paddingBottom: 30,
-    gap: 16
+    padding: 20,
+    paddingBottom: 38,
+    gap: 18
   },
   hero: {
     gap: 4
   },
   kicker: {
     color: colors.accent,
-    fontWeight: "900"
+    fontFamily: typography.bold,
+    fontSize: 10,
+    letterSpacing: 1.3
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "900"
+    fontSize: 30,
+    lineHeight: 37,
+    fontFamily: typography.extraBold
   },
   subtitle: {
     color: colors.muted,
-    fontSize: 14
+    fontSize: 13,
+    fontFamily: typography.medium
   },
   emptyMap: {
     minHeight: 180,
@@ -939,17 +949,12 @@ const createStyles = (colors: ThemeColors) => ({
     color: colors.muted,
     fontWeight: "800"
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
-  },
+  metricStrip: { flexDirection: "row", alignItems: "center", gap: 12, padding: 17, borderRadius: 24, backgroundColor: colors.surface },
+  metricDivider: { width: 1, height: 42, backgroundColor: colors.border },
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 24,
+    padding: 17,
     gap: 10
   },
   reviewCard: {
@@ -1114,15 +1119,11 @@ const createStyles = (colors: ThemeColors) => ({
   },
   chartBlock: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingTop: 12
+    borderRadius: 24,
+    paddingTop: 15
   },
-  chart: {
-    borderRadius: 8,
-    marginTop: 8
-  },
+  speedLabels: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 14, paddingBottom: 14 },
+  speedLabel: { flex: 1, color: colors.muted, fontFamily: typography.medium, fontSize: 9, textAlign: "center" as const },
   photoMeta: {
     color: colors.accent,
     fontWeight: "800"

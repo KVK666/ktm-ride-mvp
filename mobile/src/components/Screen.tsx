@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, StatusBar, StyleSheet, View, ViewStyle } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../theme/ThemeContext";
 import { motion } from "../theme/colors";
 
@@ -31,9 +32,12 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
     >
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <View pointerEvents="none" style={styles.backdrop}>
-        <View style={[styles.orbPrimary, { backgroundColor: colors.accent }]} />
-        <View style={[styles.orbSecondary, { backgroundColor: colors.blue }]} />
-        <View style={[styles.beam, { backgroundColor: colors.surfaceHigh }]} />
+        <LinearGradient
+          colors={[`${colors.blue}18`, "transparent", `${colors.accent}0B`]}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
       </View>
       <Animated.View style={[styles.container, { opacity }]}>{children}</Animated.View>
     </SafeAreaView>
@@ -47,33 +51,5 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     overflow: "hidden"
-  },
-  orbPrimary: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    top: -90,
-    right: -70,
-    opacity: 0.1
-  },
-  orbSecondary: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    bottom: 120,
-    left: -100,
-    opacity: 0.08
-  },
-  beam: {
-    position: "absolute",
-    width: 420,
-    height: 180,
-    borderRadius: 90,
-    top: 180,
-    right: -140,
-    opacity: 0.22,
-    transform: [{ rotate: "-18deg" }]
   }
 });

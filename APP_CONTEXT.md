@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-06-22
+Last updated: 2026-06-25
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -35,8 +35,8 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Shows the logged-in rider name on the dashboard.
 - Shows a More area with Profile, Analytics, and Reports destinations.
 - Shows a Profile tab with local profile photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
-- Supports two persisted app themes from Profile: Graphite and OLED Black, with legacy `ktm` and `universal` values migrated safely.
-- UI uses the RidePulse visual system: graphite and cyan palette, compact controls, floating bottom nav, and a brand-neutral launcher icon.
+- Supports two persisted cinematic themes shown as Midnight and True Black, while retaining the `graphite`/`oled` storage values and legacy `ktm`/`universal` migration.
+- UI uses the premium RidePulse journal system: near-black surfaces, warm white Manrope typography, restrained electric-lime accents, route artwork, softer elevation, and a floating bottom nav.
 - Shows an Android app icon based on `mobile/assets/ridepulse-logo.png`.
 - Uses Google Maps in navigation, ride, and history views.
 - Lets users search a destination and view route/directions in the Navigate tab.
@@ -93,7 +93,9 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
 - `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and legacy theme migration.
-- `mobile/src/theme/colors.ts`: Graphite and OLED theme palettes plus shared layout/motion tokens.
+- `mobile/src/theme/colors.ts`: Midnight and True Black palette values plus shared typography, layout, and motion tokens.
+- `mobile/src/components/RouteArtwork.tsx`: lightweight SVG route artwork for Home, Journal, and ride-detail hero surfaces.
+- `backend/src/services/routePreviews.js`: bounded route-preview loader used by the Express fallback API.
 - `mobile/src/services/profilePhoto.ts`: local per-user profile photo picker/storage.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
@@ -196,6 +198,9 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-06-22: Replaced KTM-specific user-facing copy and visuals with a brand-neutral graphite and cyan system, including Graphite and OLED Black themes, a new More screen, a five-tab nav, a neutral RidePulse launcher name, and a new route-and-pulse icon asset.
 - 2026-06-22: Compacted the mobile UI after on-device review: buttons, pills, cards, map overlays, and ride-detail actions were reduced in size, and the Android safe-area top crop was fixed in the shared screen wrapper.
 - 2026-06-22: Built and installed the updated Android release on connected Moto g34 5G (`ZA222K77F7`) and verified the latest RidePulse home screen renders correctly on-device.
+- 2026-06-25: Rebuilt RidePulse as a cinematic, route-led ride journal. Home now leads with the latest journey and derived highlights; History is presented as Journal; Ride has distinct cockpit/recording states and a confirmed finish flow; More is presented as You; authentication, navigation, analytics, reports, profile, and ride detail were visually refreshed.
+- 2026-06-25: Added real GPS route artwork to ride cards through backward-compatible `routePreview` fields on `/api/rides` and `/api/dashboard`, sampled to at most 48 validated points. Dashboard also exposes previous-month and longest-ride metrics. Worker and Express fallback remain contract-compatible and no database migration is required.
+- 2026-06-25: Added Manrope, Expo Linear Gradient, and Expo Haptics using Expo SDK 51-compatible versions. Mobile typecheck, backend ride-math tests, Worker dry-run, and Android release APK build all passed. On-device visual verification remains pending because ADB reported no connected devices.
 
 ## Testing Checklist
 
