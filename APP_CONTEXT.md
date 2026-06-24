@@ -11,9 +11,9 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 ## Current Stack
 
 - Mobile app: Expo React Native, Android-first.
-- Backend: Cloudflare Workers API is the current working mobile target; Render Express API remains a fallback.
+- Backend: Render Express API is the current production mobile target; Cloudflare Worker remains a contract-compatible fallback.
 - Database: PostgreSQL, currently hosted on Neon.
-- Backend hosting: Cloudflare Workers currently working; Render remains available as fallback.
+- Backend hosting: Render Starter in Singapore, backed by Neon PostgreSQL.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT.
 - Main repo branch: `ktm-ride-mvp`.
@@ -21,9 +21,8 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Downloadable Android APK: `releases/RidePulse-latest.apk` in the GitHub repo when refreshed, though legacy asset names may still exist during migration.
 - Official GitHub Release APK: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/v0.1.0`.
 - Automatic latest APK release: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest`.
-- Current working mobile API base URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
-- Render fallback API base URL: `https://ktm-ride-mvp.onrender.com/api`.
-- Worker API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
+- Current production mobile API base URL: `https://ktm-ride-mvp.onrender.com/api`.
+- Cloudflare Worker fallback API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 
 Important compatibility rule: keep package IDs, deep links, API URLs, and legacy storage keys such as `duke_ride_*` stable unless a migration is explicitly planned and tested.
 
@@ -61,7 +60,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Ride Detail can generate varied ChatGPT image prompts from exact ride stats, time/place mood, and optional Open-Meteo weather; prompts are copied/shared manually into ChatGPT.
 - Shows analytics summary cards and charts for distance, ride count, duration, and top speed.
 - Generates basic reports and can export reports as PDF.
-- Provides a Cloudflare Worker API with the same mobile `/api/*` contract as the Express backend, and the installed app is currently pointed at the Worker.
+- Provides a Cloudflare Worker fallback with the same mobile `/api/*` contract; the installed app is currently pointed at paid Render.
 
 ## Automatic Ride Tracking
 
@@ -111,7 +110,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `backend/db/schema.sql`: users, rides, and ride_points schema.
 - `backend/scripts/removeDuplicateRides.js`: one-off duplicate ride cleanup for a rider ID prefix; dry-run by default.
 - `backend/scripts/remove-duplicate-rides.ps1`: Windows wrapper that prompts for `DATABASE_URL` securely before running duplicate cleanup.
-- `backend/scripts/removeDuplicateRidesViaApi.js`: one-off duplicate ride cleanup through the live Worker API, useful when direct Neon connection details are confusing.
+- `backend/scripts/removeDuplicateRidesViaApi.js`: one-off duplicate ride cleanup through the configured live API, useful when direct Neon connection details are confusing.
 
 ## Local Development Notes
 
@@ -163,7 +162,7 @@ npm run deploy
 Current production backend health check:
 
 ```text
-https://duke-ride-api.dukeride-kvk.workers.dev/health
+https://ktm-ride-mvp.onrender.com/health
 ```
 
 ## Latest Fix Notes
@@ -201,6 +200,8 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - 2026-06-25: Rebuilt RidePulse as a cinematic, route-led ride journal. Home now leads with the latest journey and derived highlights; History is presented as Journal; Ride has distinct cockpit/recording states and a confirmed finish flow; More is presented as You; authentication, navigation, analytics, reports, profile, and ride detail were visually refreshed.
 - 2026-06-25: Added real GPS route artwork to ride cards through backward-compatible `routePreview` fields on `/api/rides` and `/api/dashboard`, sampled to at most 48 validated points. Dashboard also exposes previous-month and longest-ride metrics. Worker and Express fallback remain contract-compatible and no database migration is required.
 - 2026-06-25: Added Manrope, Expo Linear Gradient, and Expo Haptics using Expo SDK 51-compatible versions. Mobile typecheck, backend ride-math tests, Worker dry-run, and Android release APK build all passed. On-device visual verification remains pending because ADB reported no connected devices.
+- 2026-06-25: Migrated the production API target to the paid Render Starter service in Singapore. Render automatically deployed Git commit `3e85fdf`; `/health` confirmed the same commit, and a temporary production probe passed registration, login, and dashboard requests before its test account was removed.
+- 2026-06-25: Configured the Express PostgreSQL pool for the Starter instance, retained the same Neon database and API contracts, clean-built an APK with the Render URL embedded, installed it on Moto g34 5G (`ZA222K77F7`), and launched it successfully. Final login with the rider's real credentials remains the immediate manual check.
 
 ## Testing Checklist
 
@@ -247,7 +248,7 @@ https://duke-ride-api.dukeride-kvk.workers.dev/health
 - Mount the phone securely.
 - Android background tracking reliability depends on location permission and battery optimization.
 - For best field testing, allow location all the time and disable battery optimization for RidePulse.
-- Cloudflare Workers avoids the Render free-tier sleeping issue; Neon can still have occasional database cold latency.
+- Paid Render Starter avoids free-tier sleeping; Neon can still have occasional database cold latency if the database scales to zero.
 
 ## Known Gaps / Future Ideas
 
