@@ -57,6 +57,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Ride Detail has a confirmed delete option for the selected ride, intended for test rides, unwanted rides, or duplicates that should be fully removed with their route points.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
 - Imported ride photos with GPS metadata appear as camera markers on the ride map.
+- Ride Detail now has a persistent local Ride Album: users can find photos from the ride window, manually add gallery photos, remove album copies without deleting originals, and open a full-screen slideshow/reel.
 - Ride Detail can create a local 9:16 ride story image and share it to Instagram/share sheet without using OpenAI API billing.
 - Ride Detail can generate varied ChatGPT image prompts from exact ride stats, time/place mood, and optional Open-Meteo weather; prompts are copied/shared manually into ChatGPT.
 - Shows analytics summary cards and charts for distance, ride count, duration, and top speed.
@@ -64,6 +65,8 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Keeps the old Cloudflare Worker project as legacy fallback code, but the production app and V2 Smart Journal backend target paid Render.
 - Adds a V2 Smart Journal layer on top of existing ride data: `/api/journal` returns latest ride, monthly recap, highlights, recent rides, and review count; `/api/rides/:id/intelligence` returns suggested title, summary text, badges, fastest/route chapter data, and safe fallbacks for malformed or missing GPS points.
 - Home, Journal, Ride Detail, Ride, and You now use premium smart-journal primitives such as route heroes, smart highlights, ride badges, route replay, chapter timeline, intentional empty states, and inline skeletons.
+- Home now includes local Google Photos-style Memories cards built from ride albums and route-art fallbacks.
+- Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; the You hub can replay the walkthrough later.
 
 ## Automatic Ride Tracking
 
@@ -98,8 +101,11 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/theme/colors.ts`: Midnight and True Black palette values plus shared typography, layout, and motion tokens.
 - `mobile/src/components/RouteArtwork.tsx`: lightweight SVG route artwork for Home, Journal, and ride-detail hero surfaces.
 - `mobile/src/components/JournalHero.tsx`, `SmartHighlight.tsx`, `RideBadge.tsx`, `RouteReplay.tsx`, `ChapterTimeline.tsx`, `PremiumEmptyState.tsx`, and `InlineSkeleton.tsx`: Smart Journal V2 primitives.
+- `mobile/src/components/MemoryCard.tsx`, `RideSlideshowModal.tsx`, and `OnboardingScreen.tsx`: local memories, album slideshow, and first-install walkthrough UI.
 - `backend/src/services/routePreviews.js`: bounded route-preview loader used by the Express fallback API.
 - `backend/src/services/journalIntelligence.js`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
+- `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
+- `mobile/src/services/onboarding.ts`: walkthrough completion storage.
 - `mobile/src/services/profilePhoto.ts`: local per-user profile photo picker/storage.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
@@ -208,6 +214,7 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-25: Migrated the production API target to the paid Render Starter service in Singapore. Render automatically deployed Git commit `3e85fdf`; `/health` confirmed the same commit, and a temporary production probe passed registration, login, and dashboard requests before its test account was removed.
 - 2026-06-25: Configured the Express PostgreSQL pool for the Starter instance, retained the same Neon database and API contracts, clean-built an APK with the Render URL embedded, installed it on Moto g34 5G (`ZA222K77F7`), and launched it successfully. Final login with the rider's real credentials remains the immediate manual check.
 - 2026-06-25: Implemented RidePulse V2 Smart Journal for the Render backend. Added additive Render endpoints `/api/journal` and `/api/rides/:id/intelligence`, optional smart ride metadata, backend tests for malformed GPS intelligence, premium mobile journal primitives, editorial Journal filters, smarter Home/You surfaces, Ride Detail route replay and chapter timeline, cockpit GPS confidence, and confirmed selected-ride deletion. Worker V2 parity is intentionally not part of this release because Render is now the active backend.
+- 2026-06-26: Implemented RidePulse V3 local Memories. Added first-install walkthrough, local ride albums with copied photo storage, manual gallery import, ride-window import into persistent albums, album photo removal, full-screen slideshow/reel, Home Memories carousel, and walkthrough replay from You. No backend photo storage or database migration was added.
 
 ## Testing Checklist
 
@@ -217,6 +224,8 @@ https://ktm-ride-mvp.onrender.com/health
 - Confirm Profile shows account details and can add/change/remove the local profile photo.
 - Confirm Ride Detail can save title/notes and mark reviewed.
 - Confirm Ride Detail can delete the selected ride only after confirmation and returns to Journal.
+- Confirm fresh installs show walkthrough before login, and replay walkthrough works from You.
+- Confirm Ride Detail album can find ride-window photos, manually add photos, remove album copies, and open slideshow.
 - Confirm duplicate candidates appear in Ride Detail and require confirmation before delete.
 - Confirm top speed does not jump from one isolated GPS spike during a ride.
 - Manual ride test:

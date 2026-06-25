@@ -25,6 +25,7 @@ import { Metric } from "../components/Metric";
 import { ChapterTimeline } from "../components/ChapterTimeline";
 import { RideBadge } from "../components/RideBadge";
 import { RouteReplay } from "../components/RouteReplay";
+import { RideSlideshowModal } from "../components/RideSlideshowModal";
 import { RouteArtwork } from "../components/RouteArtwork";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
@@ -41,10 +42,10 @@ import {
   StoryPromptVariantId
 } from "../services/rideStoryPrompt";
 import { shareRideStoryImage } from "../services/rideStoryShare";
-import { importRidePhotos } from "../services/ridePhotos";
+import { getRideAlbum, importRideWindowPhotosToAlbum, pickManualPhotosForAlbum, removeAlbumPhoto } from "../services/rideAlbums";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
-import { Ride, RideIntelligence, RidePhoto, RidePoint } from "../types";
+import { Ride, RideAlbum, RideAlbumPhoto, RideIntelligence, RidePhoto, RidePoint } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 
 type RideDetailParams = {
@@ -70,10 +71,13 @@ export function RideDetailScreen() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [deletingDuplicateId, setDeletingDuplicateId] = useState<string | null>(null);
   const [deletingRide, setDeletingRide] = useState(false);
-  const [photos, setPhotos] = useState<RidePhoto[]>([]);
+  const [album, setAlbum] = useState<RideAlbum | null>(null);
+  const [photos, setPhotos] = useState<RideAlbumPhoto[]>([]);
   const [photosSearched, setPhotosSearched] = useState(false);
   const [importingPhotos, setImportingPhotos] = useState(false);
+  const [manualImportingPhotos, setManualImportingPhotos] = useState(false);
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [photoViewerInitialIndex, setPhotoViewerInitialIndex] = useState(0);
   const [photoError, setPhotoError] = useState("");
   const [storySharing, setStorySharing] = useState(false);
@@ -103,6 +107,10 @@ export function RideDetailScreen() {
       }
       const nextRide = normalizeRide(response.ride);
       setRide(nextRide);
+      const nextAlbum = await getRideAlbum(nextRide.id);
+      setAlbum(nextAlbum);
+      setPhotos(nextAlbum?.photos || []);
+      setPhotosSearched(Boolean(nextAlbum?.photos.length));
       setIntelligence(null);
       setTitleDraft(nextRide.title || "");
       setNotesDraft(nextRide.notes || "");
@@ -284,14 +292,14 @@ export function RideDetailScreen() {
     setImportingPhotos(true);
     setPhotoError("");
     try {
-      const importedPhotos = await importRidePhotos(ride);
-      setPhotos(importedPhotos);
+      const nextAlbum = await importRideWindowPhotosToAlbum(ride);
+      setAlbum(nextAlbum);
+      setPhotos(nextAlbum.photos);
       setPhotosSearched(true);
-      if (!importedPhotos.length) {
+      if (!nextAlbum.photos.length) {
         closePhotoViewer();
       }
     } catch (err: any) {
-      setPhotos([]);
       setPhotosSearched(true);
       setPhotoError(err.message || "Unable to import ride photos");
       logDiagnostic({
@@ -302,6 +310,61 @@ export function RideDetailScreen() {
       });
     } finally {
       setImportingPhotos(false);
+    }
+  }
+
+  async function handleManualPhotoImport() {
+    if (!ride) {
+      return;
+    }
+
+    setManualImportingPhotos(true);
+    setPhotoError("");
+    try {
+      const nextAlbum = await pickManualPhotosForAlbum(ride);
+      if (nextAlbum) {
+        setAlbum(nextAlbum);
+        setPhotos(nextAlbum.photos);
+        setPhotosSearched(true);
+      }
+    } catch (err: any) {
+      setPhotoError(err.message || "Unable to add photos");
+      await logDiagnostic({
+        level: "error",
+        area: "photos",
+        message: "Manual ride photo import failed",
+        details: diagnosticDetails(err)
+      });
+    } finally {
+      setManualImportingPhotos(false);
+    }
+  }
+
+  function confirmRemovePhoto(photo: RideAlbumPhoto) {
+    Alert.alert(
+      "Remove photo from album?",
+      "This only removes the local RidePulse album copy. Your original gallery photo is not deleted.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => removePhotoFromAlbum(photo.id) }
+      ]
+    );
+  }
+
+  async function removePhotoFromAlbum(photoId: string) {
+    if (!ride) {
+      return;
+    }
+
+    try {
+      const nextAlbum = await removeAlbumPhoto(ride.id, photoId);
+      setAlbum(nextAlbum);
+      setPhotos(nextAlbum.photos);
+      if (!nextAlbum.photos.length) {
+        closePhotoViewer();
+      }
+    } catch (err: any) {
+      setPhotoError(err.message || "Unable to remove photo");
     }
   }
 
@@ -622,51 +685,73 @@ export function RideDetailScreen() {
           <RouteRow icon="pulse" label="GPS points" value={`${ride.points?.length || 0}`} />
         </View>
 
-        <View style={styles.card}>
+        <View style={styles.albumCard}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>Photos from this ride</Text>
+              <Text style={styles.sectionTitle}>Ride Album</Text>
               <Text style={styles.sectionMeta}>
-                Finds phone camera photos taken between ride start and end time.
+                Local photos for this ride. They stay on this phone and can become a slideshow memory.
               </Text>
             </View>
+            {photos.length ? <Text style={styles.albumCount}>{photos.length}</Text> : null}
           </View>
+          {album?.coverUri ? <Image source={{ uri: album.coverUri }} style={styles.albumCover} /> : null}
+          <View style={styles.storyActions}>
             <PrimaryButton
-              label="Import ride photos"
+              label="Find ride photos"
               icon="images"
               compact
               loading={importingPhotos}
               onPress={handleImportRidePhotos}
             />
+            <PrimaryButton
+              label="Add manually"
+              icon="add-circle"
+              compact
+              loading={manualImportingPhotos}
+              onPress={handleManualPhotoImport}
+            />
+            <PrimaryButton
+              label="Slideshow"
+              icon="play-circle"
+              compact
+              disabled={!ride}
+              onPress={() => setSlideshowOpen(true)}
+            />
+          </View>
           {photoError ? <Text style={styles.error}>{photoError}</Text> : null}
           {photos.length ? (
             <>
               <Text style={styles.photoMeta}>
-                {photos.length} found, {photosWithLocation.length} with map location.
+                {photos.length} saved locally, {photosWithLocation.length} with map location.
               </Text>
               <View style={styles.photoGrid}>
                 {photos.map((photo, index) => (
-                  <Pressable
-                    accessibilityRole="imagebutton"
-                    key={photo.id}
-                    onPress={() => openPhotoViewer(index)}
-                    style={({ pressed }) => [styles.photoTile, pressed && styles.pressedPhoto]}
-                  >
+                  <View key={photo.id} style={styles.photoTile}>
+                    <Pressable
+                      accessibilityRole="imagebutton"
+                      onPress={() => openPhotoViewer(index)}
+                      style={({ pressed }) => [styles.photoPress, pressed && styles.pressedPhoto]}
+                    >
                     <Image source={{ uri: photo.uri }} style={styles.photo} />
                     <View style={styles.photoFooter}>
                       <Text style={styles.photoTime}>{time(photo.createdAt)}</Text>
                       {photo.hasLocation ? <Ionicons name="location" color={colors.blue} size={14} /> : null}
                     </View>
-                  </Pressable>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => confirmRemovePhoto(photo)} style={styles.removePhotoButton}>
+                      <Ionicons name="close" color={colors.text} size={16} />
+                    </Pressable>
+                  </View>
                 ))}
               </View>
             </>
           ) : photosSearched && !photoError ? (
             <View style={styles.photoEmpty}>
               <Ionicons name="images" color={colors.muted} size={26} />
-              <Text style={styles.photoEmptyTitle}>No photos found</Text>
+              <Text style={styles.photoEmptyTitle}>No album photos yet</Text>
               <Text style={styles.photoEmptyText}>
-                Photos taken with your normal camera during this ride window will appear here.
+                Try finding photos from the ride window, or add any gallery photo manually.
               </Text>
             </View>
           ) : null}
@@ -743,6 +828,13 @@ export function RideDetailScreen() {
           )}
         />
       ) : null}
+      <RideSlideshowModal
+        visible={slideshowOpen}
+        ride={ride}
+        photos={photos}
+        initialIndex={photoViewerInitialIndex}
+        onClose={() => setSlideshowOpen(false)}
+      />
     </Screen>
   );
 }
@@ -1152,6 +1244,22 @@ const createStyles = (colors: ThemeColors) => ({
     padding: 17,
     gap: 10
   },
+  albumCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 28,
+    padding: 17,
+    gap: 12
+  },
+  albumCount: {
+    color: colors.accent,
+    fontFamily: typography.extraBold,
+    fontSize: 28
+  },
+  albumCover: {
+    width: "100%",
+    height: 210,
+    borderRadius: 24
+  },
   dangerCard: {
     backgroundColor: `${colors.danger}14`,
     borderRadius: 24,
@@ -1357,6 +1465,20 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surfaceHigh,
     borderColor: colors.border,
     borderWidth: 1
+  },
+  photoPress: {
+    flex: 1
+  },
+  removePhotoButton: {
+    position: "absolute",
+    right: 5,
+    top: 5,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(0,0,0,0.62)",
+    alignItems: "center",
+    justifyContent: "center"
   },
   pressedPhoto: {
     opacity: 0.78
