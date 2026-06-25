@@ -1,36 +1,72 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { JournalCard } from "../components/JournalCard";
+import { PremiumEmptyState } from "../components/PremiumEmptyState";
 import { Screen } from "../components/Screen";
 import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
 import { Ride } from "../types";
 
-type Period = "all" | "month" | "year";
+type Filter = "all" | "month" | "longest" | "fastest" | "unreviewed";
+
+const filters: { key: Filter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "month", label: "This month" },
+  { key: "longest", label: "Longest" },
+  { key: "fastest", label: "Fastest" },
+  { key: "unreviewed", label: "Unreviewed" }
+];
 
 export function HistoryScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
-  const [period, setPeriod] = useState<Period>("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const fade = useRef(new Animated.Value(1)).current;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setError("");
+      const period = filter === "month" ? "month" : "all";
       const response = await api<{ rides: Ride[] }>(`/rides?period=${period}`);
       setRides(Array.isArray(response.rides) ? response.rides : []);
     } catch (err: any) {
       setError(err.message || "Your journal is unavailable");
-    } finally { setLoading(false); }
-  }, [period]);
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useEffect(() => {
+    fade.setValue(0.72);
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true
+    }).start();
+  }, [fade, filter, rides.length]);
+
+  const displayedRides = useMemo(() => {
+    const next = [...rides];
+    if (filter === "unreviewed") {
+      return next.filter((ride) => !ride.reviewedAt);
+    }
+    if (filter === "longest") {
+      return next.sort((a, b) => Number(b.distanceM || 0) - Number(a.distanceM || 0));
+    }
+    if (filter === "fastest") {
+      return next.sort((a, b) => Number(b.topSpeedKmh || 0) - Number(a.topSpeedKmh || 0));
+    }
+    return next;
+  }, [filter, rides]);
 
   return (
     <Screen>
@@ -38,29 +74,50 @@ export function HistoryScreen() {
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>EVERY ROAD, REMEMBERED</Text>
           <Text style={[styles.title, { color: colors.text }]}>Journal</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>A living record of the places your motorcycle has taken you.</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>Editorial cards, smart labels, and the routes that made the month.</Text>
         </View>
-        <View style={[styles.filters, { backgroundColor: colors.surface }]}>
-          {(["all", "month", "year"] as Period[]).map((item) => (
-            <Pressable key={item} onPress={() => setPeriod(item)} style={[styles.filter, period === item && { backgroundColor: colors.text }]}>
-              <Text style={[styles.filterText, { color: period === item ? colors.background : colors.muted }]}>{item === "all" ? "All rides" : item === "month" ? "This month" : "This year"}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+          {filters.map((item) => {
+            const selected = filter === item.key;
+            return (
+              <Pressable key={item.key} onPress={() => setFilter(item.key)} style={[styles.filter, { backgroundColor: selected ? colors.text : colors.surface }]}>
+                <Text style={[styles.filterText, { color: selected ? colors.background : colors.muted }]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
         {error ? <Pressable onPress={load} style={[styles.error, { backgroundColor: `${colors.danger}16` }]}><Ionicons name="cloud-offline" color={colors.danger} size={21} /><View style={styles.flex}><Text style={[styles.errorTitle, { color: colors.text }]}>Couldn’t open the journal</Text><Text style={[styles.errorCopy, { color: colors.muted }]}>{error} · Tap to retry</Text></View></Pressable> : null}
-        {rides.map((ride) => <JournalCard key={ride.id} ride={ride} onPress={() => navigation.navigate("RideDetail", { rideId: ride.id, reviewMode: !ride.reviewedAt })} />)}
-        {loading && !rides.length ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={[styles.loadingText, { color: colors.muted }]}>Finding your roads</Text></View> : null}
-        {!loading && !error && !rides.length ? <View style={[styles.empty, { backgroundColor: colors.surface }]}><Ionicons name="trail-sign-outline" color={colors.accent} size={32} /><Text style={[styles.emptyTitle, { color: colors.text }]}>No journeys in this chapter</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>Choose another period, or record your next ride to begin one.</Text><Pressable onPress={() => navigation.navigate("Ride")} style={[styles.emptyAction, { backgroundColor: colors.accent }]}><Text style={[styles.emptyActionText, { color: colors.onAccent }]}>Start a ride</Text></Pressable></View> : null}
+        <Animated.View style={[styles.list, { opacity: fade }]}>
+          {displayedRides.map((ride, index) => <JournalCard key={ride.id} featured={index === 0 && filter !== "unreviewed"} ride={ride} onPress={() => navigation.navigate("RideDetail", { rideId: ride.id, reviewMode: !ride.reviewedAt })} />)}
+        </Animated.View>
+        {loading && !displayedRides.length ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={[styles.loadingText, { color: colors.muted }]}>Finding your roads</Text></View> : null}
+        {!loading && !error && !displayedRides.length ? (
+          <PremiumEmptyState
+            title={filter === "unreviewed" ? "Everything is reviewed" : "No journeys in this chapter"}
+            body={filter === "unreviewed" ? "Nice. Your ride stories are caught up." : "Choose another filter, or record your next ride to begin one."}
+            actionLabel="Start a ride"
+            onAction={() => navigation.navigate("Ride")}
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 118, gap: 18 }, header: { gap: 5, paddingTop: 2 },
-  eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 }, title: { fontFamily: typography.extraBold, fontSize: 36, lineHeight: 42 }, subtitle: { fontFamily: typography.regular, fontSize: 14, lineHeight: 21, maxWidth: 350 },
-  filters: { flexDirection: "row", borderRadius: 18, padding: 4, gap: 3 }, filter: { flex: 1, minHeight: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, filterText: { fontFamily: typography.bold, fontSize: 11 },
-  error: { flexDirection: "row", gap: 12, padding: 15, borderRadius: 20 }, flex: { flex: 1 }, errorTitle: { fontFamily: typography.bold, fontSize: 13 }, errorCopy: { fontFamily: typography.regular, fontSize: 11, marginTop: 2 },
-  loading: { height: 220, alignItems: "center", justifyContent: "center", gap: 10 }, loadingText: { fontFamily: typography.medium },
-  empty: { borderRadius: 26, padding: 26, gap: 9 }, emptyTitle: { fontFamily: typography.extraBold, fontSize: 20 }, emptyCopy: { fontFamily: typography.regular, lineHeight: 20 }, emptyAction: { alignSelf: "flex-start", marginTop: 8, minHeight: 42, borderRadius: 14, paddingHorizontal: 16, justifyContent: "center" }, emptyActionText: { fontFamily: typography.bold, fontSize: 13 }
+  content: { padding: 20, paddingBottom: 118, gap: 18 },
+  header: { gap: 5, paddingTop: 2 },
+  eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 },
+  title: { fontFamily: typography.extraBold, fontSize: 38, lineHeight: 44, letterSpacing: -0.8 },
+  subtitle: { fontFamily: typography.regular, fontSize: 14, lineHeight: 21, maxWidth: 350 },
+  filters: { gap: 8, paddingRight: 20 },
+  filter: { minHeight: 42, borderRadius: 999, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
+  filterText: { fontFamily: typography.bold, fontSize: 11 },
+  list: { gap: 16 },
+  error: { flexDirection: "row", gap: 12, padding: 15, borderRadius: 20 },
+  flex: { flex: 1 },
+  errorTitle: { fontFamily: typography.bold, fontSize: 13 },
+  errorCopy: { fontFamily: typography.regular, fontSize: 11, marginTop: 2 },
+  loading: { height: 220, alignItems: "center", justifyContent: "center", gap: 10 },
+  loadingText: { fontFamily: typography.medium }
 });

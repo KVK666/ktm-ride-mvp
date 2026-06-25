@@ -9,6 +9,7 @@ const rideRoutes = require("./routes/rides");
 const dashboardRoutes = require("./routes/dashboard");
 const analyticsRoutes = require("./routes/analytics");
 const reportRoutes = require("./routes/reports");
+const journalRoutes = require("./routes/journal");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -28,6 +29,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/rides", rideRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/journal", journalRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/reports", reportRoutes);
 

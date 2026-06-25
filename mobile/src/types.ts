@@ -44,6 +44,10 @@ export type Ride = {
   createdAt?: string;
   points?: RidePoint[];
   routePreview?: Coordinate[];
+  badges?: string[];
+  smartTitle?: string;
+  summaryText?: string;
+  highlightReason?: string;
 };
 
 export type DashboardStats = {
@@ -56,4 +60,58 @@ export type DashboardStats = {
   averageSpeedKmh: number;
   previousMonthDistanceM?: number;
   longestRideDistanceM?: number;
+};
+
+export type RideChapter = {
+  id: string;
+  title: string;
+  body: string;
+  timestamp?: string | null;
+  coordinate?: Coordinate | null;
+};
+
+export type RideIntelligence = {
+  suggestedTitle: string;
+  summaryText: string;
+  badges: string[];
+  highlightReason?: string;
+  fastestSegment?: {
+    speedKmh: number;
+    distanceM: number;
+    durationS: number;
+    startedAt?: string | null;
+    endedAt?: string | null;
+    coordinate?: Coordinate | null;
+  } | null;
+  midpoint?: Coordinate | null;
+  comparisons?: {
+    distanceVsLongestM?: number | null;
+    monthSharePercent?: number | null;
+  };
+  chapters: RideChapter[];
+};
+
+export type JournalHighlight = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  rideId?: string;
+  icon?: string;
+};
+
+export type JournalResponse = {
+  generatedAt: string;
+  stats: DashboardStats;
+  latestRide?: Ride | null;
+  monthlyRecap: {
+    distanceM: number;
+    previousMonthDistanceM: number;
+    distanceDeltaPercent?: number | null;
+    rideCount: number;
+    bestRide?: Ride | null;
+  };
+  highlights: JournalHighlight[];
+  recentRides: Ride[];
+  unreviewedCount: number;
 };

@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../config/db");
 const { requireAuth } = require("../middleware/auth");
 const { attachRoutePreviews } = require("../services/routePreviews");
+const { decorateRides } = require("../services/journalIntelligence");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -55,7 +56,10 @@ router.get("/", async (req, res, next) => {
         previousMonthDistanceM: Number(row.previous_month_distance_m),
         longestRideDistanceM: Number(row.longest_ride_distance_m)
       },
-      recentRides: await attachRoutePreviews(db, recentResult.rows)
+      recentRides: decorateRides(await attachRoutePreviews(db, recentResult.rows), {
+        monthDistanceM: Number(row.month_distance_m),
+        longestRideDistanceM: Number(row.longest_ride_distance_m)
+      })
     });
   } catch (error) {
     return next(error);

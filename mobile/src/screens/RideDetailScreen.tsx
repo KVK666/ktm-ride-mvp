@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { RouteProp, useFocusEffect, useRoute } from "@react-navigation/native";
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -22,6 +22,9 @@ import { captureRef } from "react-native-view-shot";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Metric } from "../components/Metric";
+import { ChapterTimeline } from "../components/ChapterTimeline";
+import { RideBadge } from "../components/RideBadge";
+import { RouteReplay } from "../components/RouteReplay";
 import { RouteArtwork } from "../components/RouteArtwork";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
@@ -41,7 +44,7 @@ import { shareRideStoryImage } from "../services/rideStoryShare";
 import { importRidePhotos } from "../services/ridePhotos";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
-import { Ride, RidePhoto, RidePoint } from "../types";
+import { Ride, RideIntelligence, RidePhoto, RidePoint } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 
 type RideDetailParams = {
@@ -57,13 +60,16 @@ export function RideDetailScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const route = useRoute<RouteProp<RideDetailParams, "RideDetail">>();
+  const navigation = useNavigation<any>();
   const [ride, setRide] = useState<Ride | null>(null);
+  const [intelligence, setIntelligence] = useState<RideIntelligence | null>(null);
   const [duplicateRides, setDuplicateRides] = useState<Ride[]>([]);
   const [titleDraft, setTitleDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [deletingDuplicateId, setDeletingDuplicateId] = useState<string | null>(null);
+  const [deletingRide, setDeletingRide] = useState(false);
   const [photos, setPhotos] = useState<RidePhoto[]>([]);
   const [photosSearched, setPhotosSearched] = useState(false);
   const [importingPhotos, setImportingPhotos] = useState(false);
@@ -97,14 +103,20 @@ export function RideDetailScreen() {
       }
       const nextRide = normalizeRide(response.ride);
       setRide(nextRide);
+      setIntelligence(null);
       setTitleDraft(nextRide.title || "");
       setNotesDraft(nextRide.notes || "");
       setReviewMessage(route.params.reviewMode ? "Review this ride before your next trip." : "");
       try {
-        const duplicates = await api<{ duplicates: Ride[] }>(`/rides/${route.params.rideId}/duplicates`);
+        const [duplicates, smart] = await Promise.all([
+          api<{ duplicates: Ride[] }>(`/rides/${route.params.rideId}/duplicates`),
+          api<{ intelligence: RideIntelligence }>(`/rides/${route.params.rideId}/intelligence`).catch(() => ({ intelligence: buildFallbackIntelligence(nextRide) }))
+        ]);
         setDuplicateRides(Array.isArray(duplicates.duplicates) ? duplicates.duplicates.map(normalizeRide) : []);
+        setIntelligence(normalizeIntelligence(smart.intelligence, nextRide));
       } catch (duplicateError: any) {
         setDuplicateRides([]);
+        setIntelligence(buildFallbackIntelligence(nextRide));
         logDiagnostic({
           level: "error",
           area: "ride-review",
@@ -114,6 +126,7 @@ export function RideDetailScreen() {
       }
     } catch (err: any) {
       setRide(null);
+      setIntelligence(null);
       setDuplicateRides([]);
       setError(err.message || "Unable to load ride details");
     } finally {
@@ -171,6 +184,7 @@ export function RideDetailScreen() {
     () => ride ? buildRideStoryPrompt(ride, promptVariantId, promptWeather, promptSeed) : "",
     [promptSeed, promptVariantId, promptWeather, ride]
   );
+  const displayTitle = intelligence?.suggestedTitle || rideTitle(ride || ({} as Ride));
 
   async function saveReview(markReviewed = false) {
     if (!ride || reviewSaving) {
@@ -223,6 +237,42 @@ export function RideDetailScreen() {
       setReviewMessage(err.message || "Unable to delete duplicate ride");
     } finally {
       setDeletingDuplicateId(null);
+    }
+  }
+
+  function confirmDeleteRide() {
+    if (!ride || deletingRide) {
+      return;
+    }
+
+    Alert.alert(
+      "Delete this ride?",
+      `${displayTitle}\n${shortDate(ride.startedAt)} · ${km(ride.distanceM)}\n\nThis permanently removes the ride and its saved route points.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete ride",
+          style: "destructive",
+          onPress: () => deleteCurrentRide()
+        }
+      ]
+    );
+  }
+
+  async function deleteCurrentRide() {
+    if (!ride || deletingRide) {
+      return;
+    }
+
+    setDeletingRide(true);
+    setReviewMessage("");
+    try {
+      await api(`/rides/${ride.id}`, { method: "DELETE" });
+      navigation.navigate("MainTabs", { screen: "History" });
+    } catch (err: any) {
+      setReviewMessage(err.message || "Unable to delete this ride");
+    } finally {
+      setDeletingRide(false);
     }
   }
 
@@ -394,13 +444,32 @@ export function RideDetailScreen() {
         <RouteArtwork coordinates={ride.points} start={{ latitude: ride.startLatitude, longitude: ride.startLongitude }} end={{ latitude: ride.endLatitude, longitude: ride.endLongitude }} height={270} />
         <View style={styles.hero}>
           <Text style={styles.kicker}>JOURNEY</Text>
-          <Text style={styles.title}>{rideTitle(ride)}</Text>
+          <Text style={styles.title}>{displayTitle}</Text>
           <Text style={styles.subtitle}>
             {time(ride.startedAt)} to {ride.endedAt ? time(ride.endedAt) : "--"}
           </Text>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <View style={styles.smartCard}>
+          <Text style={styles.kicker}>SMART JOURNAL</Text>
+          <Text style={styles.smartTitle}>{intelligence?.summaryText || ride.summaryText || "RidePulse built a story layer from this ride’s saved route."}</Text>
+          {intelligence?.highlightReason || ride.highlightReason ? <Text style={styles.sectionMeta}>{intelligence?.highlightReason || ride.highlightReason}</Text> : null}
+          {intelligence?.badges?.length || ride.badges?.length ? (
+            <View style={styles.badgeRow}>
+              {(intelligence?.badges || ride.badges || []).slice(0, 4).map((badge, index) => (
+                <RideBadge key={`${badge}-${index}`} label={badge} tone={index === 0 ? "accent" : "blue"} />
+              ))}
+            </View>
+          ) : null}
+          {intelligence?.suggestedTitle && !titleDraft.trim() ? (
+            <Pressable onPress={() => setTitleDraft(intelligence.suggestedTitle)} style={styles.suggestButton}>
+              <Ionicons name="create" color={colors.onAccent} size={16} />
+              <Text style={styles.suggestButtonText}>Use suggested title</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
@@ -533,6 +602,10 @@ export function RideDetailScreen() {
           </View>
         )}
 
+        <RouteReplay coordinates={ride.points?.length ? ride.points : ride.routePreview} title="Route pulse" />
+
+        <ChapterTimeline chapters={intelligence?.chapters || []} />
+
         <View style={styles.metricStrip}>
           <Metric label="DISTANCE" value={km(ride.distanceM)} accent />
           <View style={styles.metricDivider} />
@@ -603,6 +676,24 @@ export function RideDetailScreen() {
           <Text style={styles.sectionTitle}>Speed over time</Text>
           <SpeedTrend data={speedChart.data} labels={speedChart.labels} width={chartWidth} colors={colors} />
         </View>
+
+        <View style={styles.dangerCard}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>Ride controls</Text>
+              <Text style={styles.sectionMeta}>Delete this ride if it was a test, duplicate, or something you don’t want in the journal.</Text>
+            </View>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            disabled={deletingRide}
+            onPress={confirmDeleteRide}
+            style={({ pressed }) => [styles.deleteRideButton, pressed && styles.pressedPhoto, deletingRide && styles.disabledButton]}
+          >
+            <Ionicons name="trash" color={colors.text} size={18} />
+            <Text style={styles.deleteRideText}>{deletingRide ? "Deleting..." : "Delete this ride"}</Text>
+          </Pressable>
+        </View>
       </ScrollView>
       <View pointerEvents="none" style={styles.storyCaptureStage}>
         <View ref={storyCaptureRef} collapsable={false}>
@@ -657,7 +748,78 @@ export function RideDetailScreen() {
 }
 
 function rideTitle(ride: Ride) {
-  return ride.title?.trim() || `${shortDate(ride.startedAt)} ride`;
+  return ride.title?.trim() || ride.smartTitle || `${shortDate(ride.startedAt)} ride`;
+}
+
+function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
+  const fallback = buildFallbackIntelligence(ride);
+  return {
+    suggestedTitle: String(value?.suggestedTitle || fallback.suggestedTitle),
+    summaryText: String(value?.summaryText || fallback.summaryText),
+    badges: Array.isArray(value?.badges) ? value.badges.map(String).filter(Boolean).slice(0, 4) : fallback.badges,
+    highlightReason: typeof value?.highlightReason === "string" ? value.highlightReason : fallback.highlightReason,
+    fastestSegment: value?.fastestSegment && typeof value.fastestSegment === "object" ? {
+      speedKmh: finiteNumber(value.fastestSegment.speedKmh),
+      distanceM: finiteNumber(value.fastestSegment.distanceM),
+      durationS: finiteNumber(value.fastestSegment.durationS),
+      startedAt: typeof value.fastestSegment.startedAt === "string" ? value.fastestSegment.startedAt : null,
+      endedAt: typeof value.fastestSegment.endedAt === "string" ? value.fastestSegment.endedAt : null,
+      coordinate: normalizeCoordinate(value.fastestSegment.coordinate)
+    } : null,
+    midpoint: normalizeCoordinate(value?.midpoint),
+    comparisons: value?.comparisons && typeof value.comparisons === "object" ? {
+      distanceVsLongestM: value.comparisons.distanceVsLongestM == null ? null : finiteNumber(value.comparisons.distanceVsLongestM),
+      monthSharePercent: value.comparisons.monthSharePercent == null ? null : finiteNumber(value.comparisons.monthSharePercent)
+    } : fallback.comparisons,
+    chapters: Array.isArray(value?.chapters)
+      ? value.chapters.map(normalizeChapter).filter(Boolean).slice(0, 4) as RideIntelligence["chapters"]
+      : fallback.chapters
+  };
+}
+
+function buildFallbackIntelligence(ride: Ride): RideIntelligence {
+  const title = ride.smartTitle || ride.title?.trim() || `${shortDate(ride.startedAt)} ride`;
+  const summary = ride.summaryText || `${km(ride.distanceM)} recorded from ${ride.startLabel} to ${ride.endLabel}.`;
+  const badges = Array.isArray(ride.badges) && ride.badges.length ? ride.badges : [
+    ride.distanceM >= 30000 ? "Open road" : "Quick spin",
+    ride.reviewedAt ? "Reviewed" : "Needs story"
+  ];
+  return {
+    suggestedTitle: title,
+    summaryText: summary,
+    badges,
+    highlightReason: ride.highlightReason || "Built from saved ride data.",
+    fastestSegment: null,
+    midpoint: null,
+    comparisons: {},
+    chapters: [
+      { id: "start", title: "Roll out", body: ride.startLabel, timestamp: ride.startedAt, coordinate: { latitude: ride.startLatitude, longitude: ride.startLongitude } },
+      { id: "finish", title: "Finish", body: ride.endLabel, timestamp: ride.endedAt || null, coordinate: { latitude: ride.endLatitude, longitude: ride.endLongitude } }
+    ]
+  };
+}
+
+function normalizeChapter(value: any) {
+  const coordinate = normalizeCoordinate(value?.coordinate);
+  if (!value || typeof value !== "object" || !coordinate) {
+    return null;
+  }
+  return {
+    id: String(value.id || value.title || "chapter"),
+    title: String(value.title || "Ride chapter"),
+    body: String(value.body || ""),
+    timestamp: typeof value.timestamp === "string" ? value.timestamp : null,
+    coordinate
+  };
+}
+
+function normalizeCoordinate(value: any) {
+  const latitude = Number(value?.latitude);
+  const longitude = Number(value?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return null;
+  }
+  return { latitude, longitude };
 }
 
 function PhotoViewerFooter({ photo, index, total }: { photo?: RidePhoto; index: number; total: number }) {
@@ -935,6 +1097,39 @@ const createStyles = (colors: ThemeColors) => ({
     fontSize: 13,
     fontFamily: typography.medium
   },
+  smartCard: {
+    backgroundColor: colors.elevated,
+    borderRadius: 28,
+    padding: 18,
+    gap: 10
+  },
+  smartTitle: {
+    color: colors.text,
+    fontFamily: typography.extraBold,
+    fontSize: 21,
+    lineHeight: 28
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7
+  },
+  suggestButton: {
+    alignSelf: "flex-start",
+    minHeight: 42,
+    borderRadius: 15,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginTop: 2
+  },
+  suggestButtonText: {
+    color: colors.onAccent,
+    fontFamily: typography.bold,
+    fontSize: 12
+  },
   emptyMap: {
     minHeight: 180,
     borderRadius: 18,
@@ -956,6 +1151,27 @@ const createStyles = (colors: ThemeColors) => ({
     borderRadius: 24,
     padding: 17,
     gap: 10
+  },
+  dangerCard: {
+    backgroundColor: `${colors.danger}14`,
+    borderRadius: 24,
+    padding: 17,
+    gap: 12
+  },
+  deleteRideButton: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    borderRadius: 15,
+    paddingHorizontal: 14,
+    backgroundColor: colors.danger,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  deleteRideText: {
+    color: colors.text,
+    fontFamily: typography.bold,
+    fontSize: 13
   },
   reviewCard: {
     borderColor: colors.accent

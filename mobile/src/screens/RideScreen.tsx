@@ -59,6 +59,7 @@ export function RideScreen() {
     const avgSpeed = durationS > 0 ? (distanceM / 1000 / (durationS / 3600)) : 0;
     return { distanceM, topSpeed, durationS, avgSpeed };
   }, [active, points, startedAt]);
+  const gpsQuality = gpsQualityLabel(points[points.length - 1], points.length);
 
   async function ensurePermissions() {
     const foreground = await Location.requestForegroundPermissionsAsync();
@@ -337,6 +338,21 @@ export function RideScreen() {
 
         {active ? <View style={styles.speedHero}><Text style={styles.speedValue}>{Math.round(points[points.length - 1]?.speedKmh || 0)}</Text><Text style={styles.speedUnit}>km/h</Text></View> : null}
 
+        <View style={styles.cockpitStatus}>
+          <View style={styles.cockpitItem}>
+            <Text style={styles.cockpitLabel}>GPS</Text>
+            <Text style={styles.cockpitValue}>{gpsQuality}</Text>
+          </View>
+          <View style={styles.cockpitItem}>
+            <Text style={styles.cockpitLabel}>POINTS</Text>
+            <Text style={styles.cockpitValue}>{points.length}</Text>
+          </View>
+          <View style={styles.cockpitItem}>
+            <Text style={styles.cockpitLabel}>SAVE STATE</Text>
+            <Text style={styles.cockpitValue}>{saving ? "Saving" : active ? "Live" : autoTracking.status.pendingCount ? "Pending" : "Ready"}</Text>
+          </View>
+        </View>
+
         <View style={styles.metrics}>
           <Metric label="DISTANCE" value={km(stats.distanceM)} accent />
           <View style={styles.metricDivider} /><Metric label="DURATION" value={duration(stats.durationS)} />
@@ -449,6 +465,22 @@ function validSpeed(point: RidePoint) {
   return speed;
 }
 
+function gpsQualityLabel(point?: RidePoint, count = 0) {
+  if (!point || count === 0) {
+    return "Waiting";
+  }
+  if (point.accuracyM == null) {
+    return count >= 2 ? "Locked" : "Warming";
+  }
+  if (point.accuracyM <= 20) {
+    return "Excellent";
+  }
+  if (point.accuracyM <= 45) {
+    return "Good";
+  }
+  return "Weak";
+}
+
 async function getRidePointLabel(point: RidePoint, fallback: string) {
   try {
     const places = await Location.reverseGeocodeAsync({
@@ -523,6 +555,10 @@ const createStyles = (colors: ThemeColors) => ({
   speedHero: { alignItems: "center" as const, justifyContent: "center" as const, paddingVertical: 4 },
   speedValue: { color: colors.text, fontFamily: typography.extraBold, fontSize: 76, lineHeight: 84, letterSpacing: -4 },
   speedUnit: { color: colors.muted, fontFamily: typography.bold, fontSize: 12, letterSpacing: 1.2, marginTop: -4 },
+  cockpitStatus: { flexDirection: "row" as const, gap: 10 },
+  cockpitItem: { flex: 1, borderRadius: 18, padding: 12, backgroundColor: colors.surfaceHigh },
+  cockpitLabel: { color: colors.muted, fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.05 },
+  cockpitValue: { color: colors.text, fontFamily: typography.extraBold, fontSize: 15, marginTop: 4 },
   metrics: { flexDirection: "row" as const, alignItems: "center" as const, gap: 12, padding: 17, backgroundColor: colors.surface, borderRadius: 24 },
   metricDivider: { width: 1, height: 42, backgroundColor: colors.border },
   message: {

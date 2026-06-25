@@ -3,6 +3,7 @@ const db = require("../config/db");
 const { requireAuth } = require("../middleware/auth");
 const { summarizeRide } = require("../services/rideMath");
 const { attachRoutePreviews } = require("../services/routePreviews");
+const { buildRideIntelligence, decorateRides } = require("../services/journalIntelligence");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -52,7 +53,48 @@ router.get("/", async (req, res, next) => {
       params
     );
 
-    return res.json({ rides: await attachRoutePreviews(db, result.rows) });
+    return res.json({ rides: decorateRides(await attachRoutePreviews(db, result.rows)) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/:id/intelligence", async (req, res, next) => {
+  try {
+    const rideResult = await db.query(
+      `${rideSelect()} where r.user_id = $1 and r.id = $2`,
+      [req.user.id, req.params.id]
+    );
+    const ride = rideResult.rows[0];
+
+    if (!ride) {
+      return res.status(404).json({ error: "Ride not found" });
+    }
+
+    const [pointResult, statsResult] = await Promise.all([
+      db.query(
+        `select latitude, longitude, speed_kmh as "speedKmh", recorded_at as "recordedAt"
+         from ride_points
+         where ride_id = $1
+         order by recorded_at asc`,
+        [ride.id]
+      ),
+      db.query(
+        `select
+           coalesce(sum(distance_m) filter (where started_at >= date_trunc('month', now())), 0) as "monthDistanceM",
+           coalesce(max(distance_m), 0) as "longestRideDistanceM"
+         from rides
+         where user_id = $1`,
+        [req.user.id]
+      )
+    ]);
+
+    return res.json({
+      intelligence: buildRideIntelligence(ride, pointResult.rows, {
+        monthDistanceM: Number(statsResult.rows[0]?.monthDistanceM || 0),
+        longestRideDistanceM: Number(statsResult.rows[0]?.longestRideDistanceM || 0)
+      })
+    });
   } catch (error) {
     return next(error);
   }

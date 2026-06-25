@@ -1,11 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import React from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { api } from "../api/client";
+import { Metric } from "../components/Metric";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
+import { JournalResponse } from "../types";
+import { km } from "../utils/format";
 
 const destinations = [
   { route: "Analytics", icon: "analytics" as const, eyebrow: "PERFORMANCE", title: "Insights", description: "Patterns hiding inside every kilometre" },
@@ -18,6 +22,23 @@ export function MoreScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const displayName = user?.name?.trim() || "Rider";
+  const [journal, setJournal] = useState<JournalResponse | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      api<JournalResponse>("/journal")
+        .then((response) => {
+          if (active) setJournal(response);
+        })
+        .catch(() => {
+          if (active) setJournal(null);
+        });
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   return (
     <Screen>
@@ -31,6 +52,19 @@ export function MoreScreen() {
           <View style={styles.flex}><Text style={[styles.name, { color: colors.text }]}>{displayName}</Text><Text style={[styles.bike, { color: colors.muted }]}>{user?.bikeModel || "Motorcycle"}</Text></View>
           <Ionicons name="chevron-forward" size={20} color={colors.muted} />
         </Pressable>
+        <View style={[styles.smartStats, { backgroundColor: colors.surface }]}>
+          <View style={styles.smartStatsHeader}>
+            <Text style={[styles.smartStatsTitle, { color: colors.text }]}>Rider pulse</Text>
+            <Text style={[styles.smartStatsMeta, { color: colors.muted }]}>From your smart journal</Text>
+          </View>
+          <View style={styles.metricRow}>
+            <Metric label="MONTH" value={km(journal?.stats?.monthDistanceM || 0)} accent />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <Metric label="RIDES" value={String(journal?.stats?.totalRides || 0)} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <Metric label="TO REVIEW" value={String(journal?.unreviewedCount || 0)} />
+          </View>
+        </View>
         <View style={styles.menu}>
           {destinations.map((item) => (
             <Pressable key={item.route} onPress={() => navigation.navigate(item.route)} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
@@ -50,6 +84,12 @@ export function MoreScreen() {
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 118, gap: 20 }, header: { gap: 3, paddingTop: 2 }, eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 }, title: { fontFamily: typography.extraBold, fontSize: 36 },
   identity: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 26 }, avatar: { width: 54, height: 54, borderRadius: 19, alignItems: "center", justifyContent: "center" }, avatarText: { fontFamily: typography.extraBold, fontSize: 20 }, flex: { flex: 1 }, name: { fontFamily: typography.extraBold, fontSize: 18 }, bike: { fontFamily: typography.medium, marginTop: 3, fontSize: 12 },
+  smartStats: { borderRadius: 26, padding: 17, gap: 12 },
+  smartStatsHeader: { gap: 2 },
+  smartStatsTitle: { fontFamily: typography.extraBold, fontSize: 20 },
+  smartStatsMeta: { fontFamily: typography.medium, fontSize: 12 },
+  metricRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  divider: { width: 1, height: 42 },
   menu: { gap: 14 }, card: { minHeight: 164, borderRadius: 26, padding: 18 }, cardTop: { flexDirection: "row", justifyContent: "space-between" }, icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" }, arrow: { transform: [{ rotate: "45deg" }] }, cardEyebrow: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, marginTop: 17 }, cardTitle: { fontFamily: typography.extraBold, fontSize: 21, marginTop: 2 }, cardCopy: { fontFamily: typography.regular, fontSize: 13, lineHeight: 19, marginTop: 5 },
   note: { flexDirection: "row", gap: 11, borderRadius: 20, padding: 15 }, noteText: { flex: 1, fontFamily: typography.regular, fontSize: 12, lineHeight: 18 }, pressed: { opacity: 0.86, transform: [{ scale: 0.993 }] }
 });

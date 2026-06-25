@@ -5,13 +5,15 @@ import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
 import { Ride } from "../types";
 import { duration, km, shortDate } from "../utils/format";
+import { RideBadge } from "./RideBadge";
 import { RouteArtwork } from "./RouteArtwork";
 
 export function JournalCard({ ride, onPress, featured = false }: { ride: Ride; onPress: () => void; featured?: boolean }) {
   const { colors } = useTheme();
   const start = { latitude: ride.startLatitude, longitude: ride.startLongitude };
   const end = { latitude: ride.endLatitude, longitude: ride.endLongitude };
-  const title = ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
+  const title = ride.smartTitle || ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
+  const badges = Array.isArray(ride.badges) ? ride.badges.slice(0, featured ? 3 : 2) : [];
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
@@ -23,8 +25,8 @@ export function JournalCard({ ride, onPress, featured = false }: { ride: Ride; o
             <Text style={[styles.meta, { color: colors.muted }]}>{shortDate(ride.startedAt)} · {duration(ride.durationS)}</Text>
           </View>
           {!ride.reviewedAt ? (
-            <View style={[styles.badge, { backgroundColor: `${colors.accent}18` }]}>
-              <Text style={[styles.badgeText, { color: colors.accent }]}>REVIEW</Text>
+            <View style={[styles.reviewBadge, { backgroundColor: `${colors.accent}18` }]}>
+              <Text style={[styles.reviewBadgeText, { color: colors.accent }]}>REVIEW</Text>
             </View>
           ) : <Ionicons name="arrow-forward" color={colors.muted} size={20} />}
         </View>
@@ -32,6 +34,12 @@ export function JournalCard({ ride, onPress, featured = false }: { ride: Ride; o
           <Text style={[styles.distance, { color: colors.text }]}>{km(ride.distanceM)}</Text>
           <Text style={[styles.route, { color: colors.muted }]} numberOfLines={1}>{ride.startLabel} → {ride.endLabel}</Text>
         </View>
+        {ride.summaryText || ride.highlightReason || badges.length ? (
+          <View style={styles.storyBlock}>
+            {ride.summaryText || ride.highlightReason ? <Text numberOfLines={2} style={[styles.summary, { color: colors.textSoft }]}>{ride.summaryText || ride.highlightReason}</Text> : null}
+            {badges.length ? <View style={styles.badges}>{badges.map((badge, index) => <RideBadge key={`${badge}-${index}`} label={badge} tone={index === 0 ? "accent" : "blue"} />)}</View> : null}
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -47,7 +55,10 @@ const styles = StyleSheet.create({
   metricRow: { flexDirection: "row", alignItems: "baseline", gap: 12 },
   distance: { fontFamily: typography.extraBold, fontSize: 24 },
   route: { flex: 1, fontFamily: typography.medium, fontSize: 12, textAlign: "right" },
-  badge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
-  badgeText: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 0.8 },
+  storyBlock: { gap: 9 },
+  summary: { fontFamily: typography.regular, fontSize: 12, lineHeight: 18 },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  reviewBadge: { paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999 },
+  reviewBadgeText: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 0.8 },
   pressed: { opacity: 0.88, transform: [{ scale: 0.992 }] }
 });
