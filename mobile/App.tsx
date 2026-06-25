@@ -13,14 +13,18 @@ import {
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
+import { OnboardingScreen } from "./src/components/OnboardingScreen";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import { AuthStack } from "./src/navigation/AuthStack";
+import { hasSeenOnboarding, markOnboardingSeen } from "./src/services/onboarding";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 
 function Root() {
   const { token, loading } = useAuth();
   const { colors } = useTheme();
+  const [onboardingLoading, setOnboardingLoading] = React.useState(true);
+  const [showOnboarding, setShowOnboarding] = React.useState(false);
   const navTheme = {
     ...DefaultTheme,
     dark: true,
@@ -34,13 +38,48 @@ function Root() {
     }
   };
 
-  if (loading) {
+  React.useEffect(() => {
+    let active = true;
+    hasSeenOnboarding()
+      .then((seen) => {
+        if (active) {
+          setShowOnboarding(!seen);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setOnboardingLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (token && showOnboarding) {
+      markOnboardingSeen()
+        .catch(() => {})
+        .finally(() => setShowOnboarding(false));
+    }
+  }, [showOnboarding, token]);
+
+  async function finishOnboarding() {
+    await markOnboardingSeen();
+    setShowOnboarding(false);
+  }
+
+  if (loading || onboardingLoading) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.accent} size="large" />
         <Text style={[styles.loadingText, { color: colors.text }]}>Starting RidePulse</Text>
       </View>
     );
+  }
+
+  if (showOnboarding) {
+    return <OnboardingScreen onDone={finishOnboarding} onSkip={finishOnboarding} />;
   }
 
   return (

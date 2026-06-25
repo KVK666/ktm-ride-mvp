@@ -17,6 +17,39 @@ export type RidePhoto = Coordinate & {
   hasLocation: boolean;
 };
 
+export type RideAlbumPhoto = RidePhoto & {
+  originalUri?: string | null;
+  fileName?: string | null;
+  importedAt: string;
+};
+
+export type RideAlbum = {
+  rideId: string;
+  title?: string | null;
+  coverUri?: string | null;
+  photos: RideAlbumPhoto[];
+  updatedAt: string;
+};
+
+export type RideMemory = {
+  id: string;
+  type: "album" | "route" | "recap";
+  title: string;
+  subtitle: string;
+  rideId?: string;
+  coverUri?: string | null;
+  ride?: Ride | null;
+  photoCount?: number;
+};
+
+export type OnboardingSlide = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  icon: string;
+};
+
 export type User = {
   id: string;
   email: string;

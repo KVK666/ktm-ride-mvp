@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { Metric } from "../components/Metric";
+import { OnboardingScreen } from "../components/OnboardingScreen";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { typography } from "../theme/colors";
@@ -23,6 +24,7 @@ export function MoreScreen() {
   const { user } = useAuth();
   const displayName = user?.name?.trim() || "Rider";
   const [journal, setJournal] = useState<JournalResponse | null>(null);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,8 +77,20 @@ export function MoreScreen() {
             </Pressable>
           ))}
         </View>
+        <Pressable onPress={() => setWalkthroughOpen(true)} style={({ pressed }) => [styles.walkthrough, { backgroundColor: colors.elevated }, pressed && styles.pressed]}>
+          <View style={[styles.icon, { backgroundColor: `${colors.blue}18` }]}><Ionicons name="sparkles" size={23} color={colors.blue} /></View>
+          <View style={styles.flex}>
+            <Text style={[styles.cardEyebrow, { color: colors.muted, marginTop: 0 }]}>GUIDE</Text>
+            <Text style={[styles.walkthroughTitle, { color: colors.text }]}>Replay walkthrough</Text>
+            <Text style={[styles.cardCopy, { color: colors.muted }]}>See the quick tour for tracking, albums, memories, and privacy.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+        </Pressable>
         <View style={[styles.note, { backgroundColor: `${colors.blue}12` }]}><Ionicons name="shield-checkmark" color={colors.blue} size={20} /><Text style={[styles.noteText, { color: colors.muted }]}>Your profile photos and imported ride photos stay on this phone.</Text></View>
       </ScrollView>
+      <Modal visible={walkthroughOpen} animationType="slide" onRequestClose={() => setWalkthroughOpen(false)}>
+        <OnboardingScreen onDone={() => setWalkthroughOpen(false)} onSkip={() => setWalkthroughOpen(false)} />
+      </Modal>
     </Screen>
   );
 }
@@ -91,5 +105,7 @@ const styles = StyleSheet.create({
   metricRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   divider: { width: 1, height: 42 },
   menu: { gap: 14 }, card: { minHeight: 164, borderRadius: 26, padding: 18 }, cardTop: { flexDirection: "row", justifyContent: "space-between" }, icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" }, arrow: { transform: [{ rotate: "45deg" }] }, cardEyebrow: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, marginTop: 17 }, cardTitle: { fontFamily: typography.extraBold, fontSize: 21, marginTop: 2 }, cardCopy: { fontFamily: typography.regular, fontSize: 13, lineHeight: 19, marginTop: 5 },
+  walkthrough: { flexDirection: "row", alignItems: "center", gap: 13, borderRadius: 24, padding: 16 },
+  walkthroughTitle: { fontFamily: typography.extraBold, fontSize: 18, marginTop: 2 },
   note: { flexDirection: "row", gap: 11, borderRadius: 20, padding: 15 }, noteText: { flex: 1, fontFamily: typography.regular, fontSize: 12, lineHeight: 18 }, pressed: { opacity: 0.86, transform: [{ scale: 0.993 }] }
 });

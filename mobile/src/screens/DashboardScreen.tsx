@@ -6,15 +6,18 @@ import { api } from "../api/client";
 import { InlineSkeleton } from "../components/InlineSkeleton";
 import { JournalCard } from "../components/JournalCard";
 import { JournalHero } from "../components/JournalHero";
+import { MemoryCard } from "../components/MemoryCard";
 import { Metric } from "../components/Metric";
 import { PremiumEmptyState } from "../components/PremiumEmptyState";
+import { RideSlideshowModal } from "../components/RideSlideshowModal";
 import { SmartHighlight } from "../components/SmartHighlight";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
+import { buildRideMemories, getRideAlbum } from "../services/rideAlbums";
 import { hasManualRideSession } from "../services/manualRideSession";
 import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
-import { DashboardStats, JournalHighlight, JournalResponse, Ride } from "../types";
+import { DashboardStats, JournalHighlight, JournalResponse, Ride, RideAlbumPhoto, RideMemory } from "../types";
 import { km } from "../utils/format";
 
 export function DashboardScreen() {
@@ -27,6 +30,9 @@ export function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [recoverableRide, setRecoverableRide] = useState(false);
+  const [memories, setMemories] = useState<RideMemory[]>([]);
+  const [selectedMemory, setSelectedMemory] = useState<RideMemory | null>(null);
+  const [selectedMemoryPhotos, setSelectedMemoryPhotos] = useState<RideAlbumPhoto[]>([]);
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -34,6 +40,7 @@ export function DashboardScreen() {
       setError("");
       const [response, activeSession] = await Promise.all([loadJournalWithFallback(), hasManualRideSession()]);
       setJournal(response);
+      setMemories(await buildRideMemories(response.recentRides || []));
       setRecoverableRide(activeSession);
     } catch (err: any) {
       setError(err.message || "Your journal is unavailable right now");
@@ -48,6 +55,15 @@ export function DashboardScreen() {
   const latestRide = journal?.latestRide || journal?.recentRides?.[0] || null;
   const highlights = journal?.highlights || [];
   const monthChange = journal?.monthlyRecap?.distanceDeltaPercent;
+
+  async function openMemory(memory: RideMemory) {
+    if (!memory.ride) {
+      return;
+    }
+    const album = await getRideAlbum(memory.ride.id);
+    setSelectedMemoryPhotos(album?.photos || []);
+    setSelectedMemory(memory);
+  }
 
   return (
     <Screen>
@@ -118,6 +134,20 @@ export function DashboardScreen() {
           </View>
         </View>
 
+        {memories.length ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeading}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Memories</Text>
+              <Text style={[styles.sectionMeta, { color: colors.muted }]}>Albums & routes</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.memoryRail}>
+              {memories.map((memory) => (
+                <MemoryCard key={memory.id} memory={memory} onPress={() => openMemory(memory)} />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
         {highlights.length ? (
           <View style={styles.section}>
             <View style={styles.sectionHeading}>
@@ -143,6 +173,17 @@ export function DashboardScreen() {
           </View>
         ) : null}
       </ScrollView>
+      {selectedMemory?.ride ? (
+        <RideSlideshowModal
+          visible={Boolean(selectedMemory)}
+          ride={selectedMemory.ride}
+          photos={selectedMemoryPhotos}
+          onClose={() => {
+            setSelectedMemory(null);
+            setSelectedMemoryPhotos([]);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -252,6 +293,7 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: "row", alignItems: "center", padding: 17, borderRadius: 26, gap: 12 },
   divider: { width: 1, height: 42 },
   highlightRail: { gap: 12, paddingRight: 20 },
+  memoryRail: { gap: 14, paddingRight: 20 },
   banner: { flexDirection: "row", gap: 12, padding: 15, borderRadius: 20 },
   bannerTitle: { fontFamily: typography.bold, fontSize: 13 },
   bannerCopy: { fontFamily: typography.regular, fontSize: 11, marginTop: 2 },
