@@ -64,8 +64,9 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Generates basic reports and can export reports as PDF.
 - Keeps the old Cloudflare Worker project as legacy fallback code, but the production app and V2 Smart Journal backend target paid Render.
 - Adds a V2 Smart Journal layer on top of existing ride data: `/api/journal` returns latest ride, monthly recap, highlights, recent rides, and review count; `/api/rides/:id/intelligence` returns suggested title, summary text, badges, fastest/route chapter data, and safe fallbacks for malformed or missing GPS points.
+- Adds a V5 Home layer through `/api/home`, a compact Render endpoint that keeps `/api/journal` compatible while adding Home-specific memory seeds and pending review suggestions.
 - Home, Journal, Ride Detail, Ride, and You now use premium smart-journal primitives such as route heroes, smart highlights, ride badges, route replay, chapter timeline, intentional empty states, and inline skeletons.
-- Home now includes local Google Photos-style Memories cards built from ride albums and route-art fallbacks.
+- Home now includes local Google Photos-style Memories cards built from ride albums, route-art fallbacks, monthly recap memories, and review prompts.
 - Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; the You hub can replay the walkthrough later.
 - User display photos sync through the Render backend using `/api/profile/photo`; the app keeps the legacy local profile-photo cache for fast display and fallback. Ride albums remain local-only.
 
@@ -121,6 +122,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `worker/src/rideMath.js`: Worker-safe ride distance/speed summary logic.
 - `backend/src/routes/rides.js`: ride create/list/detail/delete API.
 - `backend/src/routes/profile.js`: authenticated profile-photo upload, fetch, and delete API.
+- `backend/src/routes/home.js`: compact Home journal API with memory seeds and pending review suggestions.
 - `backend/src/services/profilePhotoValidation.js`: profile-photo MIME/base64/size validation.
 - `backend/db/schema.sql`: users, rides, and ride_points schema.
 - `backend/scripts/removeDuplicateRides.js`: one-off duplicate ride cleanup for a rider ID prefix; dry-run by default.
@@ -220,6 +222,7 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-25: Implemented RidePulse V2 Smart Journal for the Render backend. Added additive Render endpoints `/api/journal` and `/api/rides/:id/intelligence`, optional smart ride metadata, backend tests for malformed GPS intelligence, premium mobile journal primitives, editorial Journal filters, smarter Home/You surfaces, Ride Detail route replay and chapter timeline, cockpit GPS confidence, and confirmed selected-ride deletion. Worker V2 parity is intentionally not part of this release because Render is now the active backend.
 - 2026-06-26: Implemented RidePulse V3 local Memories. Added first-install walkthrough, local ride albums with copied photo storage, manual gallery import, ride-window import into persistent albums, album photo removal, full-screen slideshow/reel, Home Memories carousel, and walkthrough replay from You. No backend photo storage or database migration was added.
 - 2026-06-27: Implemented RidePulse V4 brand/profile polish. Recolored launcher/splash assets from sky-blue to the lime-led app identity, added backend-synced user display photos on Render/Postgres, added `/api/profile/photo`, and showed the same avatar across Home, You, and Profile. Ride album photos remain local-only.
+- 2026-06-27: Implemented RidePulse V5 premium UX polish. Added `/api/home`, smarter Home memories, pending review continuation, saved Journal filter state, reduced-motion-aware Journal animation, stronger ride/profile/photo haptics, slideshow control polish, and richer Ride Detail album/story cues.
 
 ## Testing Checklist
 
@@ -232,6 +235,8 @@ https://ktm-ride-mvp.onrender.com/health
 - Confirm Ride Detail can delete the selected ride only after confirmation and returns to Journal.
 - Confirm fresh installs show walkthrough before login, and replay walkthrough works from You.
 - Confirm Ride Detail album can find ride-window photos, manually add photos, remove album copies, and open slideshow.
+- Confirm Home prefers `/api/home` and falls back to older journal/dashboard responses.
+- Confirm Journal remembers the selected filter after app restart.
 - Confirm duplicate candidates appear in Ride Detail and require confirmation before delete.
 - Confirm top speed does not jump from one isolated GPS spike during a ride.
 - Manual ride test:
@@ -276,7 +281,7 @@ https://ktm-ride-mvp.onrender.com/health
 
 - True Google Maps trip import is not implemented; the app only tracks rides through RidePulse.
 - Imported ride photos are currently scanned/displayed from the local phone library and are not uploaded to the backend.
-- Profile photos are local to the phone and are not uploaded to the backend.
+- Profile display photos are synced to the Render backend; local cached copies are used only for speed and fallback.
 - No password reset yet.
 - No refresh-token flow yet.
 - No push notifications yet.

@@ -11,7 +11,11 @@ function decorateRide(ride, context = {}) {
     badges: intelligence.badges,
     smartTitle: intelligence.suggestedTitle,
     summaryText: intelligence.summaryText,
-    highlightReason: intelligence.highlightReason
+    highlightReason: intelligence.highlightReason,
+    memoryReason: buildMemoryReason(ride, intelligence),
+    timeOfDayLabel: timeOfDayMood(ride?.startedAt).label,
+    reviewPrompt: ride?.reviewedAt ? null : buildReviewPrompt(ride, intelligence),
+    albumHint: buildAlbumHint(ride, intelligence)
   };
 }
 
@@ -45,6 +49,25 @@ function buildJournal({ stats, recentRides, monthRides }) {
     highlights: buildHighlights(safeStats, latestRide, bestRide),
     recentRides: decoratedRecent,
     unreviewedCount: safeStats.unreviewedRides
+  };
+}
+
+function buildHomeExperience({ stats, recentRides, monthRides }) {
+  const journal = buildJournal({ stats, recentRides, monthRides });
+  const pendingReviewSuggestions = journal.recentRides
+    .filter((ride) => !ride.reviewedAt)
+    .slice(0, 3)
+    .map((ride) => ({
+      rideId: ride.id,
+      title: ride.smartTitle || "Untitled ride",
+      prompt: ride.reviewPrompt || "Give this ride a title, note, or album pass."
+    }));
+
+  return {
+    ...journal,
+    generatedFor: "home",
+    pendingReviewSuggestions,
+    memorySeeds: buildMemorySeeds(journal)
   };
 }
 
@@ -184,6 +207,68 @@ function buildHighlightReason(ride, context, fastestSegment, badges) {
     return "A big slice of this month’s riding.";
   }
   return "A route worth keeping in the front of the journal.";
+}
+
+function buildMemoryReason(ride, intelligence) {
+  if (intelligence.badges.includes("Personal best")) {
+    return "A personal-best route for your memory rail.";
+  }
+  if (!ride.reviewedAt) {
+    return "Ready for photos, a title, and a proper recap.";
+  }
+  if (number(ride.distanceM) >= 30000) {
+    return "A route with enough distance to feel like a chapter.";
+  }
+  return "A compact ride that still deserves a replay.";
+}
+
+function buildReviewPrompt(ride, intelligence) {
+  const title = intelligence.suggestedTitle || "this ride";
+  if (number(ride.distanceM) >= 30000) {
+    return `Add notes to ${title} while the route is still fresh.`;
+  }
+  return `Give ${title} a quick title or memory note.`;
+}
+
+function buildAlbumHint(ride, intelligence) {
+  if (intelligence.badges.includes("Night ride") || intelligence.badges.includes("Night run")) {
+    return "Night rides look great with one cover photo.";
+  }
+  if (number(ride.distanceM) >= 30000) {
+    return "Add a few photos to turn this route into an album memory.";
+  }
+  return "One photo is enough to make this ride feel like a memory.";
+}
+
+function buildMemorySeeds(journal) {
+  const seeds = [];
+  if (journal.latestRide) {
+    seeds.push({
+      id: `latest-${journal.latestRide.id}`,
+      type: "latest",
+      rideId: journal.latestRide.id,
+      title: "Latest escape",
+      subtitle: journal.latestRide.memoryReason || journal.latestRide.summaryText || "Ready to replay."
+    });
+  }
+  if (journal.monthlyRecap.bestRide) {
+    seeds.push({
+      id: `best-month-${journal.monthlyRecap.bestRide.id}`,
+      type: "best-month",
+      rideId: journal.monthlyRecap.bestRide.id,
+      title: "Best of the month",
+      subtitle: `${formatKm(journal.monthlyRecap.bestRide.distanceM)} in one chapter.`
+    });
+  }
+  if (journal.unreviewedCount > 0) {
+    seeds.push({
+      id: "review-queue",
+      type: "review",
+      title: "Stories waiting",
+      subtitle: `${journal.unreviewedCount} ${journal.unreviewedCount === 1 ? "ride needs" : "rides need"} a title or note.`
+    });
+  }
+  return seeds.slice(0, 5);
 }
 
 function buildChapters(ride, points, midpoint, fastestSegment) {
@@ -410,6 +495,7 @@ function number(value) {
 }
 
 module.exports = {
+  buildHomeExperience,
   buildJournal,
   buildRideIntelligence,
   decorateRide,

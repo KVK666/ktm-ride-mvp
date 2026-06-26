@@ -1,5 +1,5 @@
 const assert = require("assert");
-const { buildJournal, buildRideIntelligence, decorateRides } = require("../src/services/journalIntelligence");
+const { buildHomeExperience, buildJournal, buildRideIntelligence, decorateRides } = require("../src/services/journalIntelligence");
 
 const ride = {
   id: "ride-1",
@@ -58,6 +58,28 @@ assert.strictEqual(journal.latestRide.id, ride.id);
 assert.strictEqual(journal.monthlyRecap.distanceDeltaPercent, 100);
 assert(journal.highlights.length >= 3);
 assert.strictEqual(journal.unreviewedCount, 1);
+
+const home = buildHomeExperience({
+  stats: {
+    monthDistanceM: 120000,
+    previousMonthDistanceM: 60000,
+    totalRides: 5,
+    unreviewedRides: 1,
+    longestRideDistanceM: 52000
+  },
+  recentRides: [ride],
+  monthRides: [ride]
+});
+
+assert.strictEqual(home.generatedFor, "home");
+assert(home.pendingReviewSuggestions[0].prompt.includes("Morning ride") || home.pendingReviewSuggestions[0].prompt.includes("ride"));
+assert(home.memorySeeds.length >= 2);
+assert(home.latestRide.memoryReason);
+assert(home.latestRide.albumHint);
+
+const emptyHome = buildHomeExperience({ stats: {}, recentRides: [], monthRides: [] });
+assert.strictEqual(emptyHome.latestRide, null);
+assert.deepStrictEqual(emptyHome.pendingReviewSuggestions, []);
 
 const decorated = decorateRides([ride], { longestRideDistanceM: 52000 });
 assert(decorated[0].smartTitle.endsWith("to Nandi Hills"));

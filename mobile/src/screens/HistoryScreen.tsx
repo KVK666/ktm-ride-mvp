@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { JournalCard } from "../components/JournalCard";
 import { PremiumEmptyState } from "../components/PremiumEmptyState";
@@ -19,6 +20,7 @@ const filters: { key: Filter; label: string }[] = [
   { key: "fastest", label: "Fastest" },
   { key: "unreviewed", label: "Unreviewed" }
 ];
+const JOURNAL_FILTER_KEY = "duke_ride_journal_filter_v1";
 
 export function HistoryScreen() {
   const navigation = useNavigation<any>();
@@ -27,6 +29,7 @@ export function HistoryScreen() {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reduceMotion, setReduceMotion] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
 
   const load = useCallback(async () => {
@@ -46,13 +49,35 @@ export function HistoryScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(JOURNAL_FILTER_KEY)
+      .then((stored) => {
+        if (mounted && filters.some((item) => item.key === stored)) {
+          setFilter(stored as Filter);
+        }
+      })
+      .catch(() => {});
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     fade.setValue(0.72);
     Animated.timing(fade, {
       toValue: 1,
-      duration: 180,
+      duration: reduceMotion ? 0 : 180,
       useNativeDriver: true
     }).start();
-  }, [fade, filter, rides.length]);
+  }, [fade, filter, reduceMotion, rides.length]);
+
+  function chooseFilter(nextFilter: Filter) {
+    setFilter(nextFilter);
+    AsyncStorage.setItem(JOURNAL_FILTER_KEY, nextFilter).catch(() => {});
+  }
 
   const displayedRides = useMemo(() => {
     const next = [...rides];
@@ -80,7 +105,7 @@ export function HistoryScreen() {
           {filters.map((item) => {
             const selected = filter === item.key;
             return (
-              <Pressable key={item.key} onPress={() => setFilter(item.key)} style={[styles.filter, { backgroundColor: selected ? colors.text : colors.surface }]}>
+              <Pressable key={item.key} onPress={() => chooseFilter(item.key)} style={[styles.filter, { backgroundColor: selected ? colors.text : colors.surface }]}>
                 <Text style={[styles.filterText, { color: selected ? colors.background : colors.muted }]}>{item.label}</Text>
               </Pressable>
             );

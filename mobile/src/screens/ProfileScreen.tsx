@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { API_BASE_URL } from "../api/client";
@@ -94,12 +95,15 @@ export function ProfileScreen() {
           const metadata = await uploadProfilePhoto(user.id, uri);
           updateUser(metadata);
           setProfilePhotoMessage("Profile photo saved to your account");
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         } catch (syncError: any) {
           setProfilePhotoMessage(syncError.message || "Photo saved on this phone. Account sync failed.");
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
         }
       }
     } catch (err: any) {
       setProfilePhotoMessage(err.message || "Unable to update profile photo");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setProfilePhotoLoading(false);
     }
@@ -116,8 +120,10 @@ export function ProfileScreen() {
       updateUser(metadata);
       setProfilePhotoUri(null);
       setProfilePhotoMessage("Profile photo removed from your account");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (err: any) {
       setProfilePhotoMessage(err.message || "Unable to remove profile photo");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setProfilePhotoLoading(false);
     }

@@ -33,7 +33,7 @@ export type RideAlbum = {
 
 export type RideMemory = {
   id: string;
-  type: "album" | "route" | "recap";
+  type: "album" | "route" | "recap" | "review";
   title: string;
   subtitle: string;
   rideId?: string;
@@ -83,6 +83,10 @@ export type Ride = {
   smartTitle?: string;
   summaryText?: string;
   highlightReason?: string;
+  memoryReason?: string;
+  timeOfDayLabel?: string;
+  reviewPrompt?: string | null;
+  albumHint?: string;
 };
 
 export type DashboardStats = {
@@ -137,6 +141,7 @@ export type JournalHighlight = {
 
 export type JournalResponse = {
   generatedAt: string;
+  generatedFor?: string;
   stats: DashboardStats;
   latestRide?: Ride | null;
   monthlyRecap: {
@@ -149,4 +154,16 @@ export type JournalResponse = {
   highlights: JournalHighlight[];
   recentRides: Ride[];
   unreviewedCount: number;
+  pendingReviewSuggestions?: {
+    rideId: string;
+    title: string;
+    prompt: string;
+  }[];
+  memorySeeds?: {
+    id: string;
+    type: string;
+    rideId?: string;
+    title: string;
+    subtitle: string;
+  }[];
 };

@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import { importRidePhotos } from "./ridePhotos";
-import { Ride, RideAlbum, RideAlbumPhoto, RideMemory, RidePhoto } from "../types";
+import { JournalResponse, Ride, RideAlbum, RideAlbumPhoto, RideMemory, RidePhoto } from "../types";
 import { km, shortDate } from "../utils/format";
 
 const ALBUM_KEY_PREFIX = "duke_ride_album:";
@@ -110,7 +110,7 @@ export async function removeAlbumPhoto(rideId: string, photoId: string): Promise
   return nextAlbum;
 }
 
-export async function buildRideMemories(rides: Ride[]): Promise<RideMemory[]> {
+export async function buildRideMemories(rides: Ride[], journal?: JournalResponse | null): Promise<RideMemory[]> {
   const safeRides = Array.isArray(rides) ? rides.filter((ride) => ride?.id) : [];
   const albums = await getRideAlbums(safeRides.map((ride) => ride.id));
   const memories: RideMemory[] = [];
@@ -156,6 +156,54 @@ export async function buildRideMemories(rides: Ride[]): Promise<RideMemory[]> {
       ride: longest,
       photoCount: albums[longest.id]?.photos.length || 0,
       coverUri: albums[longest.id]?.coverUri || null
+    });
+  }
+
+  const bestRide = journal?.monthlyRecap?.bestRide;
+  if (bestRide && !memories.some((memory) => memory.rideId === bestRide.id)) {
+    memories.push({
+      id: `recap-${bestRide.id}`,
+      type: "recap",
+      title: "Best of this month",
+      subtitle: `${km(bestRide.distanceM)} · ${journal?.monthlyRecap?.rideCount || 0} rides this month`,
+      rideId: bestRide.id,
+      ride: bestRide,
+      photoCount: albums[bestRide.id]?.photos.length || 0,
+      coverUri: albums[bestRide.id]?.coverUri || null
+    });
+  }
+
+  const reviewSuggestion = journal?.pendingReviewSuggestions?.find((suggestion) => suggestion.rideId);
+  const reviewRide = reviewSuggestion
+    ? safeRides.find((ride) => ride.id === reviewSuggestion.rideId)
+    : safeRides.find((ride) => !ride.reviewedAt);
+  if (reviewRide && !memories.some((memory) => memory.rideId === reviewRide.id)) {
+    memories.push({
+      id: `review-${reviewRide.id}`,
+      type: "review",
+      title: "Story waiting",
+      subtitle: reviewSuggestion?.prompt || reviewRide.reviewPrompt || "Give this ride a title or memory note.",
+      rideId: reviewRide.id,
+      ride: reviewRide,
+      photoCount: albums[reviewRide.id]?.photos.length || 0,
+      coverUri: albums[reviewRide.id]?.coverUri || null
+    });
+  }
+
+  for (const seed of journal?.memorySeeds || []) {
+    if (!seed.rideId || memories.some((memory) => memory.id === seed.id || memory.rideId === seed.rideId)) {
+      continue;
+    }
+    const seedRide = safeRides.find((ride) => ride.id === seed.rideId);
+    memories.push({
+      id: seed.id,
+      type: seed.type === "review" ? "review" : "route",
+      title: seed.title,
+      subtitle: seed.subtitle,
+      rideId: seed.rideId,
+      ride: seedRide || null,
+      photoCount: seedRide ? albums[seedRide.id]?.photos.length || 0 : 0,
+      coverUri: seedRide ? albums[seedRide.id]?.coverUri || null : null
     });
   }
 

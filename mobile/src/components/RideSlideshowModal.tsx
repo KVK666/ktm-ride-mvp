@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Metric } from "./Metric";
@@ -41,6 +42,8 @@ export function RideSlideshowModal({
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => subscription.remove();
   }, []);
 
   useEffect(() => {
@@ -73,10 +76,10 @@ export function RideSlideshowModal({
         <View style={styles.header}>
           <Text style={[styles.headerText, { color: colors.text }]}>{index + 1} / {slides.length}</Text>
           <View style={styles.headerActions}>
-            <Pressable onPress={() => setPlaying((value) => !value)} style={[styles.iconButton, { backgroundColor: colors.surfaceHigh }]}>
+            <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); setPlaying((value) => !value); }} style={[styles.iconButton, { backgroundColor: colors.surfaceHigh }]}>
               <Ionicons name={playing && !reduceMotion ? "pause" : "play"} color={colors.text} size={20} />
             </Pressable>
-            <Pressable onPress={onClose} style={[styles.iconButton, { backgroundColor: colors.surfaceHigh }]}>
+            <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); onClose(); }} style={[styles.iconButton, { backgroundColor: colors.surfaceHigh }]}>
               <Ionicons name="close" color={colors.text} size={22} />
             </Pressable>
           </View>
@@ -122,7 +125,10 @@ function PhotoSlide({ photo }: { photo: RideAlbumPhoto }) {
     <View style={styles.photoSlide}>
       <Image source={{ uri: photo.uri }} style={styles.photo} resizeMode="cover" />
       <View style={[styles.photoCaption, { backgroundColor: `${colors.background}CC` }]}>
-        <Text style={[styles.photoCaptionText, { color: colors.text }]}>{shortDate(photo.createdAt)}</Text>
+        <View style={styles.photoCaptionTextBlock}>
+          <Text style={[styles.photoCaptionText, { color: colors.text }]}>{shortDate(photo.createdAt)}</Text>
+          <Text style={[styles.photoCaptionMeta, { color: colors.muted }]}>{photo.hasLocation ? "Map location saved" : "Album photo"}</Text>
+        </View>
         {photo.hasLocation ? <Ionicons name="location" color={colors.blue} size={16} /> : null}
       </View>
     </View>
@@ -162,7 +168,9 @@ const styles = StyleSheet.create({
   photoSlide: { flex: 1, backgroundColor: "#000" },
   photo: { width: "100%", height: "100%" },
   photoCaption: { position: "absolute", left: 18, right: 18, bottom: 38, borderRadius: 20, padding: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  photoCaptionTextBlock: { gap: 2 },
   photoCaptionText: { fontFamily: typography.bold, fontSize: 14 },
+  photoCaptionMeta: { fontFamily: typography.medium, fontSize: 11 },
   metrics: { marginTop: 14, flexDirection: "row", alignItems: "center", padding: 17, borderRadius: 24, gap: 12 },
   divider: { width: 1, height: 42 },
   progressRow: { position: "absolute", left: 18, right: 18, bottom: 16, flexDirection: "row", gap: 5 },

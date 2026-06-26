@@ -1,4 +1,5 @@
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -171,6 +172,7 @@ export function RideScreen() {
       setPoints([firstPoint]);
       setStartedAt(firstPoint.recordedAt);
       setActive(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       await startForegroundWatcher();
 
       const backgroundGranted = await Location.getBackgroundPermissionsAsync();
@@ -188,6 +190,7 @@ export function RideScreen() {
         });
       });
       setMessage(err.message || "Unable to start ride");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setStarting(false);
     }
@@ -218,9 +221,10 @@ export function RideScreen() {
         setActive(false);
         setStartedAt(null);
         await clearManualRideSession();
-        await refreshAutoTrackingStatus();
-        setMessage("Ride is too short to save.");
-        return;
+      await refreshAutoTrackingStatus();
+      setMessage("Ride is too short to save.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
       }
 
       const endedAt = new Date().toISOString();
@@ -249,6 +253,7 @@ export function RideScreen() {
       await clearManualRideSession();
       await refreshAutoTrackingStatus();
       setMessage("Ride saved. Review the ride before your next trip.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       navigation.navigate("RideDetail", { rideId: response.rideId, reviewMode: true });
     } catch (err: any) {
       const session = await readMergedManualRideSession();
@@ -282,6 +287,7 @@ export function RideScreen() {
         setStartedAt(null);
         await refreshAutoTrackingStatus();
         setMessage("Ride saved locally. It will upload automatically when the backend is reachable.");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
         await logDiagnostic({
           level: "warn",
           area: "manual-ride",
@@ -290,6 +296,7 @@ export function RideScreen() {
         });
       } else {
         setMessage(err.message || "Unable to save ride. Check your internet connection.");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       }
     } finally {
       setSaving(false);
@@ -319,7 +326,7 @@ export function RideScreen() {
             <Text style={styles.sheetCopy}>RidePulse will stop recording, save every available point, and open your new journal entry.</Text>
             <View style={styles.sheetActions}>
               <Pressable onPress={() => setFinishVisible(false)} style={styles.cancelButton}><Text style={styles.cancelText}>Keep riding</Text></Pressable>
-              <PrimaryButton label="Finish & save" icon="checkmark" danger loading={saving} onPress={() => { setFinishVisible(false); void stopRide(); }} />
+              <PrimaryButton label="Finish & save" icon="checkmark" danger loading={saving} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}); setFinishVisible(false); void stopRide(); }} />
             </View>
           </Pressable>
         </Pressable>
@@ -359,7 +366,7 @@ export function RideScreen() {
           <View style={styles.metricDivider} /><Metric label="TOP SPEED" value={kmh(stats.topSpeed)} />
         </View>
 
-        {active ? <PrimaryButton block label="Finish ride" icon="stop-circle" danger loading={saving} onPress={() => setFinishVisible(true)} /> : <PrimaryButton block label="Start recording" icon="play" loading={starting} onPress={startRide} />}
+        {active ? <PrimaryButton block label="Finish ride" icon="stop-circle" danger loading={saving} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); setFinishVisible(true); }} /> : <PrimaryButton block label="Start recording" icon="play" loading={starting} onPress={startRide} />}
 
         <View style={styles.autoCard}>
           <View style={styles.autoHeader}>

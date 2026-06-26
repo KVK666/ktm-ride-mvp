@@ -20,6 +20,7 @@ export function PremiumEmptyState({
   const { colors } = useTheme();
   return (
     <View style={[styles.card, { backgroundColor: colors.surface }]}>
+      <View style={[styles.glow, { backgroundColor: `${colors.accent}12` }]} />
       <View style={[styles.icon, { backgroundColor: `${colors.accent}18` }]}>
         <Ionicons name={icon} color={colors.accent} size={28} />
       </View>
@@ -35,7 +36,8 @@ export function PremiumEmptyState({
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 30, padding: 24, gap: 10 },
+  card: { borderRadius: 30, padding: 24, gap: 10, overflow: "hidden" },
+  glow: { position: "absolute", width: 170, height: 170, borderRadius: 85, right: -58, top: -72 },
   icon: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: typography.extraBold, fontSize: 22, lineHeight: 28, marginTop: 4 },
   body: { fontFamily: typography.regular, fontSize: 13, lineHeight: 20 },

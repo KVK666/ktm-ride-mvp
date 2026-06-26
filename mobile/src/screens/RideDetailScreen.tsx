@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -212,8 +213,10 @@ export function RideDetailScreen() {
       });
       setRide((current) => current ? { ...current, ...response.ride } : current);
       setReviewMessage(markReviewed ? "Ride reviewed and saved." : "Ride review saved.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (err: any) {
       setReviewMessage(err.message || "Unable to save ride review");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setReviewSaving(false);
     }
@@ -241,8 +244,10 @@ export function RideDetailScreen() {
       await api(`/rides/${rideId}`, { method: "DELETE" });
       setDuplicateRides((current) => current.filter((item) => item.id !== rideId));
       setReviewMessage("Duplicate ride deleted.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     } catch (err: any) {
       setReviewMessage(err.message || "Unable to delete duplicate ride");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setDeletingDuplicateId(null);
     }
@@ -276,9 +281,11 @@ export function RideDetailScreen() {
     setReviewMessage("");
     try {
       await api(`/rides/${ride.id}`, { method: "DELETE" });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       navigation.navigate("MainTabs", { screen: "History" });
     } catch (err: any) {
       setReviewMessage(err.message || "Unable to delete this ride");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setDeletingRide(false);
     }
@@ -296,12 +303,14 @@ export function RideDetailScreen() {
       setAlbum(nextAlbum);
       setPhotos(nextAlbum.photos);
       setPhotosSearched(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       if (!nextAlbum.photos.length) {
         closePhotoViewer();
       }
     } catch (err: any) {
       setPhotosSearched(true);
       setPhotoError(err.message || "Unable to import ride photos");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       logDiagnostic({
         level: "error",
         area: "photos",
@@ -326,9 +335,11 @@ export function RideDetailScreen() {
         setAlbum(nextAlbum);
         setPhotos(nextAlbum.photos);
         setPhotosSearched(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
     } catch (err: any) {
       setPhotoError(err.message || "Unable to add photos");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       await logDiagnostic({
         level: "error",
         area: "photos",
@@ -360,11 +371,13 @@ export function RideDetailScreen() {
       const nextAlbum = await removeAlbumPhoto(ride.id, photoId);
       setAlbum(nextAlbum);
       setPhotos(nextAlbum.photos);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       if (!nextAlbum.photos.length) {
         closePhotoViewer();
       }
     } catch (err: any) {
       setPhotoError(err.message || "Unable to remove photo");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     }
   }
 
@@ -519,6 +532,7 @@ export function RideDetailScreen() {
           <Text style={styles.kicker}>SMART JOURNAL</Text>
           <Text style={styles.smartTitle}>{intelligence?.summaryText || ride.summaryText || "RidePulse built a story layer from this ride’s saved route."}</Text>
           {intelligence?.highlightReason || ride.highlightReason ? <Text style={styles.sectionMeta}>{intelligence?.highlightReason || ride.highlightReason}</Text> : null}
+          {ride.albumHint ? <Text style={styles.albumHint}>{ride.albumHint}</Text> : null}
           {intelligence?.badges?.length || ride.badges?.length ? (
             <View style={styles.badgeRow}>
               {(intelligence?.badges || ride.badges || []).slice(0, 4).map((badge, index) => (
@@ -741,6 +755,9 @@ export function RideDetailScreen() {
                     </Pressable>
                     <Pressable accessibilityRole="button" onPress={() => confirmRemovePhoto(photo)} style={styles.removePhotoButton}>
                       <Ionicons name="close" color={colors.text} size={16} />
+                    </Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => { setPhotoViewerInitialIndex(index); setSlideshowOpen(true); }} style={styles.playPhotoButton}>
+                      <Ionicons name="play" color={colors.onAccent} size={14} />
                     </Pressable>
                   </View>
                 ))}
@@ -1201,6 +1218,12 @@ const createStyles = (colors: ThemeColors) => ({
     fontSize: 21,
     lineHeight: 28
   },
+  albumHint: {
+    color: colors.accentSoft,
+    fontFamily: typography.bold,
+    fontSize: 12,
+    lineHeight: 18
+  },
   badgeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1477,6 +1500,17 @@ const createStyles = (colors: ThemeColors) => ({
     height: 26,
     borderRadius: 13,
     backgroundColor: "rgba(0,0,0,0.62)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  playPhotoButton: {
+    position: "absolute",
+    right: 5,
+    bottom: 35,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center"
   },

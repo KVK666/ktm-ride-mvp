@@ -10,6 +10,9 @@ import { RideMemory } from "../types";
 export function MemoryCard({ memory, onPress }: { memory: RideMemory; onPress: () => void }) {
   const { colors } = useTheme();
   const ride = memory.ride || null;
+  const isAlbum = memory.type === "album";
+  const isReview = memory.type === "review";
+  const tone = isAlbum ? colors.accent : isReview ? colors.yellow : colors.blue;
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
@@ -27,9 +30,9 @@ export function MemoryCard({ memory, onPress }: { memory: RideMemory; onPress: (
       <LinearGradient colors={["transparent", `${colors.background}D9`, colors.background]} style={styles.fade} />
       <View style={styles.body}>
         <View style={styles.topRow}>
-          <View style={[styles.typeBadge, { backgroundColor: memory.type === "album" ? `${colors.accent}26` : `${colors.blue}26` }]}>
-            <Ionicons name={memory.type === "album" ? "images" : "sparkles"} color={memory.type === "album" ? colors.accent : colors.blue} size={14} />
-            <Text style={[styles.typeText, { color: memory.type === "album" ? colors.accent : colors.blue }]}>{memory.type === "album" ? "ALBUM" : "MEMORY"}</Text>
+          <View style={[styles.typeBadge, { backgroundColor: `${tone}26` }]}>
+            <Ionicons name={isAlbum ? "images" : isReview ? "create" : "sparkles"} color={tone} size={14} />
+            <Text style={[styles.typeText, { color: tone }]}>{isAlbum ? "ALBUM" : isReview ? "REVIEW" : "MEMORY"}</Text>
           </View>
           {memory.photoCount ? <Text style={[styles.count, { color: colors.text }]}>{memory.photoCount}</Text> : null}
         </View>

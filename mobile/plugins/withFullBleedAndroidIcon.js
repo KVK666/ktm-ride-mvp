@@ -30,6 +30,7 @@ module.exports = function withFullBleedAndroidIcon(config) {
       const mipmapAnyDpi = path.join(resRoot, "mipmap-anydpi-v26");
       const drawable = path.join(resRoot, "drawable");
       const sourceIcon = path.join(projectRoot, "assets", "ridepulse-logo.png");
+      const legacyMipmaps = ["mipmap-mdpi", "mipmap-hdpi", "mipmap-xhdpi", "mipmap-xxhdpi", "mipmap-xxxhdpi"];
 
       fs.mkdirSync(mipmapAnyDpi, { recursive: true });
       fs.mkdirSync(drawable, { recursive: true });
@@ -39,6 +40,13 @@ module.exports = function withFullBleedAndroidIcon(config) {
       fs.writeFileSync(path.join(drawable, "ic_launcher_full_bleed.xml"), fullBleedXml);
       fs.writeFileSync(path.join(drawable, "ic_launcher_transparent.xml"), transparentXml);
       fs.copyFileSync(sourceIcon, path.join(drawable, "ic_launcher_full_bleed_image.png"));
+
+      for (const folder of legacyMipmaps) {
+        const target = path.join(resRoot, folder);
+        fs.mkdirSync(target, { recursive: true });
+        fs.copyFileSync(sourceIcon, path.join(target, "ic_launcher.png"));
+        fs.copyFileSync(sourceIcon, path.join(target, "ic_launcher_round.png"));
+      }
 
       return config;
     }

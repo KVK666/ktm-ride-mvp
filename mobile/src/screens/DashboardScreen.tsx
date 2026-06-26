@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -41,7 +42,7 @@ export function DashboardScreen() {
       setError("");
       const [response, activeSession] = await Promise.all([loadJournalWithFallback(), hasManualRideSession()]);
       setJournal(response);
-      setMemories(await buildRideMemories(response.recentRides || []));
+      setMemories(await buildRideMemories(response.recentRides || [], response));
       setRecoverableRide(activeSession);
     } catch (err: any) {
       setError(err.message || "Your journal is unavailable right now");
@@ -56,9 +57,12 @@ export function DashboardScreen() {
   const latestRide = journal?.latestRide || journal?.recentRides?.[0] || null;
   const highlights = journal?.highlights || [];
   const monthChange = journal?.monthlyRecap?.distanceDeltaPercent;
+  const pendingReviewSuggestion = journal?.pendingReviewSuggestions?.[0] || null;
 
   async function openMemory(memory: RideMemory) {
+    Haptics.selectionAsync().catch(() => {});
     if (!memory.ride) {
+      navigation.navigate("History");
       return;
     }
     const album = await getRideAlbum(memory.ride.id);
@@ -99,6 +103,29 @@ export function DashboardScreen() {
           </View>
           <Ionicons name="arrow-forward" color={colors.onAccent} size={24} />
         </Pressable>
+
+        {recoverableRide || pendingReviewSuggestion ? (
+          <View style={[styles.continueCard, { backgroundColor: colors.surface }]}>
+            <View style={[styles.continueIcon, { backgroundColor: recoverableRide ? `${colors.danger}18` : `${colors.accent}18` }]}>
+              <Ionicons name={recoverableRide ? "pulse" : "create"} color={recoverableRide ? colors.danger : colors.accent} size={22} />
+            </View>
+            <View style={styles.flex}>
+              <Text style={[styles.continueKicker, { color: colors.muted }]}>CONTINUE WHERE YOU LEFT OFF</Text>
+              <Text style={[styles.continueTitle, { color: colors.text }]}>
+                {recoverableRide ? "Interrupted ride waiting" : pendingReviewSuggestion?.title || "Ride story waiting"}
+              </Text>
+              <Text style={[styles.continueCopy, { color: colors.textSoft }]}>
+                {recoverableRide ? "Open the Ride tab to finish and save the recovered route." : pendingReviewSuggestion?.prompt || "Add a title or notes while it is still fresh."}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => recoverableRide ? navigation.navigate("Ride") : navigation.navigate("RideDetail", { rideId: pendingReviewSuggestion?.rideId, reviewMode: true })}
+              style={[styles.continueAction, { backgroundColor: colors.elevated }]}
+            >
+              <Ionicons name="arrow-forward" color={colors.text} size={18} />
+            </Pressable>
+          </View>
+        ) : null}
 
         {loading ? (
           <View style={[styles.skeletonCard, { backgroundColor: colors.surface }]}>
@@ -191,10 +218,14 @@ export function DashboardScreen() {
 
 async function loadJournalWithFallback(): Promise<JournalResponse> {
   try {
-    return normalizeJournal(await api<JournalResponse>("/journal"));
-  } catch (journalError) {
-    const dashboard = await api<{ stats: DashboardStats; recentRides: Ride[] }>("/dashboard");
-    return fallbackJournal(dashboard.stats, dashboard.recentRides);
+    return normalizeJournal(await api<JournalResponse>("/home"));
+  } catch (homeError) {
+    try {
+      return normalizeJournal(await api<JournalResponse>("/journal"));
+    } catch (journalError) {
+      const dashboard = await api<{ stats: DashboardStats; recentRides: Ride[] }>("/dashboard");
+      return fallbackJournal(dashboard.stats, dashboard.recentRides);
+    }
   }
 }
 
@@ -231,6 +262,7 @@ function normalizeJournal(response: any): JournalResponse {
   const stats = normalizeStats(response?.stats);
   return {
     generatedAt: typeof response?.generatedAt === "string" ? response.generatedAt : new Date().toISOString(),
+    generatedFor: typeof response?.generatedFor === "string" ? response.generatedFor : undefined,
     stats,
     latestRide: response?.latestRide || null,
     monthlyRecap: {
@@ -242,7 +274,9 @@ function normalizeJournal(response: any): JournalResponse {
     },
     highlights: Array.isArray(response?.highlights) ? response.highlights : [],
     recentRides: Array.isArray(response?.recentRides) ? response.recentRides : [],
-    unreviewedCount: number(response?.unreviewedCount)
+    unreviewedCount: number(response?.unreviewedCount),
+    pendingReviewSuggestions: Array.isArray(response?.pendingReviewSuggestions) ? response.pendingReviewSuggestions : [],
+    memorySeeds: Array.isArray(response?.memorySeeds) ? response.memorySeeds : []
   };
 }
 
@@ -284,6 +318,12 @@ const styles = StyleSheet.create({
   startIcon: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, borderColor: "rgba(0,0,0,0.16)", alignItems: "center", justifyContent: "center" },
   startKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, opacity: 0.68 },
   startTitle: { fontFamily: typography.extraBold, fontSize: 19, marginTop: 2 },
+  continueCard: { minHeight: 92, borderRadius: 26, padding: 15, flexDirection: "row", alignItems: "center", gap: 12 },
+  continueIcon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  continueKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.15 },
+  continueTitle: { fontFamily: typography.extraBold, fontSize: 17, marginTop: 3 },
+  continueCopy: { fontFamily: typography.medium, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  continueAction: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   section: { gap: 14 },
   sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 },
   sectionTitle: { fontFamily: typography.extraBold, fontSize: 22, letterSpacing: -0.3 },

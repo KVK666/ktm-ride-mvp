@@ -12,6 +12,7 @@ const analyticsRoutes = require("./routes/analytics");
 const reportRoutes = require("./routes/reports");
 const journalRoutes = require("./routes/journal");
 const profileRoutes = require("./routes/profile");
+const homeRoutes = require("./routes/home");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -32,6 +33,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/rides", rideRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/journal", journalRoutes);
+app.use("/api/home", homeRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/profile", profileRoutes);
