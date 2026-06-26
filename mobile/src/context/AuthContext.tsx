@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { api, clearToken, readToken, saveToken } from "../api/client";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { syncPendingRidesForCurrentUser } from "../services/autoRideTracking";
+import { syncProfilePhotoForUser } from "../services/profilePhoto";
 import { User } from "../types";
 
 type AuthContextValue = {
@@ -10,6 +11,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, bikeModel?: string) => Promise<void>;
+  updateUser: (patch: Partial<User>) => void;
   logout: () => Promise<void>;
 };
 
@@ -30,6 +32,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(storedToken);
         const response = await api<{ user: User }>("/auth/me");
         setUser(response.user);
+        const profilePhotoMetadata = await syncProfilePhotoForUser(response.user);
+        if (profilePhotoMetadata) {
+          setUser({ ...response.user, ...profilePhotoMetadata });
+        }
         await syncPendingRidesForCurrentUser();
       } catch (err) {
         logDiagnostic({
@@ -52,6 +58,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveToken(response.token);
     setToken(response.token);
     setUser(response.user);
+    const profilePhotoMetadata = await syncProfilePhotoForUser(response.user);
+    if (profilePhotoMetadata) {
+      setUser({ ...response.user, ...profilePhotoMetadata });
+    }
     await syncPendingRidesForCurrentUser();
   }
 
@@ -73,6 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ email, password, name, bikeModel: bikeModel?.trim() || "Motorcycle" })
         });
         await completeAuth(response);
+      },
+      updateUser: (patch) => {
+        setUser((current) => current ? { ...current, ...patch } : current);
       },
       logout: async () => {
         await clearToken();

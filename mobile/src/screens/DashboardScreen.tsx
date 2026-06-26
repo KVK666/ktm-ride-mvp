@@ -9,6 +9,7 @@ import { JournalHero } from "../components/JournalHero";
 import { MemoryCard } from "../components/MemoryCard";
 import { Metric } from "../components/Metric";
 import { PremiumEmptyState } from "../components/PremiumEmptyState";
+import { ProfileAvatar } from "../components/ProfileAvatar";
 import { RideSlideshowModal } from "../components/RideSlideshowModal";
 import { SmartHighlight } from "../components/SmartHighlight";
 import { Screen } from "../components/Screen";
@@ -79,7 +80,7 @@ export function DashboardScreen() {
             <Text style={[styles.subtitle, { color: colors.muted }]}>{user?.bikeModel || "Your motorcycle"} · Smart ride journal</Text>
           </View>
           <Pressable accessibilityLabel="Open your profile" onPress={() => navigation.navigate("More", { screen: "Profile" })} style={[styles.avatar, { backgroundColor: colors.surfaceHigh }]}>
-            <Text style={[styles.avatarText, { color: colors.accent }]}>{firstName.charAt(0).toUpperCase()}</Text>
+            <ProfileAvatar user={user} size={48} radius={18} />
           </Pressable>
         </View>
 
@@ -278,8 +279,7 @@ const styles = StyleSheet.create({
   eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.4 },
   title: { fontFamily: typography.extraBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.8, marginTop: 3 },
   subtitle: { fontFamily: typography.medium, fontSize: 13, lineHeight: 19, marginTop: 4 },
-  avatar: { width: 48, height: 48, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontFamily: typography.extraBold, fontSize: 18 },
+  avatar: { width: 52, height: 52, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   startRide: { minHeight: 88, borderRadius: 28, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   startIcon: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, borderColor: "rgba(0,0,0,0.16)", alignItems: "center", justifyContent: "center" },
   startKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, opacity: 0.68 },

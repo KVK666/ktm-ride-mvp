@@ -55,6 +55,8 @@ export type User = {
   email: string;
   name: string;
   bikeModel: string;
+  hasProfilePhoto?: boolean;
+  profilePhotoUpdatedAt?: string | null;
 };
 
 export type Ride = {

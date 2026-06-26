@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { api } from "../api/client";
 import { Metric } from "../components/Metric";
 import { OnboardingScreen } from "../components/OnboardingScreen";
+import { ProfileAvatar } from "../components/ProfileAvatar";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { typography } from "../theme/colors";
@@ -50,7 +51,7 @@ export function MoreScreen() {
           <Text style={[styles.title, { color: colors.text }]}>You</Text>
         </View>
         <Pressable onPress={() => navigation.navigate("Profile")} style={[styles.identity, { backgroundColor: colors.surfaceHigh }]}>
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}><Text style={[styles.avatarText, { color: colors.onAccent }]}>{displayName.charAt(0).toUpperCase()}</Text></View>
+          <ProfileAvatar user={user} size={58} radius={21} />
           <View style={styles.flex}><Text style={[styles.name, { color: colors.text }]}>{displayName}</Text><Text style={[styles.bike, { color: colors.muted }]}>{user?.bikeModel || "Motorcycle"}</Text></View>
           <Ionicons name="chevron-forward" size={20} color={colors.muted} />
         </Pressable>
@@ -86,7 +87,7 @@ export function MoreScreen() {
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.muted} />
         </Pressable>
-        <View style={[styles.note, { backgroundColor: `${colors.blue}12` }]}><Ionicons name="shield-checkmark" color={colors.blue} size={20} /><Text style={[styles.noteText, { color: colors.muted }]}>Your profile photos and imported ride photos stay on this phone.</Text></View>
+        <View style={[styles.note, { backgroundColor: `${colors.blue}12` }]}><Ionicons name="shield-checkmark" color={colors.blue} size={20} /><Text style={[styles.noteText, { color: colors.muted }]}>Your display photo syncs with your RidePulse account. Imported ride albums still stay private on this phone.</Text></View>
       </ScrollView>
       <Modal visible={walkthroughOpen} animationType="slide" onRequestClose={() => setWalkthroughOpen(false)}>
         <OnboardingScreen onDone={() => setWalkthroughOpen(false)} onSkip={() => setWalkthroughOpen(false)} />
@@ -97,7 +98,7 @@ export function MoreScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 118, gap: 20 }, header: { gap: 3, paddingTop: 2 }, eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 }, title: { fontFamily: typography.extraBold, fontSize: 36 },
-  identity: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 26 }, avatar: { width: 54, height: 54, borderRadius: 19, alignItems: "center", justifyContent: "center" }, avatarText: { fontFamily: typography.extraBold, fontSize: 20 }, flex: { flex: 1 }, name: { fontFamily: typography.extraBold, fontSize: 18 }, bike: { fontFamily: typography.medium, marginTop: 3, fontSize: 12 },
+  identity: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 26 }, flex: { flex: 1 }, name: { fontFamily: typography.extraBold, fontSize: 18 }, bike: { fontFamily: typography.medium, marginTop: 3, fontSize: 12 },
   smartStats: { borderRadius: 26, padding: 17, gap: 12 },
   smartStatsHeader: { gap: 2 },
   smartStatsTitle: { fontFamily: typography.extraBold, fontSize: 20 },

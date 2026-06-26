@@ -16,7 +16,7 @@ import {
   getDiagnostics,
   logDiagnostic
 } from "../services/diagnostics";
-import { getProfilePhotoUri, pickAndSaveProfilePhoto, removeProfilePhoto } from "../services/profilePhoto";
+import { deleteBackendProfilePhoto, getProfilePhotoUri, pickAndSaveProfilePhoto, uploadProfilePhoto } from "../services/profilePhoto";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 
@@ -57,7 +57,7 @@ function ProfileRow({ icon, label, value }: ProfileRowProps) {
 export function ProfileScreen() {
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const autoTracking = useAutoTracking();
   const [diagnostics, setDiagnostics] = useState<DiagnosticEvent[]>([]);
   const [diagnosticsMessage, setDiagnosticsMessage] = useState("");
@@ -90,7 +90,13 @@ export function ProfileScreen() {
       const uri = await pickAndSaveProfilePhoto(user.id);
       if (uri) {
         setProfilePhotoUri(uri);
-        setProfilePhotoMessage("Profile photo updated");
+        try {
+          const metadata = await uploadProfilePhoto(user.id, uri);
+          updateUser(metadata);
+          setProfilePhotoMessage("Profile photo saved to your account");
+        } catch (syncError: any) {
+          setProfilePhotoMessage(syncError.message || "Photo saved on this phone. Account sync failed.");
+        }
       }
     } catch (err: any) {
       setProfilePhotoMessage(err.message || "Unable to update profile photo");
@@ -106,9 +112,10 @@ export function ProfileScreen() {
     setProfilePhotoLoading(true);
     setProfilePhotoMessage("");
     try {
-      await removeProfilePhoto(user.id);
+      const metadata = await deleteBackendProfilePhoto(user.id);
+      updateUser(metadata);
       setProfilePhotoUri(null);
-      setProfilePhotoMessage("Profile photo removed");
+      setProfilePhotoMessage("Profile photo removed from your account");
     } catch (err: any) {
       setProfilePhotoMessage(err.message || "Unable to remove profile photo");
     } finally {

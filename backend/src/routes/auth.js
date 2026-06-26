@@ -3,6 +3,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 const { requireAuth } = require("../middleware/auth");
+const { photoMetadata } = require("../services/profilePhotoValidation");
 
 const router = express.Router();
 
@@ -23,7 +24,8 @@ function safeUser(row) {
     id: row.id,
     email: row.email,
     name: row.name,
-    bikeModel: row.bike_model
+    bikeModel: row.bike_model,
+    ...photoMetadata(row)
   };
 }
 
@@ -43,7 +45,7 @@ router.post("/register", async (req, res, next) => {
     const result = await db.query(
       `insert into users (email, password_hash, name, bike_model)
        values ($1, $2, $3, $4)
-       returning id, email, name, bike_model`,
+       returning id, email, name, bike_model, profile_photo_data is not null as has_profile_photo, profile_photo_updated_at`,
       [email, passwordHash, name || "Rider", bikeModel || "Motorcycle"]
     );
 
@@ -64,7 +66,7 @@ router.post("/login", async (req, res, next) => {
     const password = String(body.password || "");
 
     const result = await db.query(
-      "select id, email, password_hash, name, bike_model from users where email = $1",
+      "select id, email, password_hash, name, bike_model, profile_photo_data is not null as has_profile_photo, profile_photo_updated_at from users where email = $1",
       [email]
     );
 
@@ -83,7 +85,7 @@ router.post("/login", async (req, res, next) => {
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const result = await db.query(
-      "select id, email, name, bike_model from users where id = $1",
+      "select id, email, name, bike_model, profile_photo_data is not null as has_profile_photo, profile_photo_updated_at from users where id = $1",
       [req.user.id]
     );
 

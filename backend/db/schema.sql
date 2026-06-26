@@ -7,6 +7,9 @@ create table if not exists users (
   password_hash text not null,
   name text not null default 'Rider',
   bike_model text not null default 'Motorcycle',
+  profile_photo_data bytea,
+  profile_photo_mime text,
+  profile_photo_updated_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -33,6 +36,9 @@ create table if not exists rides (
 );
 
 alter table users alter column bike_model set default 'Motorcycle';
+alter table users add column if not exists profile_photo_data bytea;
+alter table users add column if not exists profile_photo_mime text;
+alter table users add column if not exists profile_photo_updated_at timestamptz;
 
 alter table rides add column if not exists client_ride_id text;
 alter table rides add column if not exists title text;

@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-06-25
+Last updated: 2026-06-27
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -33,10 +33,10 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Lets a rider register and log in with email/password.
 - Shows the logged-in rider name on the dashboard.
 - Shows a More area with Profile, Analytics, and Reports destinations.
-- Shows a Profile tab with local profile photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
+- Shows a Profile tab with backend-synced display photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
 - Supports two persisted cinematic themes shown as Midnight and True Black, while retaining the `graphite`/`oled` storage values and legacy `ktm`/`universal` migration.
 - UI uses the premium RidePulse journal system: near-black surfaces, warm white Manrope typography, restrained electric-lime accents, route artwork, softer elevation, and a floating bottom nav.
-- Shows an Android app icon based on `mobile/assets/ridepulse-logo.png`.
+- Shows an Android app icon based on `mobile/assets/ridepulse-logo.png`, aligned with the in-app lime/black RidePulse identity.
 - Uses Google Maps in navigation, ride, and history views.
 - Lets users search a destination and view route/directions in the Navigate tab.
 - Shows a safety warning before navigation.
@@ -67,6 +67,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Home, Journal, Ride Detail, Ride, and You now use premium smart-journal primitives such as route heroes, smart highlights, ride badges, route replay, chapter timeline, intentional empty states, and inline skeletons.
 - Home now includes local Google Photos-style Memories cards built from ride albums and route-art fallbacks.
 - Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; the You hub can replay the walkthrough later.
+- User display photos sync through the Render backend using `/api/profile/photo`; the app keeps the legacy local profile-photo cache for fast display and fallback. Ride albums remain local-only.
 
 ## Automatic Ride Tracking
 
@@ -96,7 +97,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/services/rideStoryShare.ts`: Android Instagram/share-sheet handoff for generated story images.
 - `mobile/plugins/withInstagramPackageQuery.js`: Expo config plugin that exposes Instagram to Android package queries for reliable share targeting.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
-- `mobile/src/screens/ProfileScreen.tsx`: profile, local profile photo, diagnostics, and auto tracking toggle.
+- `mobile/src/screens/ProfileScreen.tsx`: profile, backend display photo, diagnostics, and auto tracking toggle.
 - `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and legacy theme migration.
 - `mobile/src/theme/colors.ts`: Midnight and True Black palette values plus shared typography, layout, and motion tokens.
 - `mobile/src/components/RouteArtwork.tsx`: lightweight SVG route artwork for Home, Journal, and ride-detail hero surfaces.
@@ -106,7 +107,8 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `backend/src/services/journalIntelligence.js`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
 - `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
 - `mobile/src/services/onboarding.ts`: walkthrough completion storage.
-- `mobile/src/services/profilePhoto.ts`: local per-user profile photo picker/storage.
+- `mobile/src/services/profilePhoto.ts`: per-user profile photo picker, local cache, backend upload/download/delete sync.
+- `mobile/src/components/ProfileAvatar.tsx`: shared backend-backed avatar display used by Home, You, and Profile surfaces.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
 - `mobile/src/services/locationTask.ts`: Expo background location task entrypoint.
@@ -118,6 +120,8 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `worker/src/index.js`: Cloudflare Worker API routes for auth, rides, dashboard, analytics, and reports.
 - `worker/src/rideMath.js`: Worker-safe ride distance/speed summary logic.
 - `backend/src/routes/rides.js`: ride create/list/detail/delete API.
+- `backend/src/routes/profile.js`: authenticated profile-photo upload, fetch, and delete API.
+- `backend/src/services/profilePhotoValidation.js`: profile-photo MIME/base64/size validation.
 - `backend/db/schema.sql`: users, rides, and ride_points schema.
 - `backend/scripts/removeDuplicateRides.js`: one-off duplicate ride cleanup for a rider ID prefix; dry-run by default.
 - `backend/scripts/remove-duplicate-rides.ps1`: Windows wrapper that prompts for `DATABASE_URL` securely before running duplicate cleanup.
@@ -215,13 +219,15 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-25: Configured the Express PostgreSQL pool for the Starter instance, retained the same Neon database and API contracts, clean-built an APK with the Render URL embedded, installed it on Moto g34 5G (`ZA222K77F7`), and launched it successfully. Final login with the rider's real credentials remains the immediate manual check.
 - 2026-06-25: Implemented RidePulse V2 Smart Journal for the Render backend. Added additive Render endpoints `/api/journal` and `/api/rides/:id/intelligence`, optional smart ride metadata, backend tests for malformed GPS intelligence, premium mobile journal primitives, editorial Journal filters, smarter Home/You surfaces, Ride Detail route replay and chapter timeline, cockpit GPS confidence, and confirmed selected-ride deletion. Worker V2 parity is intentionally not part of this release because Render is now the active backend.
 - 2026-06-26: Implemented RidePulse V3 local Memories. Added first-install walkthrough, local ride albums with copied photo storage, manual gallery import, ride-window import into persistent albums, album photo removal, full-screen slideshow/reel, Home Memories carousel, and walkthrough replay from You. No backend photo storage or database migration was added.
+- 2026-06-27: Implemented RidePulse V4 brand/profile polish. Recolored launcher/splash assets from sky-blue to the lime-led app identity, added backend-synced user display photos on Render/Postgres, added `/api/profile/photo`, and showed the same avatar across Home, You, and Profile. Ride album photos remain local-only.
 
 ## Testing Checklist
 
 - Login with a real account.
 - Register a new rider and confirm empty form fields.
 - Confirm dashboard says `Hi, <name>`.
-- Confirm Profile shows account details and can add/change/remove the local profile photo.
+- Confirm Profile shows account details and can add/change/remove the backend-synced display photo.
+- Confirm the same display photo appears on Home, You, and Profile after logout/login and app restart.
 - Confirm Ride Detail can save title/notes and mark reviewed.
 - Confirm Ride Detail can delete the selected ride only after confirmation and returns to Journal.
 - Confirm fresh installs show walkthrough before login, and replay walkthrough works from You.
