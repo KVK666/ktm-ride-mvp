@@ -189,7 +189,7 @@ export class GoogleRouteMapComponent implements AfterViewInit, OnChanges {
         mapTypeControl: false,
         styles: darkMapStyle
       });
-      const path = points.map((point) => ({ lat: point.latitude, lng: point.longitude }));
+      const path = points.map((point) => ({ lat: Number(point.latitude), lng: Number(point.longitude) }));
       const bounds = new google.maps.LatLngBounds();
       path.forEach((point) => bounds.extend(point));
       new google.maps.Polyline({
@@ -203,7 +203,7 @@ export class GoogleRouteMapComponent implements AfterViewInit, OnChanges {
       new google.maps.Marker({ position: path[path.length - 1], map, title: 'End' });
       this.photos.filter((photo) => photo.hasLocation && validCoordinate(photo)).forEach((photo, index) => {
         new google.maps.Marker({
-          position: { lat: photo.latitude, lng: photo.longitude },
+          position: { lat: Number(photo.latitude), lng: Number(photo.longitude) },
           map,
           title: `Photo stop ${index + 1}`,
           icon: {
