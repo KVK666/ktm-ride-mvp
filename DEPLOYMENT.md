@@ -110,7 +110,7 @@ WEB_GOOGLE_MAPS_API_KEY=<browser-restricted-google-maps-js-key>
 WEB_APK_URL=https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest
 ```
 
-Do not commit the Maps key. Restrict it in Google Cloud to local dev and the Render/custom web domains.
+Do not commit the Maps key. On Google Cloud, enable Maps JavaScript API and Directions API for this browser key, then restrict it by HTTP referrer to the Render Static Site domain, any custom web domain, and `http://localhost:4200/*` only when local live-map testing is needed. Rebuild/redeploy `ridepulse-web` after changing `WEB_GOOGLE_MAPS_API_KEY`; existing static bundles do not pick up new env vars automatically.
 
 After Render provides the web URL, tighten backend `CORS_ORIGIN` from `*` to a comma-separated list such as:
 

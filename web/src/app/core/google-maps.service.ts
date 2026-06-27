@@ -14,7 +14,7 @@ export class GoogleMapsService {
 
   async load() {
     if (!this.configured) {
-      throw new Error('Google Maps key is not configured.');
+      throw new Error('Google Maps is not configured for this web build. Set WEB_GOOGLE_MAPS_API_KEY and redeploy the web app.');
     }
     if ((window as any).google?.maps) {
       return (window as any).google;
@@ -24,10 +24,26 @@ export class GoogleMapsService {
     }
 
     this.loadPromise = new Promise((resolve, reject) => {
+      const fail = (message: string) => {
+        this.loadPromise = null;
+        reject(new Error(message));
+      };
+      const timeout = window.setTimeout(() => {
+        fail('Google Maps took too long to load. Check the browser key restrictions, enabled APIs, and network access.');
+      }, 15000);
+      const finish = () => {
+        window.clearTimeout(timeout);
+        const loadedGoogle = (window as any).google;
+        if (loadedGoogle?.maps) {
+          resolve(loadedGoogle);
+          return;
+        }
+        fail('Google Maps loaded without the Maps library. Confirm Maps JavaScript API is enabled for this key.');
+      };
       const existing = document.querySelector<HTMLScriptElement>('script[data-ridepulse-google-maps]');
       if (existing) {
-        existing.addEventListener('load', () => resolve((window as any).google));
-        existing.addEventListener('error', () => reject(new Error('Google Maps failed to load.')));
+        existing.addEventListener('load', finish, { once: true });
+        existing.addEventListener('error', () => fail('Google Maps script failed to load. Check WEB_GOOGLE_MAPS_API_KEY and HTTP referrer restrictions.'), { once: true });
         return;
       }
 
@@ -36,8 +52,8 @@ export class GoogleMapsService {
       script.async = true;
       script.defer = true;
       script.dataset['ridepulseGoogleMaps'] = 'true';
-      script.onload = () => resolve((window as any).google);
-      script.onerror = () => reject(new Error('Google Maps failed to load.'));
+      script.onload = finish;
+      script.onerror = () => fail('Google Maps script failed to load. Check WEB_GOOGLE_MAPS_API_KEY and HTTP referrer restrictions.');
       document.head.appendChild(script);
     });
 
@@ -58,7 +74,7 @@ export class GoogleMapsService {
           if (status === 'OK' && response?.routes?.[0]) {
             resolve(response);
           } else {
-            reject(new Error(status === 'ZERO_RESULTS' ? 'Route was not found.' : `Maps route failed: ${status}`));
+            reject(new Error(status === 'ZERO_RESULTS' ? 'Route was not found.' : mapsStatusMessage(status)));
           }
         }
       );
@@ -119,4 +135,17 @@ function stripHtml(value: string) {
   const container = document.createElement('div');
   container.innerHTML = value;
   return container.textContent || container.innerText || value;
+}
+
+function mapsStatusMessage(status: string) {
+  if (status === 'REQUEST_DENIED') {
+    return 'Google Maps denied this request. Check key restrictions and that Directions API is enabled.';
+  }
+  if (status === 'OVER_QUERY_LIMIT') {
+    return 'Google Maps quota was exceeded for this key.';
+  }
+  if (status === 'INVALID_REQUEST') {
+    return 'Google Maps could not use this origin or destination.';
+  }
+  return `Maps route failed: ${status}`;
 }

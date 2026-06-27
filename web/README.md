@@ -1,59 +1,52 @@
-# Web
+# RidePulse Web Companion
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.4.
+Angular standalone web companion for RidePulse. It provides the public site, login/register, dashboard, journal, ride details, analytics, reports, profile, and foreground Google route preview.
 
 ## Development server
 
-To start a local development server, run:
+Start a local development server:
 
 ```bash
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Then open `http://localhost:4200/`. Local source keeps the Google Maps key blank by default, so maps fall back to RidePulse route artwork unless a key is configured.
 
-## Code scaffolding
+## Google Maps on web
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+For deployed live maps, set this environment variable on the Render Static Site named `ridepulse-web`:
 
 ```bash
-ng generate --help
+WEB_GOOGLE_MAPS_API_KEY=<browser-restricted-google-maps-js-key>
 ```
+
+In Google Cloud, enable these APIs for that key:
+
+- Maps JavaScript API
+- Directions API
+
+Restrict the key by HTTP referrer to the deployed Render/custom web domains. Add `http://localhost:4200/*` only if local live-map testing is needed. Rebuild/redeploy the static site after changing the key.
 
 ## Building
 
-To build the project run:
+Build locally:
 
 ```bash
 ng build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Render uses:
+
+```bash
+npm run build:render
+```
+
+That script writes production environment values from `WEB_API_BASE_URL`, `WEB_FALLBACK_API_BASE_URL`, `WEB_GOOGLE_MAPS_API_KEY`, and APK/release URL variables before building.
 
 ## Running unit tests
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Run the Vitest-backed Angular unit tests:
 
 ```bash
 ng test
 ```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

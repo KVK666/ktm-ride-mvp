@@ -111,7 +111,7 @@ export class NavigatePageComponent implements OnDestroy {
       return;
     }
     if (!this.maps.configured) {
-      this.error.set('Google Maps key is not configured for the web app yet.');
+      this.error.set('Google Maps is not configured for this web build. Set WEB_GOOGLE_MAPS_API_KEY on the web deployment and redeploy.');
       return;
     }
     this.loading.set(true);

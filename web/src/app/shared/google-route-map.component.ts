@@ -28,7 +28,7 @@ const darkMapStyle = [
           <app-route-art [points]="points" />
           <div>
             <strong>{{ error() || 'Google Maps key is not configured' }}</strong>
-            <span>Route artwork is shown here until Maps is available.</span>
+            <span>{{ maps.configured ? 'Route artwork is shown while Maps recovers.' : 'Set WEB_GOOGLE_MAPS_API_KEY and redeploy to enable live maps.' }}</span>
           </div>
         </div>
       }
@@ -58,6 +58,8 @@ const darkMapStyle = [
     .map-shell {
       position: relative;
       min-height: 360px;
+      width: 100%;
+      min-width: 0;
       border: 1px solid rgba(245, 242, 234, 0.1);
       border-radius: 26px;
       overflow: hidden;
@@ -73,12 +75,13 @@ const darkMapStyle = [
       display: grid;
       place-items: center;
       gap: 16px;
-      padding: 22px;
+      padding: clamp(18px, 4vw, 28px);
       text-align: center;
       color: var(--muted);
     }
     .map-fallback app-route-art {
       width: min(520px, 90%);
+      max-height: 220px;
     }
     .map-fallback strong,
     .map-fallback span {

@@ -5,7 +5,7 @@ import { Coordinate } from '../core/models';
   selector: 'app-route-art',
   standalone: true,
   template: `
-    <svg viewBox="0 0 320 160" role="img" [attr.aria-label]="label" preserveAspectRatio="none">
+    <svg viewBox="0 0 320 160" role="img" [attr.aria-label]="label" preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id="routeGlow" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#C8FF5A" />
@@ -20,15 +20,21 @@ import { Coordinate } from '../core/models';
           </feMerge>
         </filter>
       </defs>
-      <path d="M0 120 C46 92 68 52 108 68 S182 144 218 94 276 30 320 48" fill="none" stroke="#232830" stroke-width="18" stroke-linecap="round" />
+      <path d="M18 118 C58 92 76 56 112 70 S182 138 218 94 266 34 302 50" fill="none" stroke="#232830" stroke-width="18" stroke-linecap="round" />
       <polyline [attr.points]="polyline" fill="none" stroke="url(#routeGlow)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)" />
-      <circle [attr.cx]="start.x" [attr.cy]="start.y" r="7" fill="#080A0C" stroke="#C8FF5A" stroke-width="4" />
-      <circle [attr.cx]="end.x" [attr.cy]="end.y" r="7" fill="#C8FF5A" stroke="#080A0C" stroke-width="4" />
+      <circle [attr.cx]="start.x" [attr.cy]="start.y" r="7" fill="#080A0C" stroke="#C8FF5A" stroke-width="4" vector-effect="non-scaling-stroke" />
+      <circle [attr.cx]="end.x" [attr.cy]="end.y" r="7" fill="#C8FF5A" stroke="#080A0C" stroke-width="4" vector-effect="non-scaling-stroke" />
     </svg>
   `,
   styles: [`
-    :host { display: block; width: 100%; height: 100%; }
-    svg { width: 100%; height: 100%; display: block; }
+    :host {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      aspect-ratio: 2 / 1;
+      overflow: hidden;
+    }
+    svg { width: 100%; height: 100%; display: block; overflow: visible; }
   `]
 })
 export class RouteArtComponent {
@@ -36,14 +42,14 @@ export class RouteArtComponent {
   @Input() set points(value: Coordinate[] | null | undefined) {
     this.polyline = this.buildPolyline(value || []);
     const parts = this.polyline.split(' ').map((item) => item.split(',').map(Number));
-    this.start = { x: parts[0]?.[0] || 0, y: parts[0]?.[1] || 120 };
+    this.start = { x: parts[0]?.[0] || 18, y: parts[0]?.[1] || 118 };
     const last = parts[parts.length - 1];
-    this.end = { x: last?.[0] || 320, y: last?.[1] || 48 };
+    this.end = { x: last?.[0] || 302, y: last?.[1] || 50 };
   }
 
-  polyline = '0,120 46,92 108,68 182,144 218,94 276,30 320,48';
-  start = { x: 0, y: 120 };
-  end = { x: 320, y: 48 };
+  polyline = '18,118 58,92 112,70 182,138 218,94 266,34 302,50';
+  start = { x: 18, y: 118 };
+  end = { x: 302, y: 50 };
 
   private buildPolyline(points: Coordinate[]) {
     if (points.length < 2) {
@@ -64,8 +70,8 @@ export class RouteArtComponent {
     return points
       .slice(0, 64)
       .map((point) => {
-        const x = ((Number(point.longitude) - minLng) / lngRange) * 300 + 10;
-        const y = 150 - ((Number(point.latitude) - minLat) / latRange) * 130;
+        const x = ((Number(point.longitude) - minLng) / lngRange) * 272 + 24;
+        const y = 138 - ((Number(point.latitude) - minLat) / latRange) * 116;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(' ');
