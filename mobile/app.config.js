@@ -1,5 +1,13 @@
 const googleMapsApiKey =
   process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const easProjectId =
+  process.env.EAS_PROJECT_ID ||
+  process.env.EXPO_PUBLIC_EAS_PROJECT_ID ||
+  "72bc39ae-7012-4f29-8012-13113b7ea8fc";
+const updatesUrl =
+  process.env.EXPO_UPDATES_URL ||
+  process.env.EXPO_PUBLIC_UPDATES_URL ||
+  "https://u.expo.dev/72bc39ae-7012-4f29-8012-13113b7ea8fc";
 
 module.exports = {
   expo: {
@@ -10,6 +18,15 @@ module.exports = {
     userInterfaceStyle: "dark",
     scheme: "dukeride",
     icon: "./assets/ridepulse-logo.png",
+    runtimeVersion: {
+      policy: "appVersion"
+    },
+    updates: {
+      enabled: true,
+      checkAutomatically: "ON_LOAD",
+      fallbackToCacheTimeout: 0,
+      ...(updatesUrl ? { url: updatesUrl } : {})
+    },
     splash: {
       image: "./assets/ridepulse-logo.png",
       resizeMode: "contain",
@@ -73,6 +90,9 @@ module.exports = {
           locationAlwaysAndWhenInUsePermission: "Allow RidePulse to track rides in the background."
         }
       ]
-    ]
+    ],
+    extra: {
+      ...(easProjectId ? { eas: { projectId: easProjectId } } : {})
+    }
   }
 };

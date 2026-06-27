@@ -14,6 +14,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Backend: Render Express API is the current production mobile target; Cloudflare Worker remains a contract-compatible fallback.
 - Database: PostgreSQL, currently hosted on Neon.
 - Backend hosting: Render Starter in Singapore, backed by Neon PostgreSQL.
+- OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT.
 - Main repo branch: `ktm-ride-mvp`.
@@ -34,6 +35,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Shows the logged-in rider name on the dashboard.
 - Shows a More area with Profile, Analytics, and Reports destinations.
 - Shows a Profile tab with backend-synced display photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
+- Shows an App updates card in Profile so riders can manually check for, download, and restart into available OTA updates.
 - Supports two persisted cinematic themes shown as Midnight and True Black, while retaining the `graphite`/`oled` storage values and legacy `ktm`/`universal` migration.
 - UI uses the premium RidePulse journal system: near-black surfaces, warm white Manrope typography, restrained electric-lime accents, route artwork, softer elevation, and a floating bottom nav.
 - Shows an Android app icon based on `mobile/assets/ridepulse-logo.png`, aligned with the in-app lime/black RidePulse identity.
@@ -69,6 +71,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Home now includes local Google Photos-style Memories cards built from ride albums, route-art fallbacks, monthly recap memories, and review prompts.
 - Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; the You hub can replay the walkthrough later.
 - User display photos sync through the Render backend using `/api/profile/photo`; the app keeps the legacy local profile-photo cache for fast display and fallback. Ride albums remain local-only.
+- OTA updates are enabled for JavaScript and bundled assets through EAS Update. Native changes such as app icon, permissions, package ID, native dependencies, Google Maps setup, or Android manifest changes still require installing a new APK.
 
 ## Automatic Ride Tracking
 
@@ -99,6 +102,9 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/plugins/withInstagramPackageQuery.js`: Expo config plugin that exposes Instagram to Android package queries for reliable share targeting.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, backend display photo, diagnostics, and auto tracking toggle.
+- `mobile/eas.json`: EAS build/update channels. Production builds and OTA updates use the `production` channel.
+- `mobile/app.config.js`: Expo config including Android identity, plugins, EAS project ID, runtime version, and OTA update URL.
+- `mobile/src/screens/ProfileScreen.tsx`: profile, backend display photo, diagnostics, app update checker, and auto tracking toggle.
 - `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and legacy theme migration.
 - `mobile/src/theme/colors.ts`: Midnight and True Black palette values plus shared typography, layout, and motion tokens.
 - `mobile/src/components/RouteArtwork.tsx`: lightweight SVG route artwork for Home, Journal, and ride-detail hero surfaces.
@@ -118,6 +124,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/hooks/useAutoTracking.ts`: shared UI hook for Ride/Profile toggle state.
 - `mobile/src/context/AuthContext.tsx`: auth bootstrap and pending ride sync after login.
 - `mobile/src/api/client.ts`: API client, SecureStore token, mirrored background token.
+- `scripts/install-android-release.ps1`: release installer that prebuilds native Android config before Gradle so app icon and OTA metadata stay in sync.
 - `worker/src/index.js`: Cloudflare Worker API routes for auth, rides, dashboard, analytics, and reports.
 - `worker/src/rideMath.js`: Worker-safe ride distance/speed summary logic.
 - `backend/src/routes/rides.js`: ride create/list/detail/delete API.
@@ -138,7 +145,17 @@ cd "C:\Users\BBS001\Documents\New project\mobile"
 npm run typecheck
 npm run android
 npm run android:install:release
+npm run ota:publish -- --message "Describe the update"
 ```
+
+OTA updates:
+
+```powershell
+cd "C:\Users\BBS001\Documents\New project\mobile"
+npm run ota:publish -- --message "Describe the update"
+```
+
+OTA can update JavaScript and bundled assets only. If a change touches native Android files, permissions, app icon/splash, native dependencies, package ID, runtime version, or Expo config that affects native generation, build and install a new APK instead.
 
 Release APK build:
 
@@ -218,6 +235,8 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-25: Added real GPS route artwork to ride cards through backward-compatible `routePreview` fields on `/api/rides` and `/api/dashboard`, sampled to at most 48 validated points. Dashboard also exposes previous-month and longest-ride metrics. Worker and Express fallback remain contract-compatible and no database migration is required.
 - 2026-06-25: Added Manrope, Expo Linear Gradient, and Expo Haptics using Expo SDK 51-compatible versions. Mobile typecheck, backend ride-math tests, Worker dry-run, and Android release APK build all passed. On-device visual verification remains pending because ADB reported no connected devices.
 - 2026-06-25: Migrated the production API target to the paid Render Starter service in Singapore. Render automatically deployed Git commit `3e85fdf`; `/health` confirmed the same commit, and a temporary production probe passed registration, login, and dashboard requests before its test account was removed.
+- 2026-06-27: Enabled Expo EAS Update with project ID `72bc39ae-7012-4f29-8012-13113b7ea8fc`, production update URL `https://u.expo.dev/72bc39ae-7012-4f29-8012-13113b7ea8fc`, runtime version policy `appVersion`, and a Profile app-update card. Published the initial `production` update group `9978c012-adde-45d4-b19b-18de80f229fb`.
+- 2026-06-27: Rebuilt the OTA-enabled Android release APK, refreshed `releases/Duke-Ride-latest.apk`, installed it on connected Moto g34 5G (`ZA222K77F7`), and launched it successfully. Future JS/assets-only updates can be delivered OTA; native changes still require an APK.
 - 2026-06-25: Configured the Express PostgreSQL pool for the Starter instance, retained the same Neon database and API contracts, clean-built an APK with the Render URL embedded, installed it on Moto g34 5G (`ZA222K77F7`), and launched it successfully. Final login with the rider's real credentials remains the immediate manual check.
 - 2026-06-25: Implemented RidePulse V2 Smart Journal for the Render backend. Added additive Render endpoints `/api/journal` and `/api/rides/:id/intelligence`, optional smart ride metadata, backend tests for malformed GPS intelligence, premium mobile journal primitives, editorial Journal filters, smarter Home/You surfaces, Ride Detail route replay and chapter timeline, cockpit GPS confidence, and confirmed selected-ride deletion. Worker V2 parity is intentionally not part of this release because Render is now the active backend.
 - 2026-06-26: Implemented RidePulse V3 local Memories. Added first-install walkthrough, local ride albums with copied photo storage, manual gallery import, ride-window import into persistent albums, album photo removal, full-screen slideshow/reel, Home Memories carousel, and walkthrough replay from You. No backend photo storage or database migration was added.

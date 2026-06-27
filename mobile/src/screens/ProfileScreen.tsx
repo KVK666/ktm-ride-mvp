@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
+import * as Updates from "expo-updates";
 import React, { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { API_BASE_URL } from "../api/client";
@@ -66,6 +67,9 @@ export function ProfileScreen() {
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [profilePhotoMessage, setProfilePhotoMessage] = useState("");
   const [profilePhotoLoading, setProfilePhotoLoading] = useState(false);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState("");
   const displayName = user?.name?.trim() || "Rider";
   const bikeModel = user?.bikeModel || "Motorcycle";
   const riderId = user?.id ? user.id.slice(0, 8).toUpperCase() : "Not available";
@@ -157,6 +161,41 @@ export function ProfileScreen() {
     setDiagnosticsMessage("Diagnostics cleared");
   }
 
+  async function checkForAppUpdate() {
+    setUpdateChecking(true);
+    setUpdateMessage("");
+    try {
+      if (!(Updates as any).isEnabled) {
+        setUpdateMessage("OTA updates are not enabled in this build. Install the OTA-enabled APK first.");
+        return;
+      }
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        setUpdateReady(false);
+        setUpdateMessage("RidePulse is already up to date.");
+        return;
+      }
+      await Updates.fetchUpdateAsync();
+      setUpdateReady(true);
+      setUpdateMessage("Update downloaded. Restart RidePulse to apply it.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (err: any) {
+      setUpdateReady(false);
+      setUpdateMessage(err.message || "Unable to check for app updates");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    } finally {
+      setUpdateChecking(false);
+    }
+  }
+
+  async function restartForUpdate() {
+    try {
+      await Updates.reloadAsync();
+    } catch (err: any) {
+      setUpdateMessage(err.message || "Unable to restart RidePulse");
+    }
+  }
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
@@ -217,6 +256,35 @@ export function ProfileScreen() {
           <Text style={styles.cardCopy}>
             Your rides, reports, dashboard stats, and route history are saved to this rider account.
           </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>App updates</Text>
+          <Text style={styles.cardCopy}>
+            OTA updates can refresh RidePulse UI, screens, copy, and assets without reinstalling the APK.
+          </Text>
+          <Text style={styles.cardCopy}>
+            Runtime: {String((Updates as any).runtimeVersion || "Not available")}
+          </Text>
+          <Text style={styles.cardCopy}>
+            Update: {String((Updates as any).updateId || "Embedded build").slice(0, 36)}
+          </Text>
+          {updateMessage ? <Text style={updateReady ? styles.success : styles.cardCopy}>{updateMessage}</Text> : null}
+          <View style={styles.diagnosticActions}>
+            <PrimaryButton
+              label="Check for update"
+              icon="cloud-download"
+              loading={updateChecking}
+              onPress={checkForAppUpdate}
+            />
+            {updateReady ? (
+              <PrimaryButton
+                label="Restart app"
+                icon="refresh"
+                onPress={restartForUpdate}
+              />
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.card}>

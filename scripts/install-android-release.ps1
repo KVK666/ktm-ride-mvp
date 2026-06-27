@@ -22,6 +22,14 @@ function Assert-NativeSuccess($Action) {
   }
 }
 
+Push-Location $mobileDir
+try {
+  & npx expo prebuild --platform android --no-install
+  Assert-NativeSuccess "Expo Android prebuild"
+} finally {
+  Pop-Location
+}
+
 Push-Location $androidDir
 try {
   & .\gradlew.bat app:assembleRelease -x lint -x test --configure-on-demand --build-cache "-PreactNativeArchitectures=arm64-v8a,armeabi-v7a"
