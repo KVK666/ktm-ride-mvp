@@ -25,7 +25,7 @@ In Google Cloud, enable these APIs for that key:
 - Maps JavaScript API
 - Directions API
 
-Restrict the key by HTTP referrer to the deployed Render/custom web domains. Add `http://localhost:4200/*` only if local live-map testing is needed. Rebuild/redeploy the static site after changing the key.
+Restrict the key by HTTP referrer to the deployed Render/custom web domains, including the wildcard path, for example `https://ridepulse-web.onrender.com/*`. Add `http://localhost:4200/*` and `http://127.0.0.1:4200/*` only if local live-map testing is needed. Rebuild/redeploy the static site after changing the key.
 
 ## Building
 

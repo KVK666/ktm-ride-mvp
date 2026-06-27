@@ -4,6 +4,12 @@ import { Coordinate, DirectionStep, RouteDetails } from './models';
 
 declare const google: any;
 
+type GoogleMapsWindow = Window & {
+  google?: any;
+  gm_authFailure?: () => void;
+  __ridepulseGoogleMapsInit?: () => void;
+};
+
 @Injectable({ providedIn: 'root' })
 export class GoogleMapsService {
   private loadPromise: Promise<any> | null = null;
@@ -16,15 +22,29 @@ export class GoogleMapsService {
     if (!this.configured) {
       throw new Error('Google Maps is not configured for this web build. Set WEB_GOOGLE_MAPS_API_KEY and redeploy the web app.');
     }
-    if ((window as any).google?.maps) {
-      return (window as any).google;
+    const win = window as GoogleMapsWindow;
+    if (win.google?.maps) {
+      return win.google;
     }
     if (this.loadPromise) {
       return this.loadPromise;
     }
 
     this.loadPromise = new Promise((resolve, reject) => {
+      let settled = false;
+      const previousAuthFailure = win.gm_authFailure;
+      const previousInit = win.__ridepulseGoogleMapsInit;
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        win.gm_authFailure = previousAuthFailure;
+        win.__ridepulseGoogleMapsInit = previousInit;
+      };
       const fail = (message: string) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
         this.loadPromise = null;
         reject(new Error(message));
       };
@@ -32,27 +52,43 @@ export class GoogleMapsService {
         fail('Google Maps took too long to load. Check the browser key restrictions, enabled APIs, and network access.');
       }, 15000);
       const finish = () => {
-        window.clearTimeout(timeout);
-        const loadedGoogle = (window as any).google;
+        if (settled) {
+          return;
+        }
+        const loadedGoogle = win.google;
         if (loadedGoogle?.maps) {
+          settled = true;
+          cleanup();
           resolve(loadedGoogle);
           return;
         }
         fail('Google Maps loaded without the Maps library. Confirm Maps JavaScript API is enabled for this key.');
       };
+      win.gm_authFailure = () => {
+        fail('Google Maps rejected this browser key. Check WEB_GOOGLE_MAPS_API_KEY, HTTP referrer restrictions, billing, and enabled APIs.');
+      };
+      win.__ridepulseGoogleMapsInit = finish;
       const existing = document.querySelector<HTMLScriptElement>('script[data-ridepulse-google-maps]');
       if (existing) {
-        existing.addEventListener('load', finish, { once: true });
+        if (win.google?.maps) {
+          finish();
+          return;
+        }
+        existing.addEventListener('load', () => window.setTimeout(finish, 0), { once: true });
         existing.addEventListener('error', () => fail('Google Maps script failed to load. Check WEB_GOOGLE_MAPS_API_KEY and HTTP referrer restrictions.'), { once: true });
         return;
       }
 
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(environment.googleMapsApiKey)}`;
+      const params = new URLSearchParams({
+        key: environment.googleMapsApiKey,
+        callback: '__ridepulseGoogleMapsInit',
+        loading: 'async'
+      });
+      script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
       script.async = true;
       script.defer = true;
       script.dataset['ridepulseGoogleMaps'] = 'true';
-      script.onload = finish;
       script.onerror = () => fail('Google Maps script failed to load. Check WEB_GOOGLE_MAPS_API_KEY and HTTP referrer restrictions.');
       document.head.appendChild(script);
     });

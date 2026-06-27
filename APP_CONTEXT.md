@@ -250,6 +250,7 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-27: Expanded web toward full non-recording companion parity. Added Google Maps web configuration/fallbacks, Navigate and You pages, rich Ride Detail review/duplicates/delete/map/chart/story/photo surfaces, web profile photo add/remove, reports export, synced ride album backend endpoints/table, mobile album upload sync, and a Render Static Site blueprint for `ridepulse-web`.
 - 2026-06-27: Polished RidePulse web UI reliability. Replaced Angular default tab metadata with cache-busted RidePulse icon links, constrained route artwork to prevent card clipping, improved companion responsive spacing/chart overflow, hardened Google Maps web load diagnostics, and documented `WEB_GOOGLE_MAPS_API_KEY` Render/Google Cloud requirements.
 - 2026-06-27: Switched the Angular web companion to hash routing so authenticated pages like `/#/app/home` and `/#/app/journal` survive browser refreshes even on static hosts that do not rewrite deep links correctly.
+- 2026-06-27: Hardened the web Google Maps loader with the supported async callback flow and `gm_authFailure` handling so browser-key, referrer, billing, or API authorization failures show actionable RidePulse errors.
 
 ## Testing Checklist
 
