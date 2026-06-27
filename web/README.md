@@ -10,7 +10,7 @@ Start a local development server:
 ng serve
 ```
 
-Then open `http://localhost:4200/`. Local source keeps the Google Maps key blank by default, so maps fall back to RidePulse route artwork unless a key is configured.
+Then open `http://localhost:4200/`. Companion routes use hash URLs such as `/#/app/home` so browser refreshes keep working on static hosting. Local source keeps the Google Maps key blank by default, so maps fall back to RidePulse route artwork unless a key is configured.
 
 ## Google Maps on web
 
