@@ -24,6 +24,9 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 |   +-- db/seed.sql         # Sample rider and rides
 |   +-- src/routes/         # Auth, rides, dashboard, analytics, reports
 |   +-- tests/
++-- web/                    # Angular public website and authenticated companion
++   +-- src/app/            # Landing page, auth, dashboard, journal, analytics
++   +-- public/             # RidePulse web assets
 +-- worker/                 # Cloudflare Workers API for free hosted backend
 +   +-- src/index.js        # Worker routes matching /api/*
 +   +-- wrangler.toml
@@ -47,6 +50,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - JSON report endpoint and in-app PDF export.
 - Location permission, background location prompt, battery optimization warning copy, and internet/API error messages.
 - Brand-neutral RidePulse launcher name, icon, Graphite and OLED Black themes, and compact mobile UI controls.
+- Angular web companion with a cinematic public site, Three.js hero scene, login/register, dashboard, journal, Google Maps route planner, rich ride detail, synced ride albums, analytics, reports export, profile photo management, fixed companion navigation, and branded RidePulse loading states.
 
 ## Required API Keys
 
@@ -165,6 +169,36 @@ For native Maps/background location behavior, run a native build:
 npm run android
 ```
 
+## Web Setup
+
+```bash
+cd web
+npm install
+npm start
+```
+
+The Angular dev server runs at `http://localhost:4200`. Web builds use the live Render API by default so browser Network output stays clean and does not show failed localhost probes.
+
+For web Google Maps, set a browser-restricted key through Render as `WEB_GOOGLE_MAPS_API_KEY`. Local source keeps the key blank by default and falls back to route artwork/open-map links when Maps is not configured.
+
+Build the production web bundle:
+
+```bash
+cd web
+npm run build
+```
+
+The web app is a companion experience. It shows the premium public website and authenticated ride dashboard/journal surfaces, but ride recording stays in the Android app for reliable GPS and background tracking. Profile photos are loaded from the existing authenticated `/api/profile/photo` endpoint as JSON.
+
+For Render Static Site deployment, the blueprint builds the Angular app with:
+
+```bash
+cd web
+npm run build:render
+```
+
+and publishes `web/dist/web/browser` with an SPA rewrite to `/index.html`.
+
 ## Database Schema
 
 The schema is in `backend/db/schema.sql` and includes:
@@ -172,6 +206,7 @@ The schema is in `backend/db/schema.sql` and includes:
 - `users`: account, password hash, rider name, bike model.
 - `rides`: summary stats and start/end coordinates.
 - `ride_points`: normalized GPS points for route rendering and speed-over-time analysis.
+- `ride_album_photos`: backend-synced ride album copies for web/mobile companion display.
 
 ## API Overview
 
@@ -182,6 +217,13 @@ The schema is in `backend/db/schema.sql` and includes:
 - `POST /api/rides`
 - `GET /api/rides?period=today|month|year|all`
 - `GET /api/rides/:id`
+- `PATCH /api/rides/:id`
+- `DELETE /api/rides/:id`
+- `GET /api/rides/:id/intelligence`
+- `GET /api/rides/:id/duplicates`
+- `GET /api/rides/:id/photos`
+- `POST /api/rides/:id/photos`
+- `DELETE /api/rides/:id/photos/:photoId`
 - `GET /api/analytics/distance?bucket=daily|monthly|yearly`
 - `GET /api/analytics/speed/:rideId`
 - `GET /api/reports?period=day|month|year&date=2026-05-11`
@@ -192,7 +234,7 @@ This app is designed so the destination can be set before riding and ride tracki
 
 ## Online Deployment
 
-Use [DEPLOYMENT.md](DEPLOYMENT.md) to deploy the Cloudflare Worker backend with Neon PostgreSQL and point the mobile app at the public API URL.
+Use [DEPLOYMENT.md](DEPLOYMENT.md) for backend deployment notes. The current preferred production shape is the Render API plus a Render Static Site for the Angular web companion.
 
 ## Maintenance Note
 

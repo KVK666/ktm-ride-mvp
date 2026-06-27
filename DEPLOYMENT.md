@@ -1,11 +1,12 @@
 # Online Deployment
 
-This setup is for a small private rider group on free-friendly hosting: Cloudflare Workers for the API and Neon PostgreSQL for the database.
+This setup is for a small private rider group. The current active production API is the Render Express service backed by Neon PostgreSQL. The Angular website can deploy as a Render Static Site next to that API. Cloudflare Worker notes remain useful as fallback/reference.
 
 ## Recommended Stack
 
 - Database: Neon PostgreSQL
-- Backend API: Cloudflare Workers free tier
+- Backend API: Render Express service
+- Web: Render Static Site
 - Mobile app: standalone Android release APK pointed at the Worker API URL
 
 The old Express backend is still kept in `backend/` for local development/reference and Render fallback, but production should use `worker/` to avoid Render free-tier sleeping.
@@ -84,6 +85,37 @@ Windows helper:
 
 ```powershell
 npm run setup:secrets
+```
+
+## Render Web Deployment
+
+The repository includes `render.yaml` entries for:
+
+- `ktm-ride-api`: existing Render Node API service.
+- `ridepulse-web`: Angular Render Static Site.
+
+The web static site uses:
+
+```text
+Build command: cd web && npm ci && npm run build:render
+Publish path: web/dist/web/browser
+Rewrite: /* -> /index.html
+```
+
+Set these Render environment variables on `ridepulse-web`:
+
+```text
+WEB_API_BASE_URL=https://ktm-ride-mvp.onrender.com/api
+WEB_GOOGLE_MAPS_API_KEY=<browser-restricted-google-maps-js-key>
+WEB_APK_URL=https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest
+```
+
+Do not commit the Maps key. Restrict it in Google Cloud to local dev and the Render/custom web domains.
+
+After Render provides the web URL, tighten backend `CORS_ORIGIN` from `*` to a comma-separated list such as:
+
+```text
+http://localhost:4200,http://127.0.0.1:4200,https://ridepulse-web.onrender.com
 ```
 
 ## 5. Deploy Worker

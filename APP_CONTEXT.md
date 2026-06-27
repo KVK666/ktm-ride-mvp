@@ -11,6 +11,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 ## Current Stack
 
 - Mobile app: Expo React Native, Android-first.
+- Web app: Angular standalone app in `web/`, with a cinematic public website and authenticated companion dashboard.
 - Backend: Render Express API is the current production mobile target; Cloudflare Worker remains a contract-compatible fallback.
 - Database: PostgreSQL, currently hosted on Neon.
 - Backend hosting: Render Starter in Singapore, backed by Neon PostgreSQL.
@@ -23,6 +24,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Official GitHub Release APK: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/v0.1.0`.
 - Automatic latest APK release: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest`.
 - Current production mobile API base URL: `https://ktm-ride-mvp.onrender.com/api`.
+- Current production web API base URL: `https://ktm-ride-mvp.onrender.com/api`.
 - Cloudflare Worker fallback API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 
 Important compatibility rule: keep package IDs, deep links, API URLs, and legacy storage keys such as `duke_ride_*` stable unless a migration is explicitly planned and tested.
@@ -72,6 +74,8 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; the You hub can replay the walkthrough later.
 - User display photos sync through the Render backend using `/api/profile/photo`; the app keeps the legacy local profile-photo cache for fast display and fallback. Ride albums remain local-only.
 - OTA updates are enabled for JavaScript and bundled assets through EAS Update. Native changes such as app icon, permissions, package ID, native dependencies, Google Maps setup, or Android manifest changes still require installing a new APK.
+- Adds an Angular web companion in `web/` using the same graphite/OLED and electric-lime identity. The public site has a Three.js animated route hero, premium product sections, APK download CTA, and sign-in entry; the protected companion supports login/register, Home, Journal, Navigate, rich Ride Detail, You, Analytics, Reports, Profile photo management, synced ride albums, fixed sidebar/topbar navigation, and branded RidePulse loading states. Web builds use the live Render API by default to avoid failed localhost probes in browser Network output.
+- Web ride recording is intentionally out of scope; the website directs riders to the Android app for GPS/background tracking, ride recovery, auto tracking, and OTA update workflows. Web foreground geolocation is used only for route planning.
 
 ## Automatic Ride Tracking
 
@@ -242,6 +246,8 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-26: Implemented RidePulse V3 local Memories. Added first-install walkthrough, local ride albums with copied photo storage, manual gallery import, ride-window import into persistent albums, album photo removal, full-screen slideshow/reel, Home Memories carousel, and walkthrough replay from You. No backend photo storage or database migration was added.
 - 2026-06-27: Implemented RidePulse V4 brand/profile polish. Recolored launcher/splash assets from sky-blue to the lime-led app identity, added backend-synced user display photos on Render/Postgres, added `/api/profile/photo`, and showed the same avatar across Home, You, and Profile. Ride album photos remain local-only.
 - 2026-06-27: Implemented RidePulse V5 premium UX polish. Added `/api/home`, smarter Home memories, pending review continuation, saved Journal filter state, reduced-motion-aware Journal animation, stronger ride/profile/photo haptics, slideshow control polish, and richer Ride Detail album/story cues.
+- 2026-06-27: Added the Angular web companion in `web/`. It includes the premium public landing page, Three.js route hero, Manrope/RidePulse theme tokens, login/register, authenticated Home/Journal/Ride Detail/Analytics/Reports/Profile pages, API fallback-capable client code, and production/local environment configuration. Follow-up polish removed reference-name copy, fixed the hero scroll gap, switched local web defaults to the live Render API to keep browser Network output clean, loaded profile photos via authenticated JSON, locked companion navigation during scroll, and replaced primary loading text with branded RidePulse loading animation.
+- 2026-06-27: Expanded web toward full non-recording companion parity. Added Google Maps web configuration/fallbacks, Navigate and You pages, rich Ride Detail review/duplicates/delete/map/chart/story/photo surfaces, web profile photo add/remove, reports export, synced ride album backend endpoints/table, mobile album upload sync, and a Render Static Site blueprint for `ridepulse-web`.
 
 ## Testing Checklist
 
@@ -254,6 +260,7 @@ https://ktm-ride-mvp.onrender.com/health
 - Confirm Ride Detail can delete the selected ride only after confirmation and returns to Journal.
 - Confirm fresh installs show walkthrough before login, and replay walkthrough works from You.
 - Confirm Ride Detail album can find ride-window photos, manually add photos, remove album copies, and open slideshow.
+- Confirm synced ride album photos appear on web after mobile import/manual add and can be uploaded/removed from web without deleting original gallery files.
 - Confirm Home prefers `/api/home` and falls back to older journal/dashboard responses.
 - Confirm Journal remembers the selected filter after app restart.
 - Confirm duplicate candidates appear in Ride Detail and require confirmation before delete.
@@ -303,6 +310,7 @@ https://ktm-ride-mvp.onrender.com/health
 - Profile display photos are synced to the Render backend; local cached copies are used only for speed and fallback.
 - No password reset yet.
 - No refresh-token flow yet.
+- The Angular web companion does not record rides in-browser; reliable ride tracking remains Android app-only.
 - No push notifications yet.
 - Auto tracking could later add a review screen for detected rides.
 - Crash reporting such as Sentry/Firebase Crashlytics is not installed yet.

@@ -1,0 +1,59 @@
+<main class="auth-page">
+  <a class="brand" routerLink="/">
+    <img src="/ridepulse-logo.png" alt="" />
+    <span>RidePulse</span>
+  </a>
+
+  <section class="auth-card">
+    <div class="copy">
+      <p class="eyebrow">WEB COMPANION</p>
+      <h1>{{ mode() === 'login' ? 'Welcome back to your roads.' : 'Create your rider profile.' }}</h1>
+      <p>
+        Sign in with the same RidePulse account used by the mobile app. Ride recording remains mobile-first for reliable
+        background GPS.
+      </p>
+    </div>
+
+    <div class="switcher" aria-label="Authentication mode">
+      <button type="button" [class.active]="mode() === 'login'" (click)="setMode('login')">Sign in</button>
+      <button type="button" [class.active]="mode() === 'register'" (click)="setMode('register')">Register</button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      @if (mode() === 'register') {
+        <label>
+          Name
+          <input formControlName="name" autocomplete="name" placeholder="Rider name" />
+        </label>
+      }
+      <label>
+        Email
+        <input formControlName="email" type="email" autocomplete="email" placeholder="rider@example.com" />
+      </label>
+      <label>
+        Password
+        <input formControlName="password" type="password" autocomplete="current-password" placeholder="8+ characters" />
+      </label>
+      @if (mode() === 'register') {
+        <label>
+          Motorcycle
+          <input formControlName="bikeModel" autocomplete="off" placeholder="Motorcycle" />
+        </label>
+      }
+
+      @if (error()) {
+        <p class="error">{{ error() }}</p>
+      }
+
+      <button class="submit" type="submit" [disabled]="loading()">
+        @if (loading()) {
+          <app-loading-pulse [compact]="true" [label]="mode() === 'login' ? 'Signing in' : 'Creating account'" />
+          {{ mode() === 'login' ? 'Signing in' : 'Creating account' }}
+        } @else {
+          <lucide-icon [name]="mode() === 'login' ? 'log-in' : 'sparkles'" size="18" />
+          {{ mode() === 'login' ? 'Sign in' : 'Create account' }}
+        }
+      </button>
+    </form>
+  </section>
+</main>

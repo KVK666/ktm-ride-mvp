@@ -1,0 +1,125 @@
+<main class="landing">
+  <section class="hero" id="top">
+    <app-hero-canvas class="hero-canvas" />
+    <div class="hero-vignette"></div>
+
+    <nav class="nav" aria-label="RidePulse">
+      <a class="brand" href="#top" aria-label="RidePulse home">
+        <img src="/ridepulse-logo.png" alt="" />
+        <span>RidePulse</span>
+      </a>
+      <div class="nav-links">
+        <a href="#journal">Journal</a>
+        <a href="#companion">Companion</a>
+        <a href="#download">Download</a>
+      </div>
+      <a class="nav-login" routerLink="/auth">
+        <lucide-icon name="log-in" size="17" />
+        Sign in
+      </a>
+    </nav>
+
+    <div class="hero-content">
+      <p class="eyebrow">RIDEPULSE WEB COMPANION</p>
+      <h1>Ride tracking with a journal that feels alive.</h1>
+      <p class="hero-copy">
+        Download the APK, sign in, revisit your roads, read your smart journal, and understand every month of riding
+        from the same RidePulse account.
+      </p>
+      <div class="hero-actions">
+        <a class="button primary" [href]="apkUrl" target="_blank" rel="noreferrer">
+          <lucide-icon name="download" size="19" />
+          Download app
+        </a>
+        <a class="button ghost" routerLink="/auth">
+          Open web companion
+          <lucide-icon name="arrow-right" size="19" />
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-phone" aria-label="RidePulse mobile preview">
+      <div class="phone-shell">
+        <div class="phone-header">
+          <span></span>
+          <small>REC</small>
+        </div>
+        <app-route-art />
+        <div class="phone-metrics">
+          <strong>82.4 km</strong>
+          <span>Latest escape</span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="story-band" id="journal">
+    <div class="section-copy reveal">
+      <p class="eyebrow">SMART JOURNAL</p>
+      <h2>The web view keeps the cinematic memory, minus the helmet hair.</h2>
+      <p>
+        Recent journeys, highlights, monthly recaps, pending reviews, and route artwork stay connected to the app riders
+        already use, with the same dark graphite and electric-lime RidePulse identity.
+      </p>
+    </div>
+    <div class="journal-stage reveal">
+      <svg viewBox="0 0 720 280" class="wide-route" aria-hidden="true">
+        <path d="M18 214 C128 92 216 242 332 138 S510 28 690 116" />
+        <path class="route-progress" d="M18 214 C128 92 216 242 332 138 S510 28 690 116" />
+      </svg>
+      <div class="journal-card primary-card">
+        <small>RIDEPULSE JOURNAL</small>
+        <h3>The road remembers.</h3>
+        <p>Route-led ride stories, smart badges, and memories that feel intentionally saved.</p>
+      </div>
+      <div class="journal-card stat-card">
+        <small>THIS MONTH</small>
+        <strong>+18%</strong>
+        <span>distance vs last month</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="experience" id="companion">
+    <div class="section-copy center reveal">
+      <p class="eyebrow">WEB COMPANION</p>
+      <h2>A calmer command center for every ride.</h2>
+      <p>
+        Motion, dark graphite surfaces, lime signal color, real ride history, and no pretend browser background
+        tracking. Ride recording stays on mobile where GPS reliability belongs.
+      </p>
+    </div>
+    <div class="feature-grid">
+      @for (panel of featurePanels; track panel.title) {
+        <article class="feature-card reveal">
+          <lucide-icon [name]="panel.icon" size="24" />
+          <p>{{ panel.kicker }}</p>
+          <h3>{{ panel.title }}</h3>
+          <span>{{ panel.body }}</span>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="download" id="download">
+    <div class="download-copy reveal">
+      <p class="eyebrow">ANDROID-FIRST</p>
+      <h2>Record rides in the mobile app. Review them here.</h2>
+      <p>
+        The APK remains the source of truth for background GPS, route tracking, app updates, photo imports, and safe
+        riding workflows. The website is the calm desk-side view of your RidePulse account.
+      </p>
+    </div>
+    <div class="download-actions reveal">
+      <a class="button primary" [href]="apkUrl" target="_blank" rel="noreferrer">
+        <lucide-icon name="download" size="19" />
+        Latest APK
+      </a>
+      <a class="button ghost" routerLink="/auth">
+        Sign in to companion
+        <lucide-icon name="arrow-right" size="19" />
+      </a>
+    </div>
+  </section>
+</main>

@@ -1,0 +1,152 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(200, 255, 90, 0.13), transparent 28%),
+    radial-gradient(circle at 82% 68%, rgba(103, 167, 255, 0.12), transparent 30%),
+    var(--background);
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 96px 20px 32px;
+}
+
+.brand {
+  position: fixed;
+  top: 22px;
+  left: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.brand img {
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+}
+
+.auth-card {
+  width: min(100%, 520px);
+  border: 1px solid rgba(245, 242, 234, 0.1);
+  border-radius: 32px;
+  background: rgba(17, 20, 25, 0.82);
+  box-shadow: 0 30px 110px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(22px);
+  padding: clamp(22px, 5vw, 34px);
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2.35rem, 8vw, 4rem);
+  line-height: 0.94;
+}
+
+.copy p:not(.eyebrow) {
+  margin-top: 16px;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 28px 0 18px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--background);
+}
+
+.switcher button,
+.submit {
+  min-height: 46px;
+  border: 0;
+  border-radius: 15px;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.switcher button {
+  color: var(--muted);
+  background: transparent;
+}
+
+.switcher .active {
+  color: var(--background);
+  background: var(--text);
+}
+
+form {
+  display: grid;
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 52px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(8, 10, 12, 0.82);
+  color: var(--text);
+  padding: 0 15px;
+  font: inherit;
+}
+
+input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(200, 255, 90, 0.14);
+}
+
+.error {
+  color: var(--danger);
+  background: rgba(255, 98, 107, 0.1);
+  border: 1px solid rgba(255, 98, 107, 0.18);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--on-accent);
+  background: var(--accent);
+  margin-top: 6px;
+}
+
+.submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

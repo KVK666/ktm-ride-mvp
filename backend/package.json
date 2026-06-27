@@ -12,7 +12,7 @@
     "rides:dedupe": "node scripts/removeDuplicateRides.js",
     "rides:dedupe:api": "node scripts/removeDuplicateRidesViaApi.js",
     "rides:dedupe:prompt": "powershell -ExecutionPolicy Bypass -File ./scripts/remove-duplicate-rides.ps1",
-    "test": "node tests/rideMath.test.js && node tests/journalIntelligence.test.js && node tests/profilePhotoValidation.test.js"
+    "test": "node tests/rideMath.test.js && node tests/journalIntelligence.test.js && node tests/profilePhotoValidation.test.js && node tests/rideAlbumPhotoValidation.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

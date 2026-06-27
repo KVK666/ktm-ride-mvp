@@ -18,7 +18,7 @@ const app = express();
 const port = process.env.PORT || 4000;
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+app.use(cors({ origin: corsOrigin() }));
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/health", (_req, res) => {
@@ -68,9 +68,41 @@ async function ensureAdditiveSchema() {
   await db.query("alter table users add column if not exists profile_photo_data bytea");
   await db.query("alter table users add column if not exists profile_photo_mime text");
   await db.query("alter table users add column if not exists profile_photo_updated_at timestamptz");
+  await db.query(`
+    create table if not exists ride_album_photos (
+      id uuid primary key default uuid_generate_v4(),
+      ride_id uuid not null references rides(id) on delete cascade,
+      user_id uuid not null references users(id) on delete cascade,
+      image_data bytea not null,
+      mime_type text not null,
+      file_name text,
+      created_at timestamptz not null default now(),
+      imported_at timestamptz not null default now(),
+      latitude numeric(10, 7),
+      longitude numeric(10, 7),
+      has_location boolean not null default false
+    )
+  `);
+  await db.query("create index if not exists ride_album_photos_ride_imported_idx on ride_album_photos(ride_id, imported_at desc)");
+  await db.query("create index if not exists ride_album_photos_user_idx on ride_album_photos(user_id, imported_at desc)");
 }
 
 start().catch((error) => {
   console.error("RidePulse backend failed to start", error);
   process.exit(1);
 });
+
+function corsOrigin() {
+  const value = process.env.CORS_ORIGIN || "*";
+  if (value === "*") {
+    return "*";
+  }
+  const allowed = value.split(",").map((origin) => origin.trim()).filter(Boolean);
+  return (origin, callback) => {
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error("Not allowed by CORS"));
+  };
+}

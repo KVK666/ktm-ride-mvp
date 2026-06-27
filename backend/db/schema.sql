@@ -58,9 +58,25 @@ create table if not exists ride_points (
 
 alter table ride_points add column if not exists accuracy_m numeric(8, 2);
 
+create table if not exists ride_album_photos (
+  id uuid primary key default uuid_generate_v4(),
+  ride_id uuid not null references rides(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  image_data bytea not null,
+  mime_type text not null,
+  file_name text,
+  created_at timestamptz not null default now(),
+  imported_at timestamptz not null default now(),
+  latitude numeric(10, 7),
+  longitude numeric(10, 7),
+  has_location boolean not null default false
+);
+
 create index if not exists rides_user_started_idx on rides(user_id, started_at desc);
 create index if not exists rides_user_reviewed_idx on rides(user_id, reviewed_at, started_at desc);
 create unique index if not exists rides_user_client_ride_idx
   on rides(user_id, client_ride_id)
   where client_ride_id is not null;
 create index if not exists ride_points_ride_time_idx on ride_points(ride_id, recorded_at asc);
+create index if not exists ride_album_photos_ride_imported_idx on ride_album_photos(ride_id, imported_at desc);
+create index if not exists ride_album_photos_user_idx on ride_album_photos(user_id, imported_at desc);

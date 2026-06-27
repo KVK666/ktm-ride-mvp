@@ -1,0 +1,81 @@
+import { ApplicationConfig, importProvidersFrom, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { provideRouter, withInMemoryScrolling, withViewTransitions } from '@angular/router';
+import {
+  Activity,
+  ArrowRight,
+  Bike,
+  Camera,
+  ChartColumnIncreasing,
+  CheckCircle,
+  CircleGauge,
+  Copy,
+  Download,
+  Expand,
+  FileText,
+  History,
+  House,
+  Image,
+  ImagePlus,
+  LogIn,
+  LogOut,
+  Map,
+  Navigation,
+  PlayCircle,
+  Radio,
+  Route,
+  Save,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  User,
+  X,
+  LucideAngularModule
+} from 'lucide-angular';
+
+import { routes } from './app.routes';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideRouter(
+      routes,
+      withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'enabled' }),
+      withViewTransitions()
+    ),
+    importProvidersFrom(
+      LucideAngularModule.pick({
+        Activity,
+        ArrowRight,
+        Bike,
+        Camera,
+        ChartColumnIncreasing,
+        CheckCircle,
+        CircleGauge,
+        Copy,
+        Download,
+        Expand,
+        FileText,
+        History,
+        House,
+        Image,
+        ImagePlus,
+        LogIn,
+        LogOut,
+        Map,
+        Navigation,
+        PlayCircle,
+        Radio,
+        Route,
+        Save,
+        Settings,
+        ShieldCheck,
+        Sparkles,
+        Trash2,
+        User
+        ,
+        X
+      })
+    )
+  ]
+};

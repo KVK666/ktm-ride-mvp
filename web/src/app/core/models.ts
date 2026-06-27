@@ -10,47 +10,6 @@ export type RidePoint = Coordinate & {
   recordedAt: string;
 };
 
-export type RidePhoto = Coordinate & {
-  id: string;
-  uri: string;
-  createdAt: string;
-  hasLocation: boolean;
-};
-
-export type RideAlbumPhoto = RidePhoto & {
-  originalUri?: string | null;
-  fileName?: string | null;
-  backendPhotoId?: string | null;
-  importedAt: string;
-};
-
-export type RideAlbum = {
-  rideId: string;
-  title?: string | null;
-  coverUri?: string | null;
-  photos: RideAlbumPhoto[];
-  updatedAt: string;
-};
-
-export type RideMemory = {
-  id: string;
-  type: "album" | "route" | "recap" | "review";
-  title: string;
-  subtitle: string;
-  rideId?: string;
-  coverUri?: string | null;
-  ride?: Ride | null;
-  photoCount?: number;
-};
-
-export type OnboardingSlide = {
-  id: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  icon: string;
-};
-
 export type User = {
   id: string;
   email: string;
@@ -102,6 +61,34 @@ export type DashboardStats = {
   longestRideDistanceM?: number;
 };
 
+export type JournalHighlight = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  rideId?: string;
+  icon?: string;
+};
+
+export type JournalResponse = {
+  generatedAt: string;
+  generatedFor?: string;
+  stats: DashboardStats;
+  latestRide?: Ride | null;
+  monthlyRecap: {
+    distanceM: number;
+    previousMonthDistanceM: number;
+    distanceDeltaPercent?: number | null;
+    rideCount: number;
+    bestRide?: Ride | null;
+  };
+  highlights: JournalHighlight[];
+  recentRides: Ride[];
+  unreviewedCount: number;
+  pendingReviewSuggestions?: { rideId: string; title: string; prompt: string }[];
+  memorySeeds?: { id: string; type: string; rideId?: string; title: string; subtitle: string }[];
+};
+
 export type RideChapter = {
   id: string;
   title: string;
@@ -131,40 +118,59 @@ export type RideIntelligence = {
   chapters: RideChapter[];
 };
 
-export type JournalHighlight = {
+export type RideAlbumPhoto = Coordinate & {
   id: string;
-  type: string;
-  title: string;
-  body: string;
   rideId?: string;
-  icon?: string;
+  fileName?: string | null;
+  mimeType: string;
+  imageBase64: string;
+  createdAt: string;
+  importedAt: string;
+  hasLocation: boolean;
 };
 
-export type JournalResponse = {
+export type DirectionStep = {
+  instruction: string;
+  distanceText: string;
+  durationText: string;
+  start: Coordinate;
+  end: Coordinate;
+};
+
+export type RouteDetails = {
+  coordinates: Coordinate[];
+  steps: DirectionStep[];
+  distanceText: string;
+  durationText: string;
+  distanceM: number;
+  durationS: number;
+};
+
+export type AnalyticsPoint = {
+  bucket: string;
+  distanceM: number;
+  rideCount: number;
+  durationS: number;
+  topSpeedKmh: number;
+  avgSpeedKmh?: number;
+};
+
+export type ReportResponse = {
+  period: string;
   generatedAt: string;
-  generatedFor?: string;
-  stats: DashboardStats;
-  latestRide?: Ride | null;
-  monthlyRecap: {
-    distanceM: number;
-    previousMonthDistanceM: number;
-    distanceDeltaPercent?: number | null;
+  summary: {
     rideCount: number;
-    bestRide?: Ride | null;
+    distanceM: number;
+    durationS: number;
+    averageSpeedKmh: number;
+    topSpeedKmh: number;
   };
-  highlights: JournalHighlight[];
-  recentRides: Ride[];
-  unreviewedCount: number;
-  pendingReviewSuggestions?: {
-    rideId: string;
-    title: string;
-    prompt: string;
-  }[];
-  memorySeeds?: {
-    id: string;
-    type: string;
-    rideId?: string;
-    title: string;
-    subtitle: string;
+  routes: {
+    from: string;
+    to: string;
+    distanceM: number;
+    durationS: number;
+    topSpeedKmh: number;
+    startedAt: string;
   }[];
 };

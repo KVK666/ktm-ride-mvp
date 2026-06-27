@@ -4,6 +4,7 @@ const { requireAuth } = require("../middleware/auth");
 const { summarizeRide } = require("../services/rideMath");
 const { attachRoutePreviews } = require("../services/routePreviews");
 const { buildRideIntelligence, decorateRides } = require("../services/journalIntelligence");
+const { normalizeRidePhotoPayload, photoResponse } = require("../services/rideAlbumPhotoValidation");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -133,6 +134,83 @@ router.get("/:id/duplicates", async (req, res, next) => {
     );
 
     return res.json({ duplicates: result.rows });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/:id/photos", async (req, res, next) => {
+  try {
+    const ride = await ownedRide(req.user.id, req.params.id);
+    if (!ride) {
+      return res.status(404).json({ error: "Ride not found" });
+    }
+
+    const result = await db.query(
+      `select id, ride_id, file_name, mime_type, image_data, created_at, imported_at,
+              latitude, longitude, has_location
+       from ride_album_photos
+       where ride_id = $1 and user_id = $2
+       order by imported_at desc, created_at desc`,
+      [req.params.id, req.user.id]
+    );
+
+    return res.json({ photos: result.rows.map((row) => photoResponse(row, true)) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/:id/photos", async (req, res, next) => {
+  try {
+    const ride = await ownedRide(req.user.id, req.params.id);
+    if (!ride) {
+      return res.status(404).json({ error: "Ride not found" });
+    }
+
+    const photo = normalizeRidePhotoPayload(req.body);
+    const result = await db.query(
+      `insert into ride_album_photos (
+         ride_id, user_id, image_data, mime_type, file_name,
+         created_at, imported_at, latitude, longitude, has_location
+       )
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       returning id, ride_id, file_name, mime_type, image_data, created_at, imported_at,
+                 latitude, longitude, has_location`,
+      [
+        req.params.id,
+        req.user.id,
+        photo.data,
+        photo.mimeType,
+        photo.fileName,
+        photo.createdAt,
+        photo.importedAt,
+        photo.latitude,
+        photo.longitude,
+        photo.hasLocation
+      ]
+    );
+
+    return res.status(201).json({ photo: photoResponse(result.rows[0], true) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.delete("/:id/photos/:photoId", async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `delete from ride_album_photos
+       where id = $1 and ride_id = $2 and user_id = $3
+       returning id`,
+      [req.params.photoId, req.params.id, req.user.id]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: "Ride photo not found" });
+    }
+
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }
@@ -375,6 +453,14 @@ function optionalNumber(value) {
 
 function isValidDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+async function ownedRide(userId, rideId) {
+  const result = await db.query(
+    "select id from rides where id = $1 and user_id = $2",
+    [rideId, userId]
+  );
+  return result.rows[0] || null;
 }
 
 module.exports = router;

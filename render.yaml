@@ -23,3 +23,19 @@ services:
         value: 30d
       - key: CORS_ORIGIN
         value: "*"
+  - type: web
+    runtime: static
+    name: ridepulse-web
+    buildCommand: cd web && npm ci && npm run build:render
+    staticPublishPath: web/dist/web/browser
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: WEB_API_BASE_URL
+        value: https://ktm-ride-mvp.onrender.com/api
+      - key: WEB_GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: WEB_APK_URL
+        value: https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest

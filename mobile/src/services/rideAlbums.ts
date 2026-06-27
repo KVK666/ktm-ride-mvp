@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
+import { api } from "../api/client";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import { importRidePhotos } from "./ridePhotos";
 import { JournalResponse, Ride, RideAlbum, RideAlbumPhoto, RideMemory, RidePhoto } from "../types";
@@ -10,6 +11,7 @@ import { km, shortDate } from "../utils/format";
 const ALBUM_KEY_PREFIX = "duke_ride_album:";
 const ALBUM_INDEX_KEY = "duke_ride_album_index_v1";
 const ALBUM_DIRECTORY = `${FileSystem.documentDirectory || ""}ride-albums/`;
+const MAX_SYNC_PHOTO_BYTES = 3 * 1024 * 1024;
 
 export async function getRideAlbum(rideId?: string | null): Promise<RideAlbum | null> {
   if (!rideId) {
@@ -80,7 +82,8 @@ export async function savePhotosToAlbum(
   const copied = await Promise.all(
     photos.map((photo, index) => copyPhotoToAlbum(ride.id, photo, source, index))
   );
-  const nextPhotos = dedupePhotos([...existingPhotos, ...copied.filter((photo): photo is RideAlbumPhoto => Boolean(photo))]);
+  const synced = await syncAlbumPhotosToBackend(ride.id, copied.filter((photo): photo is RideAlbumPhoto => Boolean(photo)));
+  const nextPhotos = dedupePhotos([...existingPhotos, ...synced]);
   const album = {
     rideId: ride.id,
     title: ride.smartTitle || ride.title || `${shortDate(ride.startedAt)} ride`,
@@ -98,6 +101,16 @@ export async function removeAlbumPhoto(rideId: string, photoId: string): Promise
   const photos = (album?.photos || []).filter((photo) => photo.id !== photoId);
   if (removed?.uri?.startsWith(FileSystem.documentDirectory || "")) {
     await FileSystem.deleteAsync(removed.uri, { idempotent: true }).catch(() => {});
+  }
+  if (removed?.backendPhotoId) {
+    await api(`/rides/${rideId}/photos/${removed.backendPhotoId}`, { method: "DELETE" }).catch((error) => {
+      logDiagnostic({
+        level: "warn",
+        area: "albums",
+        message: "Backend ride photo delete failed",
+        details: diagnosticDetails(error)
+      });
+    });
   }
   const nextAlbum = {
     rideId,
@@ -313,12 +326,58 @@ function normalizeAlbumPhoto(value: any): RideAlbumPhoto | null {
     uri,
     originalUri: typeof value?.originalUri === "string" ? value.originalUri : null,
     fileName: typeof value?.fileName === "string" ? value.fileName : null,
+    backendPhotoId: typeof value?.backendPhotoId === "string" ? value.backendPhotoId : null,
     createdAt: typeof value?.createdAt === "string" ? value.createdAt : new Date().toISOString(),
     importedAt: typeof value?.importedAt === "string" ? value.importedAt : new Date().toISOString(),
     latitude: finiteNumber(value?.latitude),
     longitude: finiteNumber(value?.longitude),
     hasLocation: Boolean(value?.hasLocation)
   };
+}
+
+async function syncAlbumPhotosToBackend(rideId: string, photos: RideAlbumPhoto[]) {
+  const synced: RideAlbumPhoto[] = [];
+  for (const photo of photos) {
+    synced.push(await syncAlbumPhotoToBackend(rideId, photo));
+  }
+  return synced;
+}
+
+async function syncAlbumPhotoToBackend(rideId: string, photo: RideAlbumPhoto): Promise<RideAlbumPhoto> {
+  try {
+    const mimeType = mimeTypeForUri(photo.uri);
+    if (!mimeType) {
+      return photo;
+    }
+    const info = await FileSystem.getInfoAsync(photo.uri);
+    if (!info.exists || Number(info.size || 0) > MAX_SYNC_PHOTO_BYTES) {
+      return photo;
+    }
+    const imageBase64 = await FileSystem.readAsStringAsync(photo.uri, { encoding: FileSystem.EncodingType.Base64 });
+    if (!imageBase64) {
+      return photo;
+    }
+    const response = await api<{ photo: { id: string } }>(`/rides/${rideId}/photos`, {
+      method: "POST",
+      body: JSON.stringify({
+        imageBase64,
+        mimeType,
+        fileName: photo.fileName,
+        createdAt: photo.createdAt,
+        latitude: photo.hasLocation ? photo.latitude : null,
+        longitude: photo.hasLocation ? photo.longitude : null
+      })
+    });
+    return { ...photo, backendPhotoId: response.photo?.id || photo.backendPhotoId || null };
+  } catch (error) {
+    await logDiagnostic({
+      level: "warn",
+      area: "albums",
+      message: "Ride album backend sync failed",
+      details: diagnosticDetails(error)
+    });
+    return photo;
+  }
 }
 
 function dedupePhotos(photos: RideAlbumPhoto[]) {
@@ -344,6 +403,14 @@ function albumKey(rideId: string) {
 function extensionForUri(uri: string) {
   const match = uri.split("?")[0].match(/\.(jpe?g|png|webp|heic)$/i);
   return match ? match[0].toLowerCase() : ".jpg";
+}
+
+function mimeTypeForUri(uri: string) {
+  const lower = uri.split("?")[0].toLowerCase();
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return null;
 }
 
 function readExifDate(exif?: Record<string, any> | null) {
