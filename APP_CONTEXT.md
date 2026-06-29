@@ -256,6 +256,7 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-27: Hardened the web Google Maps loader with the supported async callback flow and `gm_authFailure` handling so browser-key, referrer, billing, or API authorization failures show actionable RidePulse errors.
 - 2026-06-27: Fixed deployed web Google route maps for ride points returned as numeric strings by converting coordinates to numbers before constructing Google Maps paths and photo markers.
 - 2026-06-29: Added Render-backed forgot-password support. Mobile and web can request reset links, the Angular web companion exposes `/#/reset-password`, the backend stores only hashed one-time tokens with 30-minute expiry, and SMTP is configured through environment variables.
+- 2026-06-29: Published the forgot-password mobile UI through EAS Update on the `production` branch for runtime `0.1.0`. Update group `572d8d60-757d-4fff-9e8c-ff2a946f39e8` points at commit `c1b22af`.
 
 ## Testing Checklist
 
