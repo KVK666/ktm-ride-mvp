@@ -82,6 +82,18 @@ function ensurePasswordResetConfig(env = process.env) {
   return smtp;
 }
 
+function passwordResetConfigStatus(env = process.env) {
+  return {
+    resetUrl: Boolean(String(env.PASSWORD_RESET_URL_BASE || "").trim()),
+    smtpHost: Boolean(String(env.SMTP_HOST || "").trim()),
+    smtpPort: String(env.SMTP_PORT || "587"),
+    smtpSecure: String(env.SMTP_SECURE || "").toLowerCase() === "true" || String(env.SMTP_PORT || "") === "465",
+    smtpUser: Boolean(String(env.SMTP_USER || "").trim()),
+    smtpPass: Boolean(String(env.SMTP_PASS || "")),
+    smtpFrom: Boolean(String(env.SMTP_FROM || "").trim())
+  };
+}
+
 async function requestPasswordReset({
   db,
   email,
@@ -95,6 +107,9 @@ async function requestPasswordReset({
   const user = result.rows[0];
 
   if (!user) {
+    logger.info("Password reset requested for unknown account", {
+      emailDomain: emailDomain(cleanEmail)
+    });
     return { message: RESET_REQUEST_MESSAGE };
   }
 
@@ -125,9 +140,18 @@ async function requestPasswordReset({
       ].join("\n"),
       html: passwordResetEmailHtml(user.name || "Rider", link)
     });
+    logger.info("Password reset email accepted by SMTP", {
+      userId: user.id,
+      emailDomain: emailDomain(user.email)
+    });
   } catch (error) {
     logger.warn("Password reset email failed", {
       configured: true,
+      userId: user.id,
+      emailDomain: emailDomain(user.email),
+      code: error?.code,
+      command: error?.command,
+      responseCode: error?.responseCode,
       message: error instanceof Error ? error.message : "Unknown mail error"
     });
   }
@@ -190,6 +214,10 @@ function escapeHtml(value) {
   }[char]));
 }
 
+function emailDomain(email) {
+  return String(email || "").split("@")[1] || "unknown";
+}
+
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
@@ -208,6 +236,7 @@ module.exports = {
   completePasswordReset,
   ensurePasswordResetConfig,
   hashResetToken,
+  passwordResetConfigStatus,
   requestPasswordReset,
   resetUrl,
   validateResetPasswordInput

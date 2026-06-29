@@ -135,6 +135,8 @@ SMTP_FROM=RidePulse <sender-gmail-address>
 
 Use the deployed web URL for production, for example `https://ridepulse-web.onrender.com/#/reset-password`. Use a Gmail App Password, not the normal Gmail password. Do not commit SMTP credentials.
 
+The password-reset request always shows a generic success message so account emails cannot be discovered. If no email arrives, check `/health` for non-secret password-reset config booleans and Render logs for `Password reset email accepted by SMTP`, `Password reset email failed`, or `Password reset requested for unknown account`.
+
 Seed login:
 
 - Email: `rider@example.com`

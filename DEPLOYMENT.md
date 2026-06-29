@@ -124,6 +124,8 @@ SMTP_FROM=RidePulse <sender-gmail-address>
 
 The reset flow stores only hashed one-time tokens in Postgres. The Cloudflare Worker fallback does not send SMTP reset emails in this version; add HTTP email-provider support there first if the Worker becomes the active API again.
 
+The forgot-password UI always shows a generic success message, even when the account email does not exist. For troubleshooting, check `https://ktm-ride-mvp.onrender.com/health` for non-secret `config.passwordReset` booleans and Render logs for `Password reset email accepted by SMTP`, `Password reset email failed`, or `Password reset requested for unknown account`.
+
 Do not commit the Maps key. On Google Cloud, enable Maps JavaScript API and Directions API for this browser key, then restrict it by HTTP referrer to the Render Static Site domain with a wildcard path such as `https://ridepulse-web.onrender.com/*`, any custom web domain wildcard, and `http://localhost:4200/*` / `http://127.0.0.1:4200/*` only when local live-map testing is needed. Rebuild/redeploy `ridepulse-web` after changing `WEB_GOOGLE_MAPS_API_KEY`; existing static bundles do not pick up new env vars automatically.
 
 After Render provides the web URL, tighten backend `CORS_ORIGIN` from `*` to a comma-separated list such as:

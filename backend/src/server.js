@@ -13,6 +13,7 @@ const reportRoutes = require("./routes/reports");
 const journalRoutes = require("./routes/journal");
 const profileRoutes = require("./routes/profile");
 const homeRoutes = require("./routes/home");
+const { passwordResetConfigStatus } = require("./services/passwordReset");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -25,7 +26,10 @@ app.get("/health", (_req, res) => {
   res.json({
     ok: true,
     service: "ktm-ride-backend",
-    commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || "local"
+    commit: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || "local",
+    config: {
+      passwordReset: passwordResetConfigStatus()
+    }
   });
 });
 

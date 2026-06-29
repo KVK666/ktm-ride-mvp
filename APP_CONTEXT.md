@@ -259,6 +259,7 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-29: Published the forgot-password mobile UI through EAS Update on the `production` branch for runtime `0.1.0`. Update group `572d8d60-757d-4fff-9e8c-ff2a946f39e8` points at commit `c1b22af`.
 - 2026-06-29: Fixed locally built Android APK OTA checks by embedding the required `expo-channel-name: production` request header in native Expo Updates metadata. Without that header, EAS returned `"channel-name": Required` even with the correct update URL.
 - 2026-06-29: Documented Gmail SMTP/App Password configuration for Render password reset email and added non-secret Gmail defaults to `render.yaml`; `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` remain Render-managed secrets.
+- 2026-06-29: Added non-secret password-reset config status to `/health` and safer Render log messages for accepted SMTP sends, SMTP failures, and unknown-account reset requests.
 
 ## Testing Checklist
 
