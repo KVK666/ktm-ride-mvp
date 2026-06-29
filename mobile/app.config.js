@@ -69,6 +69,7 @@ module.exports = {
     },
     plugins: [
       "./plugins/withFullBleedAndroidIcon",
+      "./plugins/withExpoUpdatesChannel",
       "./plugins/withInstagramPackageQuery",
       "expo-font",
       [
