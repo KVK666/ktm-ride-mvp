@@ -7,25 +7,59 @@
   <section class="auth-card">
     <div class="copy">
       <p class="eyebrow">WEB COMPANION</p>
-      <h1>{{ mode() === 'login' ? 'Welcome back to your roads.' : 'Create your rider profile.' }}</h1>
+      <h1>{{ passwordResetOpen() ? 'Reset your password.' : mode() === 'login' ? 'Welcome back to your roads.' : 'Create your rider profile.' }}</h1>
       <p>
-        Sign in with the same RidePulse account used by the mobile app. Ride recording remains mobile-first for reliable
-        background GPS.
+        @if (passwordResetOpen()) {
+          Enter your account email and RidePulse will send a secure reset link.
+        } @else {
+          Sign in with the same RidePulse account used by the mobile app. Ride recording remains mobile-first for reliable
+          background GPS.
+        }
       </p>
     </div>
 
-    <div class="switcher" aria-label="Authentication mode">
-      <button type="button" [class.active]="mode() === 'login'" (click)="setMode('login')">Sign in</button>
-      <button type="button" [class.active]="mode() === 'register'" (click)="setMode('register')">Register</button>
-    </div>
+    @if (!passwordResetOpen()) {
+      <div class="switcher" aria-label="Authentication mode">
+        <button type="button" [class.active]="mode() === 'login'" (click)="setMode('login')">Sign in</button>
+        <button type="button" [class.active]="mode() === 'register'" (click)="setMode('register')">Register</button>
+      </div>
+    }
 
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      @if (mode() === 'register') {
+    @if (passwordResetOpen()) {
+      <form [formGroup]="form" (ngSubmit)="sendPasswordReset()">
         <label>
-          Name
-          <input formControlName="name" autocomplete="name" placeholder="Rider name" />
+          Email
+          <input formControlName="email" type="email" autocomplete="email" placeholder="rider@example.com" />
         </label>
-      }
+
+        @if (error()) {
+          <p class="error">{{ error() }}</p>
+        }
+
+        @if (message()) {
+          <p class="success">{{ message() }}</p>
+        }
+
+        <button class="submit" type="submit" [disabled]="loading()">
+          @if (loading()) {
+            <app-loading-pulse [compact]="true" label="Sending reset link" />
+            Sending reset link
+          } @else {
+            <lucide-icon name="mail" size="18" />
+            Send reset link
+          }
+        </button>
+
+        <button class="text-action" type="button" (click)="setMode('login')">Back to sign in</button>
+      </form>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        @if (mode() === 'register') {
+          <label>
+            Name
+            <input formControlName="name" autocomplete="name" placeholder="Rider name" />
+          </label>
+        }
       <label>
         Email
         <input formControlName="email" type="email" autocomplete="email" placeholder="rider@example.com" />
@@ -54,6 +88,11 @@
           {{ mode() === 'login' ? 'Sign in' : 'Create account' }}
         }
       </button>
-    </form>
+
+        @if (mode() === 'login') {
+          <button class="text-action" type="button" (click)="showPasswordReset()">Forgot password?</button>
+        }
+      </form>
+    }
   </section>
 </main>

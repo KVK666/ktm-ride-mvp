@@ -110,6 +110,20 @@ WEB_GOOGLE_MAPS_API_KEY=<browser-restricted-google-maps-js-key>
 WEB_APK_URL=https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest
 ```
 
+Set these Render environment variables on the `ktm-ride-api` Express service for password reset email:
+
+```text
+PASSWORD_RESET_URL_BASE=https://ridepulse-web.onrender.com/#/reset-password
+SMTP_HOST=<smtp-host>
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=<smtp-user>
+SMTP_PASS=<smtp-password>
+SMTP_FROM=RidePulse <no-reply@your-domain>
+```
+
+The reset flow stores only hashed one-time tokens in Postgres. The Cloudflare Worker fallback does not send SMTP reset emails in this version; add HTTP email-provider support there first if the Worker becomes the active API again.
+
 Do not commit the Maps key. On Google Cloud, enable Maps JavaScript API and Directions API for this browser key, then restrict it by HTTP referrer to the Render Static Site domain with a wildcard path such as `https://ridepulse-web.onrender.com/*`, any custom web domain wildcard, and `http://localhost:4200/*` / `http://127.0.0.1:4200/*` only when local live-map testing is needed. Rebuild/redeploy `ridepulse-web` after changing `WEB_GOOGLE_MAPS_API_KEY`; existing static bundles do not pick up new env vars automatically.
 
 After Render provides the web URL, tighten backend `CORS_ORIGIN` from `*` to a comma-separated list such as:
@@ -160,6 +174,7 @@ npm run android:install:release
 3. Confirm Dashboard loads.
 4. Start and stop a short walking test ride.
 5. Confirm the ride appears in Dashboard, History, Ride Detail, Analytics, and Reports.
-6. Export diagnostics if any request fails.
+6. Request a password reset from web or mobile, open the email link, set a new password, then confirm the old password fails and the new password logs in.
+7. Export diagnostics if any request fails.
 
 Do not interact with the phone while riding.

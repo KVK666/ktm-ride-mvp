@@ -136,6 +136,14 @@ input:focus {
   padding: 12px;
 }
 
+.success {
+  color: var(--success);
+  background: rgba(85, 214, 165, 0.1);
+  border: 1px solid rgba(85, 214, 165, 0.2);
+  border-radius: 16px;
+  padding: 12px;
+}
+
 .submit {
   display: inline-flex;
   align-items: center;
@@ -149,4 +157,22 @@ input:focus {
 .submit:disabled {
   opacity: 0.65;
   cursor: wait;
+}
+
+.text-action {
+  min-height: 34px;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.text-action.as-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }

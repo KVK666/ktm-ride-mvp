@@ -69,6 +69,18 @@ async function ensureAdditiveSchema() {
   await db.query("alter table users add column if not exists profile_photo_mime text");
   await db.query("alter table users add column if not exists profile_photo_updated_at timestamptz");
   await db.query(`
+    create table if not exists password_reset_tokens (
+      id uuid primary key default uuid_generate_v4(),
+      user_id uuid not null references users(id) on delete cascade,
+      token_hash text not null unique,
+      expires_at timestamptz not null,
+      used_at timestamptz,
+      created_at timestamptz not null default now()
+    )
+  `);
+  await db.query("create index if not exists password_reset_tokens_user_idx on password_reset_tokens(user_id, created_at desc)");
+  await db.query("create index if not exists password_reset_tokens_expires_idx on password_reset_tokens(expires_at)");
+  await db.query(`
     create table if not exists ride_album_photos (
       id uuid primary key default uuid_generate_v4(),
       ride_id uuid not null references rides(id) on delete cascade,

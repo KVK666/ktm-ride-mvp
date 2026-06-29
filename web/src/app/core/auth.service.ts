@@ -52,6 +52,20 @@ export class AuthService {
     this.saveSession(response);
   }
 
+  async requestPasswordReset(email: string) {
+    return this.rawRequest<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+
+  async resetPassword(token: string, password: string) {
+    return this.rawRequest<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password })
+    });
+  }
+
   logout() {
     this.clearSession();
   }

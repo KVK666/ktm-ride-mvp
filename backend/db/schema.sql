@@ -40,6 +40,15 @@ alter table users add column if not exists profile_photo_data bytea;
 alter table users add column if not exists profile_photo_mime text;
 alter table users add column if not exists profile_photo_updated_at timestamptz;
 
+create table if not exists password_reset_tokens (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references users(id) on delete cascade,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 alter table rides add column if not exists client_ride_id text;
 alter table rides add column if not exists title text;
 alter table rides add column if not exists notes text;
@@ -80,3 +89,5 @@ create unique index if not exists rides_user_client_ride_idx
 create index if not exists ride_points_ride_time_idx on ride_points(ride_id, recorded_at asc);
 create index if not exists ride_album_photos_ride_imported_idx on ride_album_photos(ride_id, imported_at desc);
 create index if not exists ride_album_photos_user_idx on ride_album_photos(user_id, imported_at desc);
+create index if not exists password_reset_tokens_user_idx on password_reset_tokens(user_id, created_at desc);
+create index if not exists password_reset_tokens_expires_idx on password_reset_tokens(expires_at);

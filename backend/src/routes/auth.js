@@ -3,6 +3,10 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 const { requireAuth } = require("../middleware/auth");
+const {
+  completePasswordReset,
+  requestPasswordReset
+} = require("../services/passwordReset");
 const { photoMetadata } = require("../services/profilePhotoValidation");
 
 const router = express.Router();
@@ -77,6 +81,40 @@ router.post("/login", async (req, res, next) => {
     }
 
     return res.json({ token: signToken(user), user: safeUser(user) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/forgot-password", async (req, res, next) => {
+  try {
+    const result = await requestPasswordReset({
+      db,
+      email: req.body?.email
+    });
+    return res.json(result);
+  } catch (error) {
+    if (error.configMessage) {
+      console.warn("Password reset configuration issue", {
+        message: error.configMessage,
+        smtpHost: Boolean(process.env.SMTP_HOST),
+        smtpFrom: Boolean(process.env.SMTP_FROM),
+        resetUrl: Boolean(process.env.PASSWORD_RESET_URL_BASE)
+      });
+    }
+    return next(error);
+  }
+});
+
+router.post("/reset-password", async (req, res, next) => {
+  try {
+    const result = await completePasswordReset({
+      db,
+      token: req.body?.token,
+      password: req.body?.password,
+      hashPassword: (password) => bcrypt.hash(password, 12)
+    });
+    return res.json(result);
   } catch (error) {
     return next(error);
   }

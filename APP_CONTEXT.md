@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-06-27
+Last updated: 2026-06-29
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -17,7 +17,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Backend hosting: Render Starter in Singapore, backed by Neon PostgreSQL.
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
-- Authentication: Email/password with JWT.
+- Authentication: Email/password with JWT and Render-backed email password reset.
 - Main repo branch: `ktm-ride-mvp`.
 - GitHub repo: `https://github.com/KVK666/ktm-ride-mvp`.
 - Downloadable Android APK: `releases/RidePulse-latest.apk` in the GitHub repo when refreshed, though legacy asset names may still exist during migration.
@@ -34,6 +34,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 ## What The App Does Now
 
 - Lets a rider register and log in with email/password.
+- Lets a rider request a password reset from mobile or web; email links open the web reset page and update the password through the Render Express API.
 - Shows the logged-in rider name on the dashboard.
 - Shows a More area with Profile, Analytics, and Reports destinations.
 - Shows a Profile tab with backend-synced display photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
@@ -76,6 +77,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - OTA updates are enabled for JavaScript and bundled assets through EAS Update. Native changes such as app icon, permissions, package ID, native dependencies, Google Maps setup, or Android manifest changes still require installing a new APK.
 - Adds an Angular web companion in `web/` using the same graphite/OLED and electric-lime identity. The public site has a Three.js animated route hero, premium product sections, APK download CTA, and sign-in entry; the protected companion supports login/register, Home, Journal, Navigate, rich Ride Detail, You, Analytics, Reports, Profile photo management, synced ride albums, fixed sidebar/topbar navigation, and branded RidePulse loading states. Web builds use the live Render API by default to avoid failed localhost probes in browser Network output.
 - Web ride recording is intentionally out of scope; the website directs riders to the Android app for GPS/background tracking, ride recovery, auto tracking, and OTA update workflows. Web foreground geolocation is used only for route planning.
+- Password reset uses the Render Express API plus SMTP environment variables. The Cloudflare Worker fallback does not have password-reset email parity in this version.
 
 ## Automatic Ride Tracking
 
@@ -115,6 +117,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/components/JournalHero.tsx`, `SmartHighlight.tsx`, `RideBadge.tsx`, `RouteReplay.tsx`, `ChapterTimeline.tsx`, `PremiumEmptyState.tsx`, and `InlineSkeleton.tsx`: Smart Journal V2 primitives.
 - `mobile/src/components/MemoryCard.tsx`, `RideSlideshowModal.tsx`, and `OnboardingScreen.tsx`: local memories, album slideshow, and first-install walkthrough UI.
 - `backend/src/services/routePreviews.js`: bounded route-preview loader used by the Express fallback API.
+- `backend/src/services/passwordReset.js`: hashed one-time reset token creation, SMTP reset email delivery, and password update validation for the Render Express API.
 - `backend/src/services/journalIntelligence.js`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
 - `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
 - `mobile/src/services/onboarding.ts`: walkthrough completion storage.
@@ -252,10 +255,12 @@ https://ktm-ride-mvp.onrender.com/health
 - 2026-06-27: Switched the Angular web companion to hash routing so authenticated pages like `/#/app/home` and `/#/app/journal` survive browser refreshes even on static hosts that do not rewrite deep links correctly.
 - 2026-06-27: Hardened the web Google Maps loader with the supported async callback flow and `gm_authFailure` handling so browser-key, referrer, billing, or API authorization failures show actionable RidePulse errors.
 - 2026-06-27: Fixed deployed web Google route maps for ride points returned as numeric strings by converting coordinates to numbers before constructing Google Maps paths and photo markers.
+- 2026-06-29: Added Render-backed forgot-password support. Mobile and web can request reset links, the Angular web companion exposes `/#/reset-password`, the backend stores only hashed one-time tokens with 30-minute expiry, and SMTP is configured through environment variables.
 
 ## Testing Checklist
 
 - Login with a real account.
+- Request password reset from mobile and web; confirm the email link opens `/#/reset-password`, rejects bad/expired tokens, updates the password, and requires signing in with the new password.
 - Register a new rider and confirm empty form fields.
 - Confirm dashboard says `Hi, <name>`.
 - Confirm Profile shows account details and can add/change/remove the backend-synced display photo.
@@ -312,7 +317,7 @@ https://ktm-ride-mvp.onrender.com/health
 - True Google Maps trip import is not implemented; the app only tracks rides through RidePulse.
 - Imported ride photos are currently scanned/displayed from the local phone library and are not uploaded to the backend.
 - Profile display photos are synced to the Render backend; local cached copies are used only for speed and fallback.
-- No password reset yet.
+- Cloudflare Worker password-reset email parity is not implemented; Render Express is the active reset-capable API.
 - No refresh-token flow yet.
 - The Angular web companion does not record rides in-browser; reliable ride tracking remains Android app-only.
 - No push notifications yet.

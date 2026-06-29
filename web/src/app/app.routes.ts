@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth.guard';
 import { AuthPageComponent } from './features/auth-page/auth-page.component';
+import { ResetPasswordPageComponent } from './features/auth-page/reset-password-page.component';
 import { AnalyticsPageComponent } from './features/companion/analytics-page.component';
 import { CompanionShellComponent } from './features/companion/companion-shell.component';
 import { HomePageComponent } from './features/companion/home-page.component';
@@ -15,6 +16,7 @@ import { LandingPageComponent } from './features/landing/landing-page.component'
 export const routes: Routes = [
   { path: '', component: LandingPageComponent, title: 'RidePulse | Smart ride journal' },
   { path: 'auth', component: AuthPageComponent, title: 'RidePulse sign in' },
+  { path: 'reset-password', component: ResetPasswordPageComponent, title: 'Reset RidePulse password' },
   {
     path: 'app',
     component: CompanionShellComponent,

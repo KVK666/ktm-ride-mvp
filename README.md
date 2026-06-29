@@ -35,7 +35,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 
 ## MVP Features
 
-- Email/password authentication with JWT.
+- Email/password authentication with JWT and secure email-based password reset on the Render Express API.
 - Google Maps route lookup with Geocoding API and Directions API.
 - Safety confirmation before navigation: "Set your destination before riding. Do not interact with the phone while riding."
 - Start Ride / Stop Ride tracking with foreground and background location support.
@@ -121,6 +121,20 @@ npm run dev
 
 The API runs at `http://localhost:4000`.
 
+For password reset email in local or Render environments, configure SMTP on the Express backend:
+
+```text
+PASSWORD_RESET_URL_BASE=http://localhost:4200/#/reset-password
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+SMTP_FROM=RidePulse <no-reply@example.com>
+```
+
+Use the deployed web URL for production, for example `https://ridepulse-web.onrender.com/#/reset-password`. Do not commit SMTP credentials.
+
 Seed login:
 
 - Email: `rider@example.com`
@@ -204,6 +218,7 @@ and publishes `web/dist/web/browser` with an SPA rewrite to `/index.html`.
 The schema is in `backend/db/schema.sql` and includes:
 
 - `users`: account, password hash, rider name, bike model.
+- `password_reset_tokens`: one-time hashed reset tokens with expiry and usage tracking.
 - `rides`: summary stats and start/end coordinates.
 - `ride_points`: normalized GPS points for route rendering and speed-over-time analysis.
 - `ride_album_photos`: backend-synced ride album copies for web/mobile companion display.
@@ -212,6 +227,8 @@ The schema is in `backend/db/schema.sql` and includes:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
 - `GET /api/auth/me`
 - `GET /api/dashboard`
 - `POST /api/rides`
@@ -244,6 +261,6 @@ When shipping meaningful UX, branding, deployment, or behavior changes, update [
 
 - Add turn instruction progression based on GPS proximity.
 - Add offline ride queueing when the network is unavailable.
-- Add refresh tokens and password reset.
+- Add refresh tokens.
 - Add E2E tests on a real Android device for background tracking.
 - Add Firebase Crashlytics or Sentry for field reliability.
