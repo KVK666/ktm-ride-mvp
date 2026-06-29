@@ -110,16 +110,16 @@ WEB_GOOGLE_MAPS_API_KEY=<browser-restricted-google-maps-js-key>
 WEB_APK_URL=https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest
 ```
 
-Set these Render environment variables on the `ktm-ride-api` Express service for password reset email:
+Set these Render environment variables on the `ktm-ride-api` Express service for password reset email. For Gmail, use a Google App Password, not the normal Gmail account password:
 
 ```text
 PASSWORD_RESET_URL_BASE=https://ridepulse-web.onrender.com/#/reset-password
-SMTP_HOST=<smtp-host>
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=<smtp-user>
-SMTP_PASS=<smtp-password>
-SMTP_FROM=RidePulse <no-reply@your-domain>
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=<sender-gmail-address>
+SMTP_PASS=<gmail-app-password>
+SMTP_FROM=RidePulse <sender-gmail-address>
 ```
 
 The reset flow stores only hashed one-time tokens in Postgres. The Cloudflare Worker fallback does not send SMTP reset emails in this version; add HTTP email-provider support there first if the Worker becomes the active API again.

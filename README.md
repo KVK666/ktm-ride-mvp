@@ -125,15 +125,15 @@ For password reset email in local or Render environments, configure SMTP on the 
 
 ```text
 PASSWORD_RESET_URL_BASE=http://localhost:4200/#/reset-password
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-smtp-user
-SMTP_PASS=your-smtp-password
-SMTP_FROM=RidePulse <no-reply@example.com>
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=sender-gmail-address
+SMTP_PASS=gmail-app-password
+SMTP_FROM=RidePulse <sender-gmail-address>
 ```
 
-Use the deployed web URL for production, for example `https://ridepulse-web.onrender.com/#/reset-password`. Do not commit SMTP credentials.
+Use the deployed web URL for production, for example `https://ridepulse-web.onrender.com/#/reset-password`. Use a Gmail App Password, not the normal Gmail password. Do not commit SMTP credentials.
 
 Seed login:
 
