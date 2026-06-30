@@ -6,6 +6,7 @@
 
 .landing {
   overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .hero {
@@ -150,6 +151,7 @@ h1 {
   padding: 0 22px;
   border-radius: 999px;
   font-weight: 900;
+  max-width: 100%;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
@@ -435,6 +437,7 @@ h1 {
     min-height: auto;
     padding-top: 16px;
     padding-bottom: 48px;
+    align-items: start;
   }
 
   .story-band {
@@ -447,11 +450,11 @@ h1 {
   }
 
   .hero-phone {
-    width: min(100%, 320px);
+    width: min(100%, 300px);
   }
 
   .phone-shell {
-    min-height: 480px;
+    min-height: 430px;
   }
 
   .feature-grid {
@@ -464,22 +467,96 @@ h1 {
 }
 
 @media (max-width: 680px) {
+  .hero,
+  .story-band,
+  .experience,
+  .download {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .hero {
+    gap: 22px;
+    padding-top: 12px;
+    padding-bottom: 42px;
+  }
+
+  .nav {
+    top: 12px;
+    min-height: 58px;
+    gap: 10px;
+    padding: 8px 8px 8px 10px;
+    border-radius: 22px;
+  }
+
   .nav-links {
     display: none;
   }
 
   .nav-login {
+    min-height: 40px;
     padding: 0 12px;
     font-size: 0.84rem;
   }
 
   h1 {
-    font-size: clamp(3.05rem, 17vw, 5.4rem);
+    font-size: clamp(2.45rem, 13vw, 3.7rem);
+    line-height: 0.98;
   }
 
-  .hero {
-    padding-left: 18px;
-    padding-right: 18px;
+  .hero-copy {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .hero-actions,
+  .download-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .button {
+    width: 100%;
+    min-height: 50px;
+    padding: 0 16px;
+  }
+
+  .hero-phone {
+    display: block;
+    width: min(100%, 270px);
+    justify-self: start;
+    padding-top: 0;
+  }
+
+  .phone-shell {
+    min-height: 330px;
+    border-radius: 34px;
+    grid-template-rows: auto minmax(150px, 1fr) auto;
+  }
+
+  .phone-shell app-route-art {
+    min-height: 170px;
+  }
+
+  .phone-metrics {
+    border-radius: 20px;
+    padding: 16px;
+  }
+
+  .phone-metrics strong {
+    font-size: 1.55rem;
+  }
+
+  .section-copy h2,
+  .download-copy h2 {
+    font-size: clamp(2rem, 11vw, 3.05rem);
+    line-height: 0.98;
+  }
+
+  .section-copy p:not(.eyebrow),
+  .download-copy p:not(.eyebrow) {
+    font-size: 1rem;
+    line-height: 1.62;
   }
 
   .feature-grid {
@@ -487,27 +564,82 @@ h1 {
   }
 
   .feature-card {
-    min-height: 240px;
+    min-height: auto;
+    border-radius: 22px;
+    padding: 20px;
+  }
+
+  .feature-card p {
+    margin-top: 42px;
   }
 
   .journal-stage {
-    min-height: 520px;
+    min-height: auto;
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 26px;
+  }
+
+  .wide-route {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 180px;
+  }
+
+  .journal-card {
+    position: static;
+    max-width: none;
+    border-radius: 22px;
+    padding: 18px;
   }
 
   .stat-card {
-    left: 28px;
-    right: auto;
-    top: 26px;
+    order: 1;
   }
 
   .primary-card {
-    right: 28px;
+    order: 2;
+  }
+
+  .primary-card h3 {
+    font-size: 1.65rem;
+  }
+
+  .stat-card strong {
+    font-size: 2.15rem;
+  }
+
+  .download {
+    min-height: auto;
+    gap: 18px;
   }
 }
 
-@media (max-width: 780px) {
-  .hero-phone {
+@media (max-width: 380px) {
+  .hero,
+  .story-band,
+  .experience,
+  .download {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .brand span {
     display: none;
+  }
+
+  .nav-login {
+    padding: 0 10px;
+  }
+
+  h1 {
+    font-size: clamp(2.25rem, 13vw, 3rem);
+  }
+
+  .hero-phone {
+    width: 100%;
   }
 }
 

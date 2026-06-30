@@ -78,6 +78,12 @@ select {
     var(--background);
 }
 
+.mobile-shell-bar,
+.mobile-menu-toggle,
+.menu-backdrop {
+  display: none;
+}
+
 .sidebar {
   height: 100dvh;
   min-height: 0;
@@ -198,6 +204,17 @@ select {
   text-decoration: none;
 }
 
+.mobile-menu-toggle {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(245, 242, 234, 0.12);
+  border-radius: 16px;
+  place-items: center;
+  color: var(--text);
+  background: var(--surface-high);
+  cursor: pointer;
+}
+
 .app-main {
   width: min(100%, 1360px);
   height: 100dvh;
@@ -237,6 +254,10 @@ select {
   margin: 0;
 }
 
+.app-topbar > div:first-child {
+  min-width: 0;
+}
+
 .app-topbar p {
   color: var(--muted);
   font-weight: 800;
@@ -245,6 +266,7 @@ select {
 .app-topbar h1 {
   font-size: clamp(1.5rem, 3vw, 2.4rem);
   line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .download-pill {
@@ -502,6 +524,7 @@ select {
   font-weight: 900;
   cursor: pointer;
   text-decoration: none;
+  max-width: 100%;
 }
 
 .primary-action {
@@ -877,6 +900,7 @@ select {
   margin-top: 24px;
   border-radius: 30px;
   padding: 22px;
+  overflow-x: auto;
 }
 
 .chart-card h3 {
@@ -980,34 +1004,75 @@ select {
     grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .sidebar {
+  .mobile-shell-bar {
     position: sticky;
-    z-index: 10;
-    bottom: auto;
-    height: auto;
-    min-height: 0;
-    padding: 12px;
-    border-right: 0;
+    top: 0;
+    z-index: 45;
+    min-height: 68px;
+    padding: 12px clamp(14px, 4vw, 24px);
     border-bottom: 1px solid rgba(245, 242, 234, 0.08);
-    flex-direction: row;
+    display: flex;
     align-items: center;
-    overflow-x: auto;
-    scrollbar-width: thin;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(8, 10, 12, 0.92);
+    backdrop-filter: blur(18px);
+  }
+
+  .mobile-shell-bar .shell-brand {
+    padding: 0;
+  }
+
+  .mobile-menu-toggle {
+    display: grid;
+    flex: 0 0 auto;
+  }
+
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    display: block;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.58);
+    cursor: pointer;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(86vw, 340px);
+    height: 100dvh;
+    min-height: 0;
+    padding: 22px 16px;
+    border-right: 1px solid rgba(245, 242, 234, 0.08);
+    border-bottom: 0;
+    flex-direction: column;
+    align-items: stretch;
+    overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform 180ms ease;
+  }
+
+  .app-shell.menu-open .sidebar {
+    transform: translateX(0);
   }
 
   .sidebar nav {
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    overflow-x: auto;
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    overflow: visible;
   }
 
   .logout {
-    margin-left: auto;
+    margin-left: 0;
     margin-top: 0;
   }
 
   .sidebar-user {
-    display: none;
+    display: inline-flex;
   }
 
   .app-main {
@@ -1015,6 +1080,7 @@ select {
     height: auto;
     min-height: 0;
     overflow-y: auto;
+    padding-top: 20px;
   }
 
   .page-grid,
@@ -1033,12 +1099,21 @@ select {
 
 @media (max-width: 680px) {
   .app-main {
-    padding: 18px 14px 42px;
+    padding: 16px 12px max(34px, env(safe-area-inset-bottom));
   }
 
   .app-topbar {
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 12px;
+    min-height: auto;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+  }
+
+  .app-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .download-pill {
@@ -1048,14 +1123,13 @@ select {
     justify-content: center;
   }
 
-  .shell-brand span,
-  .logout {
+  .mobile-shell-bar .shell-brand span {
     display: none;
   }
 
   .sidebar nav a {
-    font-size: 0.82rem;
-    padding: 0 10px;
+    font-size: 0.95rem;
+    padding: 0 12px;
   }
 
   .metric-grid,
@@ -1067,35 +1141,131 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .content-section {
+    margin-top: 22px;
+  }
+
   .hero-card,
   .detail-hero {
     min-height: auto;
   }
 
-  .hero-card {
-    border-radius: 26px;
+  .hero-card,
+  .detail-hero,
+  .profile-card,
+  .chart-card,
+  .map-section,
+  .review-panel,
+  .route-replay,
+  .danger-card,
+  .search-panel {
+    border-radius: 22px;
+    padding: 18px;
   }
 
   .page-title h2,
   .hero-card h2,
   .detail-hero h2,
   .profile-card h2 {
-    font-size: clamp(2rem, 13vw, 3.4rem);
+    font-size: clamp(2rem, 11vw, 3.05rem);
+    line-height: 0.98;
   }
 
   .section-head {
     align-items: flex-start;
     flex-direction: column;
+    gap: 8px;
+  }
+
+  .section-head h2 {
+    font-size: clamp(1.35rem, 8vw, 1.9rem);
+  }
+
+  .metric-card {
+    min-height: 118px;
+  }
+
+  .metric-card strong {
+    font-size: clamp(1.55rem, 10vw, 2.15rem);
   }
 
   .ride-row {
     align-items: flex-start;
     flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .filter-bar button {
+    flex: 1 1 auto;
+    padding: 0 12px;
+  }
+
+  .button-row > .primary-action,
+  .button-row > .secondary-action,
+  .button-row > .delete-ride-button,
+  .button-row > .file-action {
+    flex: 1 1 150px;
+  }
+
+  .profile-card.secondary {
+    min-height: auto;
+  }
+
+  .avatar {
+    width: 94px;
+    height: 94px;
+    border-radius: 28px;
+  }
+
+  .route-preview,
+  .detail-art {
+    min-height: 190px;
+  }
+
+  app-google-route-map .map-shell {
+    min-height: 280px;
+  }
+
+  .photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .media-modal {
+    padding: 14px;
+  }
+
+  .media-modal.slideshow img {
+    min-width: calc(100vw - 36px);
   }
 
   .bars {
     overflow-x: auto;
     grid-auto-columns: 38px;
+    min-width: 460px;
+    height: 260px;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-main {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .mobile-shell-bar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .primary-action,
+  .secondary-action,
+  .delete-ride-button {
+    width: 100%;
   }
 }
 

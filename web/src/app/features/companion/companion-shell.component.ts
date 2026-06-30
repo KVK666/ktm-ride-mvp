@@ -1,5 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '../../core/auth.service';
 import { ProfilePhotoService } from '../../core/profile-photo.service';
@@ -9,21 +10,42 @@ import { ProfilePhotoService } from '../../core/profile-photo.service';
   standalone: true,
   imports: [LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet],
   template: `
-    <div class="app-shell">
-      <aside class="sidebar">
-        <a class="shell-brand" routerLink="/app/home">
+    <div class="app-shell" [class.menu-open]="mobileMenuOpen()">
+      <header class="mobile-shell-bar">
+        <a class="shell-brand" routerLink="/app/home" (click)="closeMobileMenu()">
+          <img src="/ridepulse-logo.png" alt="" />
+          <span>RidePulse</span>
+        </a>
+        <button
+          type="button"
+          class="mobile-menu-toggle"
+          aria-controls="companion-menu"
+          [attr.aria-expanded]="mobileMenuOpen()"
+          [attr.aria-label]="mobileMenuOpen() ? 'Close companion menu' : 'Open companion menu'"
+          (click)="toggleMobileMenu()"
+        >
+          <lucide-icon [name]="mobileMenuOpen() ? 'x' : 'menu'" size="22" />
+        </button>
+      </header>
+
+      @if (mobileMenuOpen()) {
+        <button type="button" class="menu-backdrop" aria-label="Close companion menu" (click)="closeMobileMenu()"></button>
+      }
+
+      <aside class="sidebar" id="companion-menu">
+        <a class="shell-brand" routerLink="/app/home" (click)="closeMobileMenu()">
           <img src="/ridepulse-logo.png" alt="" />
           <span>RidePulse</span>
         </a>
         <nav aria-label="Companion">
           @for (item of nav; track item.path) {
-            <a [routerLink]="item.path" routerLinkActive="active">
+            <a [routerLink]="item.path" routerLinkActive="active" (click)="closeMobileMenu()">
               <lucide-icon [name]="item.icon" size="18" />
-              {{ item.label }}
+              <span class="nav-label">{{ item.label }}</span>
             </a>
           }
         </nav>
-        <a class="sidebar-user" routerLink="/app/profile">
+        <a class="sidebar-user" routerLink="/app/profile" (click)="closeMobileMenu()">
           <span class="shell-avatar">
             @if (photo.photoUrl()) {
               <img [src]="photo.photoUrl()" alt="" />
@@ -71,6 +93,8 @@ export class CompanionShellComponent implements OnInit {
   readonly auth = inject(AuthService);
   readonly photo = inject(ProfilePhotoService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  readonly mobileMenuOpen = signal(false);
   readonly greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
   readonly nav = [
     { path: '/app/home', label: 'Home', icon: 'house' },
@@ -93,9 +117,23 @@ export class CompanionShellComponent implements OnInit {
 
   ngOnInit() {
     void this.photo.load();
+    this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
+      if (event instanceof NavigationEnd) {
+        this.closeMobileMenu();
+      }
+    });
+  }
+
+  toggleMobileMenu() {
+    this.mobileMenuOpen.update((open) => !open);
+  }
+
+  closeMobileMenu() {
+    this.mobileMenuOpen.set(false);
   }
 
   async logout() {
+    this.closeMobileMenu();
     this.auth.logout();
     this.photo.clear();
     await this.router.navigate(['/']);
