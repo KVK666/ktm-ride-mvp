@@ -17,6 +17,11 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
   private static final String REQUEST_ID_HEADER = "X-Request-Id";
 
   @Override
+  protected boolean shouldNotFilter(HttpServletRequest request) {
+    return "/health".equals(request.getRequestURI());
+  }
+
+  @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     String requestId = requestId(request);
