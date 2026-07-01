@@ -38,17 +38,13 @@ services:
       - key: SMTP_FROM
         sync: false
   - type: web
-    runtime: java
+    runtime: docker
     name: ktm-ride-api-java
     rootDir: backend-java
     plan: starter
     region: singapore
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/ridepulse-api-java-0.1.0.jar
     healthCheckPath: /health
     envVars:
-      - key: JAVA_VERSION
-        value: 17
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_SSL

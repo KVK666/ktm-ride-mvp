@@ -46,14 +46,12 @@ Use this as a separate Render service first. Do not replace `ktm-ride-api` until
 ```yaml
 services:
   - type: web
-    runtime: java
+    runtime: docker
     name: ktm-ride-api-java
     rootDir: backend-java
     plan: starter
     region: singapore
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/ridepulse-api-java-0.1.0.jar
     healthCheckPath: /health
 ```
 
-Copy the same environment variables from the Node Render service, especially `DATABASE_URL`, `DATABASE_SSL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGIN`, `PASSWORD_RESET_URL_BASE`, and SMTP variables.
+Java is deployed through Render's Docker runtime. Copy the same environment variables from the Node Render service, especially `DATABASE_URL`, `DATABASE_SSL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGIN`, `PASSWORD_RESET_URL_BASE`, and SMTP variables.
