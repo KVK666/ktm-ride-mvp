@@ -209,7 +209,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 
 ## Latest Fix Notes
 
-- 2026-07-02: Hotfixed mobile and web clients to unwrap the Java API standard response wrapper (`data`) while still accepting the old Node response shape. Published EAS production OTA update group `90959236-bce4-4928-a787-a49e86bec49e` so login/register/API calls work against Java.
+- 2026-07-02: Hotfixed mobile and web clients to unwrap the Java API standard response wrapper (`data`) while still accepting the old Node response shape. Published EAS production OTA update group `53510c9a-57a8-435e-a859-5ed3d095a885` from commit `ef944f7` so login/register/API calls work against Java.
 - 2026-07-02: Cut mobile and web production configuration over to the Java Spring Boot backend at `https://ktm-ride-mvp-java.onrender.com/api`, with the Render Node API kept as rollback fallback. Published EAS production OTA update group `661624ee-e83b-4287-b3ef-ab31d25af376` from commit `ed8068b` so OTA-enabled installs receive the Java API URL.
 - 2026-05-20: Login was failing with `Unexpected server error` because the mobile `.env` was pointing at the Cloudflare Worker API, which was not verified healthy.
 - 2026-05-20: `mobile/.env` was switched back to `https://ktm-ride-mvp.onrender.com/api`.
