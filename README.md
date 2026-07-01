@@ -225,6 +225,8 @@ The schema is in `backend/db/schema.sql` and includes:
 - `ride_points`: normalized GPS points for route rendering and speed-over-time analysis.
 - `ride_album_photos`: backend-synced ride album copies for web/mobile companion display.
 
+An experimental side-by-side Java/Spring Boot port lives in `backend-java/`. It is intended for contract-parity testing before any production switch; the active production backend remains the existing Render Node service until the Java service is smoke-tested.
+
 ## API Overview
 
 - `POST /api/auth/register`

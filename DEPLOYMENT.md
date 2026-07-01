@@ -94,6 +94,8 @@ The repository includes `render.yaml` entries for:
 - `ktm-ride-api`: existing Render Node API service.
 - `ridepulse-web`: Angular Render Static Site.
 
+An experimental Java backend port lives in `backend-java/`. Deploy it only as a separate service, for example `ktm-ride-api-java`, and copy the same database/JWT/SMTP environment variables from the Node service. Do not point mobile or web production traffic at it until route parity and non-production account smoke tests pass.
+
 The web static site uses:
 
 ```text

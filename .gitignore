@@ -7,5 +7,6 @@ mobile/android/
 dist/
 build/
 coverage/
+target/
 *.log
 .DS_Store
