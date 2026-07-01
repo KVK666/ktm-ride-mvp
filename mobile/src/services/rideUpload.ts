@@ -70,7 +70,7 @@ export async function uploadRidePayload(payload: RideUploadPayload, token: strin
     });
     throw new Error(body.error || "Unable to upload ride");
   }
-  return body;
+  return unwrapApiResponse(body);
 }
 
 export async function queuePendingRide(payload: RideUploadPayload) {
@@ -250,6 +250,20 @@ function parseJson(text: string) {
   } catch {
     return { error: text.slice(0, 180) };
   }
+}
+
+function unwrapApiResponse(value: any) {
+  if (
+    value &&
+    typeof value === "object" &&
+    "status" in value &&
+    "programCode" in value &&
+    "message" in value &&
+    "data" in value
+  ) {
+    return value.data ?? {};
+  }
+  return value;
 }
 
 function readableError(error: unknown) {

@@ -143,7 +143,7 @@ export class AuthService {
     if (!parsed || typeof parsed !== 'object') {
       throw new Error('Unexpected response from the server.');
     }
-    return parsed as T;
+    return this.unwrapResponse(parsed) as T;
   }
 
   private parseJson(text: string) {
@@ -158,10 +158,31 @@ export class AuthService {
   }
 
   private errorMessage(parsed: unknown) {
+    if (this.isStandardApiResponse(parsed)) {
+      return String((parsed as { message?: unknown; error?: unknown }).message || (parsed as { error?: unknown }).error || 'Authentication failed.');
+    }
     if (parsed && typeof parsed === 'object' && 'error' in parsed) {
       return String((parsed as { error?: unknown }).error || 'Authentication failed.');
     }
     return 'Authentication failed.';
+  }
+
+  private unwrapResponse(parsed: unknown) {
+    if (this.isStandardApiResponse(parsed)) {
+      return (parsed as { data?: unknown }).data ?? {};
+    }
+    return parsed;
+  }
+
+  private isStandardApiResponse(parsed: unknown) {
+    return Boolean(
+      parsed &&
+      typeof parsed === 'object' &&
+      'status' in parsed &&
+      'programCode' in parsed &&
+      'message' in parsed &&
+      'data' in parsed
+    );
   }
 
   private apiBases() {

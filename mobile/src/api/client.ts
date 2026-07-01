@@ -118,7 +118,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       message: `API ${response.status} for ${path}`,
       details: text
     });
-    throw new Error(parsed.valid ? parsed.value?.error || "Request failed" : parsed.error || "Request failed");
+    throw new Error(parsed.valid ? responseErrorMessage(parsed.value) : parsed.error || "Request failed");
   }
 
   if (!parsed.valid) {
@@ -131,7 +131,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     throw new Error("Unexpected response from server");
   }
 
-  return parsed.value as T;
+  return unwrapApiResponse(parsed.value) as T;
 }
 
 async function readResponseText(response: Response) {
@@ -162,4 +162,29 @@ function parseResponseJson(text: string): { valid: true; value: any } | { valid:
   } catch {
     return { valid: false, error: text.slice(0, 180) || "Unexpected response from server" };
   }
+}
+
+function unwrapApiResponse(value: any) {
+  if (isStandardApiResponse(value)) {
+    return value.data ?? {};
+  }
+  return value;
+}
+
+function responseErrorMessage(value: any) {
+  if (isStandardApiResponse(value)) {
+    return value.message || value.error || "Request failed";
+  }
+  return value?.error || value?.message || "Request failed";
+}
+
+function isStandardApiResponse(value: any) {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "status" in value &&
+    "programCode" in value &&
+    "message" in value &&
+    "data" in value
+  );
 }

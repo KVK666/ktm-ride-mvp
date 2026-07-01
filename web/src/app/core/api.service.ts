@@ -71,7 +71,7 @@ export class ApiService {
       throw new Error('Unexpected response from the server.');
     }
 
-    return parsed.value as T;
+    return this.unwrapResponse(parsed.value) as T;
   }
 
   async optional<T>(path: string, options: RequestInit = {}): Promise<T | null> {
@@ -105,10 +105,31 @@ export class ApiService {
   }
 
   private errorMessage(value: unknown) {
+    if (this.isStandardApiResponse(value)) {
+      return String((value as { message?: unknown; error?: unknown }).message || (value as { error?: unknown }).error || 'Request failed.');
+    }
     if (value && typeof value === 'object' && 'error' in value) {
       return String((value as { error?: unknown }).error || 'Request failed.');
     }
     return 'Request failed.';
+  }
+
+  private unwrapResponse(value: unknown) {
+    if (this.isStandardApiResponse(value)) {
+      return (value as { data?: unknown }).data ?? {};
+    }
+    return value;
+  }
+
+  private isStandardApiResponse(value: unknown) {
+    return Boolean(
+      value &&
+      typeof value === 'object' &&
+      'status' in value &&
+      'programCode' in value &&
+      'message' in value &&
+      'data' in value
+    );
   }
 
   private apiBases() {
