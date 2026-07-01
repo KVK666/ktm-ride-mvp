@@ -8,5 +8,9 @@ dist/
 build/
 coverage/
 target/
+.classpath
+.project
+.settings/
+.metadata/
 *.log
 .DS_Store

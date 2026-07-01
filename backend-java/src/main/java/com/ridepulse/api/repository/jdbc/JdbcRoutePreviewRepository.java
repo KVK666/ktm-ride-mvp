@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -30,7 +31,8 @@ public class JdbcRoutePreviewRepository implements RoutePreviewRepository {
     if (rideIds == null || rideIds.isEmpty()) {
       return previews;
     }
-    readOnlyJdbc.query(sql.get(QueryKeys.ROUTE_PREVIEW), new MapSqlParameterSource("rideIds", rideIds), rs -> {
+    List<UUID> ids = rideIds.stream().map(UUID::fromString).toList();
+    readOnlyJdbc.query(sql.get(QueryKeys.ROUTE_PREVIEW), new MapSqlParameterSource("rideIds", ids), rs -> {
       String rideId = String.valueOf(rs.getObject("ride_id"));
       double latitude = Rows.numeric(rs.getObject("latitude"));
       double longitude = Rows.numeric(rs.getObject("longitude"));
