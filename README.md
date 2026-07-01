@@ -1,6 +1,6 @@
 # RidePulse
 
-A React Native and Node/PostgreSQL ride tracking app with a brand-neutral RidePulse identity. It includes login, Google Maps route navigation, manual and automatic ride tracking, history, dashboard stats, analytics charts, reports, and ride-story sharing.
+A React Native, Angular, Java Spring Boot, and PostgreSQL ride tracking app with a brand-neutral RidePulse identity. It includes login, Google Maps route navigation, manual and automatic ride tracking, history, dashboard stats, analytics charts, reports, and ride-story sharing.
 
 For the latest living summary of what the app currently does, deployed URLs, testing notes, and known gaps, see [APP_CONTEXT.md](APP_CONTEXT.md).
 
@@ -24,6 +24,9 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 |   +-- db/seed.sql         # Sample rider and rides
 |   +-- src/routes/         # Auth, rides, dashboard, analytics, reports
 |   +-- tests/
++-- backend-java/           # Active Spring Boot API for Render production
+|   +-- src/main/java/      # Controllers, services, repositories, DTOs
+|   +-- src/main/resources/ # SQL query properties and app configuration
 +-- web/                    # Angular public website and authenticated companion
 +   +-- src/app/            # Landing page, auth, dashboard, journal, analytics
 +   +-- public/             # RidePulse web assets
@@ -65,8 +68,19 @@ For Android production builds, restrict the key to your Android package and SHA-
 
 ## Backend Setup
 
-The recommended free hosted backend is now the Cloudflare Worker in `worker/`.
-The Express backend in `backend/` remains useful for local development and as a route reference.
+The active hosted backend is the Java Spring Boot service in `backend-java/`, deployed to Render with Docker and backed by Neon PostgreSQL. The Express backend in `backend/` remains useful for local development, route reference, and rollback.
+
+Production API:
+
+```text
+https://ktm-ride-mvp-java.onrender.com/api
+```
+
+Rollback API:
+
+```text
+https://ktm-ride-mvp.onrender.com/api
+```
 
 ## Cloudflare Worker Backend
 
@@ -89,10 +103,10 @@ Deploy:
 npm run deploy
 ```
 
-After deployment, set the mobile API URL to the Worker route plus `/api`:
+This Worker remains legacy fallback/reference. The current production mobile API URL should stay on Java unless you are intentionally testing a Worker rollback:
 
 ```text
-EXPO_PUBLIC_API_BASE_URL=https://duke-ride-api.dukeride-kvk.workers.dev/api
+EXPO_PUBLIC_API_BASE_URL=https://ktm-ride-mvp-java.onrender.com/api
 ```
 
 ## Express Backend Setup

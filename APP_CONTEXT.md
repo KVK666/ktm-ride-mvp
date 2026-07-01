@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -12,7 +12,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 
 - Mobile app: Expo React Native, Android-first.
 - Web app: Angular standalone app in `web/`, with a cinematic public website and authenticated companion dashboard.
-- Backend: Render Express API is the current production mobile target; Cloudflare Worker remains a contract-compatible fallback.
+- Backend: Render Java Spring Boot API is the current production mobile and web target; the Render Express API remains the rollback fallback.
 - Database: PostgreSQL, currently hosted on Neon.
 - Backend hosting: Render Starter in Singapore, backed by Neon PostgreSQL.
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
@@ -23,8 +23,9 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Downloadable Android APK: `releases/RidePulse-latest.apk` in the GitHub repo when refreshed, though legacy asset names may still exist during migration.
 - Official GitHub Release APK: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/v0.1.0`.
 - Automatic latest APK release: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest`.
-- Current production mobile API base URL: `https://ktm-ride-mvp.onrender.com/api`.
-- Current production web API base URL: `https://ktm-ride-mvp.onrender.com/api`.
+- Current production mobile API base URL: `https://ktm-ride-mvp-java.onrender.com/api`.
+- Current production web API base URL: `https://ktm-ride-mvp-java.onrender.com/api`.
+- Render Node rollback API URL: `https://ktm-ride-mvp.onrender.com/api`.
 - Cloudflare Worker fallback API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 
 Important compatibility rule: keep package IDs, deep links, API URLs, and legacy storage keys such as `duke_ride_*` stable unless a migration is explicitly planned and tested.
@@ -203,11 +204,12 @@ npm run deploy
 Current production backend health check:
 
 ```text
-https://ktm-ride-mvp.onrender.com/health
+https://ktm-ride-mvp-java.onrender.com/health
 ```
 
 ## Latest Fix Notes
 
+- 2026-07-02: Cut mobile and web production configuration over to the Java Spring Boot backend at `https://ktm-ride-mvp-java.onrender.com/api`, with the Render Node API kept as rollback fallback.
 - 2026-05-20: Login was failing with `Unexpected server error` because the mobile `.env` was pointing at the Cloudflare Worker API, which was not verified healthy.
 - 2026-05-20: `mobile/.env` was switched back to `https://ktm-ride-mvp.onrender.com/api`.
 - 2026-05-20: A clean Android release build succeeded and the rebuilt APK was installed on the connected Moto phone.

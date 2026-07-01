@@ -82,6 +82,8 @@ services:
         destination: /index.html
     envVars:
       - key: WEB_API_BASE_URL
+        value: https://ktm-ride-mvp-java.onrender.com/api
+      - key: WEB_FALLBACK_API_BASE_URL
         value: https://ktm-ride-mvp.onrender.com/api
       - key: WEB_GOOGLE_MAPS_API_KEY
         sync: false

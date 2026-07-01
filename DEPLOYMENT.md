@@ -1,20 +1,21 @@
 # Online Deployment
 
-This setup is for a small private rider group. The current active production API is the Render Express service backed by Neon PostgreSQL. The Angular website can deploy as a Render Static Site next to that API. Cloudflare Worker notes remain useful as fallback/reference.
+This setup is for a small private rider group. The current active production API is the Render Java Spring Boot service backed by Neon PostgreSQL. The Angular website deploys as a Render Static Site next to that API. The Render Express service remains the rollback fallback, and Cloudflare Worker notes remain legacy reference.
 
 ## Recommended Stack
 
 - Database: Neon PostgreSQL
-- Backend API: Render Express service
+- Backend API: Render Java Spring Boot service
+- Rollback API: Render Express service
 - Web: Render Static Site
-- Mobile app: standalone Android release APK pointed at the Worker API URL
+- Mobile app: standalone Android release APK pointed at the Java API URL
 
-The old Express backend is still kept in `backend/` for local development/reference and Render fallback, but production should use `worker/` to avoid Render free-tier sleeping.
+The Express backend is still kept in `backend/` for local development/reference and Render fallback. Production traffic should use `backend-java/` unless a rollback is needed.
 
-Current Worker URL:
+Current Java API URL:
 
 ```text
-https://duke-ride-api.dukeride-kvk.workers.dev
+https://ktm-ride-mvp-java.onrender.com
 ```
 
 ## 1. Create Or Reuse Neon Postgres
@@ -92,9 +93,10 @@ npm run setup:secrets
 The repository includes `render.yaml` entries for:
 
 - `ktm-ride-api`: existing Render Node API service.
+- `ktm-ride-api-java`: active Java Spring Boot API service, deployed with Docker.
 - `ridepulse-web`: Angular Render Static Site.
 
-An experimental Java backend port lives in `backend-java/`. Deploy it only as a separate Docker-backed service, for example `ktm-ride-api-java`, and copy the same database/JWT/SMTP environment variables from the Node service. Do not point mobile or web production traffic at it until route parity and non-production account smoke tests pass.
+The Java backend lives in `backend-java/`. It deploys as a separate Docker-backed service and uses the same database/JWT/SMTP environment variables as the Node service. Keep the Node service available as rollback while Java remains the active API.
 
 The web static site uses:
 
@@ -107,7 +109,8 @@ Rewrite: /* -> /index.html
 Set these Render environment variables on `ridepulse-web`:
 
 ```text
-WEB_API_BASE_URL=https://ktm-ride-mvp.onrender.com/api
+WEB_API_BASE_URL=https://ktm-ride-mvp-java.onrender.com/api
+WEB_FALLBACK_API_BASE_URL=https://ktm-ride-mvp.onrender.com/api
 WEB_GOOGLE_MAPS_API_KEY=<browser-restricted-google-maps-js-key>
 WEB_APK_URL=https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest
 ```
@@ -126,7 +129,7 @@ SMTP_FROM=RidePulse <sender-gmail-address>
 
 The reset flow stores only hashed one-time tokens in Postgres. The Cloudflare Worker fallback does not send SMTP reset emails in this version; add HTTP email-provider support there first if the Worker becomes the active API again.
 
-The forgot-password UI always shows a generic success message, even when the account email does not exist. For troubleshooting, check `https://ktm-ride-mvp.onrender.com/health` for non-secret `config.passwordReset` booleans and Render logs for `Password reset email accepted by SMTP`, `Password reset email failed`, or `Password reset requested for unknown account`.
+The forgot-password UI always shows a generic success message, even when the account email does not exist. For troubleshooting, check `https://ktm-ride-mvp-java.onrender.com/health` for non-secret `config.passwordReset` booleans and Render logs for `Password reset email accepted by SMTP`, `Password reset email failed`, or `Password reset requested for unknown account`.
 
 Do not commit the Maps key. On Google Cloud, enable Maps JavaScript API and Directions API for this browser key, then restrict it by HTTP referrer to the Render Static Site domain with a wildcard path such as `https://ridepulse-web.onrender.com/*`, any custom web domain wildcard, and `http://localhost:4200/*` / `http://127.0.0.1:4200/*` only when local live-map testing is needed. Rebuild/redeploy `ridepulse-web` after changing `WEB_GOOGLE_MAPS_API_KEY`; existing static bundles do not pick up new env vars automatically.
 
@@ -154,12 +157,12 @@ Expected response:
 {"ok":true,"ready":true,"service":"duke-ride-worker","config":{"databaseUrl":true,"jwtSecret":true}}
 ```
 
-## 6. Point Mobile App To Cloudflare
+## 6. Point Mobile App To Java API
 
 Edit `mobile/.env`:
 
 ```text
-EXPO_PUBLIC_API_BASE_URL=https://duke-ride-api.<your-subdomain>.workers.dev/api
+EXPO_PUBLIC_API_BASE_URL=https://ktm-ride-mvp-java.onrender.com/api
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 GOOGLE_MAPS_API_KEY=your-google-maps-key
 ```
