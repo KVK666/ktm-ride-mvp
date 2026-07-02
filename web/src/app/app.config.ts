@@ -16,8 +16,10 @@ import {
   House,
   Image,
   ImagePlus,
+  KeyRound,
   LogIn,
   LogOut,
+  Mail,
   Map,
   Menu,
   Navigation,
@@ -62,8 +64,10 @@ export const appConfig: ApplicationConfig = {
         House,
         Image,
         ImagePlus,
+        KeyRound,
         LogIn,
         LogOut,
+        Mail,
         Map,
         Menu,
         Navigation,
@@ -75,8 +79,7 @@ export const appConfig: ApplicationConfig = {
         ShieldCheck,
         Sparkles,
         Trash2,
-        User
-        ,
+        User,
         X
       })
     )

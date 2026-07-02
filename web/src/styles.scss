@@ -55,6 +55,19 @@ img {
   max-width: 100%;
 }
 
+lucide-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  line-height: 0;
+}
+
+lucide-icon svg {
+  display: block;
+}
+
 a,
 button,
 input,
