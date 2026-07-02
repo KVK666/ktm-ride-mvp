@@ -3,7 +3,7 @@ name: Publish Latest Android APK
 on:
   push:
     branches:
-      - ktm-ride-mvp
+      - ride-pulse
   workflow_dispatch:
 
 permissions:

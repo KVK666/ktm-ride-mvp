@@ -48,4 +48,4 @@ services:
       - key: WEB_GOOGLE_MAPS_API_KEY
         sync: false
       - key: WEB_APK_URL
-        value: https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest
+        value: https://github.com/KVK666/ride-pulse/releases/tag/latest

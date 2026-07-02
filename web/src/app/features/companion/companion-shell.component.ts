@@ -71,7 +71,7 @@ import { ProfilePhotoService } from '../../core/profile-photo.service';
             <h1>{{ auth.user()?.name || 'Rider' }}</h1>
           </div>
           <div class="app-actions">
-            <a class="download-pill" href="https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest" target="_blank" rel="noreferrer">
+            <a class="download-pill" href="https://github.com/KVK666/ride-pulse/releases/tag/latest" target="_blank" rel="noreferrer">
               <lucide-icon name="download" size="17" />
               Mobile APK
             </a>

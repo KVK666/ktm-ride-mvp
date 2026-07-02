@@ -18,11 +18,11 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT and Render-backed email password reset.
-- Main repo branch: `ktm-ride-mvp`.
-- GitHub repo: `https://github.com/KVK666/ktm-ride-mvp`.
+- Main repo branch: `ride-pulse`.
+- GitHub repo: `https://github.com/KVK666/ride-pulse`.
 - Downloadable Android APK: `releases/RidePulse-latest.apk` in the GitHub repo when refreshed, though legacy asset names may still exist during migration.
-- Official GitHub Release APK: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/v0.1.0`.
-- Automatic latest APK release: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest`.
+- Official GitHub Release APK: `https://github.com/KVK666/ride-pulse/releases/tag/v0.1.0`.
+- Automatic latest APK release: `https://github.com/KVK666/ride-pulse/releases/tag/latest`.
 - Current production mobile API base URL: `https://ktm-ride-mvp-java.onrender.com/api`.
 - Current production web API base URL: `https://ktm-ride-mvp-java.onrender.com/api`.
 
@@ -191,6 +191,8 @@ https://ktm-ride-mvp-java.onrender.com/health
 
 ## Latest Fix Notes
 
+- 2026-07-02: Renamed the GitHub repository and main branch references to `ride-pulse`. Updated the local `origin` URL, APK release workflow trigger branch, Render/web APK download links, and current project context; kept production API/service URLs and package IDs stable.
+- 2026-07-02: Fixed web CORS failures on authenticated Java API calls by allowing browser `OPTIONS` preflight requests to bypass JWT token validation while keeping real `/api/*` requests protected.
 - 2026-07-02: Hotfixed mobile and web clients to unwrap the Java API standard response wrapper (`data`) while still accepting the old Node response shape. Published EAS production OTA update group `53510c9a-57a8-435e-a859-5ed3d095a885` from commit `ef944f7` so login/register/API calls work against Java.
 - 2026-07-02: Removed legacy Node Express and Cloudflare Worker backend code from the repo; `backend-java/` is now the only backend implementation.
 - 2026-07-02: Cut mobile and web production configuration over to the Java Spring Boot backend at `https://ktm-ride-mvp-java.onrender.com/api`. Published EAS production OTA update group `661624ee-e83b-4287-b3ef-ab31d25af376` from commit `ed8068b` so OTA-enabled installs receive the Java API URL.

@@ -63,7 +63,7 @@ Set these Render environment variables on `ridepulse-web`:
 ```text
 WEB_API_BASE_URL=https://ktm-ride-mvp-java.onrender.com/api
 WEB_GOOGLE_MAPS_API_KEY=<browser-restricted-google-maps-js-key>
-WEB_APK_URL=https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest
+WEB_APK_URL=https://github.com/KVK666/ride-pulse/releases/tag/latest
 ```
 
 Set these Render environment variables on the `ktm-ride-api-java` service for password reset email. For Gmail, use a Google App Password, not the normal Gmail account password:

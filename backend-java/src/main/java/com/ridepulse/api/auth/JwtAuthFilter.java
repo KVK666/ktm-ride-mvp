@@ -26,6 +26,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
+    if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
     String path = request.getRequestURI();
     if (path.equals("/health")) return true;
     if (!path.startsWith("/api/")) return true;
