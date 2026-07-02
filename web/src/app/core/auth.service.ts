@@ -95,25 +95,17 @@ export class AuthService {
   }
 
   private async rawRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const bases = this.apiBases();
-    let networkError: unknown = null;
-
-    for (const baseUrl of bases) {
-      try {
-        return await this.rawRequestFrom<T>(baseUrl, path, options);
-      } catch (error: unknown) {
-        if (this.canFallback(error)) {
-          networkError = error;
-          continue;
-        }
-        throw error;
+    try {
+      return await this.rawRequestFrom<T>(environment.apiBaseUrl, path, options);
+    } catch (error: unknown) {
+      if ((error as { name?: string })?.name === 'AbortError') {
+        throw new Error('Request timed out. Check the backend connection.');
       }
+      if (error instanceof TypeError) {
+        throw new Error('Network request failed. Check your internet connection.');
+      }
+      throw error;
     }
-
-    if ((networkError as { name?: string })?.name === 'AbortError') {
-      throw new Error('Request timed out. Check the backend connection.');
-    }
-    throw new Error('Network request failed. Check your internet connection.');
   }
 
   private async rawRequestFrom<T>(baseUrl: string, path: string, options: RequestInit = {}): Promise<T> {
@@ -183,16 +175,6 @@ export class AuthService {
       'message' in parsed &&
       'data' in parsed
     );
-  }
-
-  private apiBases() {
-    return [environment.apiBaseUrl, environment.fallbackApiBaseUrl]
-      .filter((value): value is string => Boolean(value))
-      .filter((value, index, values) => values.indexOf(value) === index);
-  }
-
-  private canFallback(error: unknown) {
-    return error instanceof TypeError || (error as { name?: string })?.name === 'AbortError';
   }
 
   private readUser(): User | null {

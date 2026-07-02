@@ -1,6 +1,6 @@
 # RidePulse Java API
 
-Side-by-side Spring Boot port of the existing `backend/` Express API. The current Node backend remains the production fallback until this service passes route parity and smoke testing.
+Spring Boot backend for the RidePulse mobile and web apps.
 
 Controllers are intentionally thin and return the standard response wrapper. Business flow lives in `service`, repository interfaces live under `repository`, and JDBC implementations live under `repository/jdbc`. SQL lives in `src/main/resources/db-queries.properties` with named parameters and `.pojo` mapping keys. Repositories use `NamedParameterJdbcTemplate`, with separate read-only and read-write datasource beans; schema bootstrap scripts are property-backed and called from `SchemaService`.
 
@@ -8,11 +8,11 @@ Controllers are intentionally thin and return the standard response wrapper. Bus
 
 - Java 17
 - Maven 3.9+
-- PostgreSQL connection compatible with the existing `backend/db/schema.sql`
+- PostgreSQL connection compatible with the existing RidePulse schema
 
 ## Local Run
 
-Set the same non-secret/runtime variables used by the Node backend:
+Set the local runtime variables:
 
 ```powershell
 $env:DATABASE_URL="postgres://ktm:ktm@localhost:5432/ktm_ride"
@@ -21,7 +21,7 @@ $env:CORS_ORIGIN="*"
 mvn spring-boot:run
 ```
 
-The Java API listens on `PORT` or `4001` by default. The Node backend keeps `4000`.
+The Java API listens on `PORT` or `4001` by default.
 
 ## Verification
 
@@ -29,7 +29,7 @@ The Java API listens on `PORT` or `4001` by default. The Node backend keeps `400
 mvn test
 ```
 
-Before production traffic moves to Java, smoke test against a non-production account:
+Smoke test against a non-production account:
 
 - `GET /health`
 - register, login, `GET /api/auth/me`
@@ -41,7 +41,7 @@ Before production traffic moves to Java, smoke test against a non-production acc
 
 ## Deployment
 
-Use this as a separate Render service first. Do not replace `ktm-ride-api` until parity is verified.
+Deploy this service to Render with Docker.
 
 ```yaml
 services:
@@ -54,4 +54,4 @@ services:
     healthCheckPath: /health
 ```
 
-Java is deployed through Render's Docker runtime. Copy the same environment variables from the Node Render service, especially `DATABASE_URL`, `DATABASE_SSL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGIN`, `PASSWORD_RESET_URL_BASE`, and SMTP variables.
+Java is deployed through Render's Docker runtime. Configure `DATABASE_URL`, `DATABASE_SSL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGIN`, `PASSWORD_RESET_URL_BASE`, and SMTP variables in Render.

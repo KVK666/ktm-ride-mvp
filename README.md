@@ -19,26 +19,18 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 |       +-- services/       # Background location task and auto tracking
 |       +-- theme/
 |       +-- utils/
-+-- backend/                # Express API, kept for local/reference backend
-|   +-- db/schema.sql       # PostgreSQL schema
-|   +-- db/seed.sql         # Sample rider and rides
-|   +-- src/routes/         # Auth, rides, dashboard, analytics, reports
-|   +-- tests/
 +-- backend-java/           # Active Spring Boot API for Render production
 |   +-- src/main/java/      # Controllers, services, repositories, DTOs
 |   +-- src/main/resources/ # SQL query properties and app configuration
 +-- web/                    # Angular public website and authenticated companion
 +   +-- src/app/            # Landing page, auth, dashboard, journal, analytics
 +   +-- public/             # RidePulse web assets
-+-- worker/                 # Cloudflare Workers API for free hosted backend
-+   +-- src/index.js        # Worker routes matching /api/*
-+   +-- wrangler.toml
 +-- docker-compose.yml      # Local PostgreSQL
 ```
 
 ## MVP Features
 
-- Email/password authentication with JWT and secure email-based password reset on the Render Express API.
+- Email/password authentication with JWT and secure email-based password reset on the Java API.
 - Google Maps route lookup with Geocoding API and Directions API.
 - Safety confirmation before navigation: "Set your destination before riding. Do not interact with the phone while riding."
 - Start Ride / Stop Ride tracking with foreground and background location support.
@@ -68,7 +60,7 @@ For Android production builds, restrict the key to your Android package and SHA-
 
 ## Backend Setup
 
-The active hosted backend is the Java Spring Boot service in `backend-java/`, deployed to Render with Docker and backed by Neon PostgreSQL. The Express backend in `backend/` remains useful for local development, route reference, and rollback.
+The active and only backend implementation is the Java Spring Boot service in `backend-java/`, deployed to Render with Docker and backed by Neon PostgreSQL.
 
 Production API:
 
@@ -76,66 +68,27 @@ Production API:
 https://ktm-ride-mvp-java.onrender.com/api
 ```
 
-Rollback API:
-
-```text
-https://ktm-ride-mvp.onrender.com/api
-```
-
-## Cloudflare Worker Backend
-
-```bash
-cd worker
-npm install
-npm run check
-```
-
-Configure production secrets:
-
-```bash
-npx wrangler secret put DATABASE_URL
-npx wrangler secret put JWT_SECRET
-```
-
-Deploy:
-
-```bash
-npm run deploy
-```
-
-This Worker remains legacy fallback/reference. The current production mobile API URL should stay on Java unless you are intentionally testing a Worker rollback:
-
-```text
-EXPO_PUBLIC_API_BASE_URL=https://ktm-ride-mvp-java.onrender.com/api
-```
-
-## Express Backend Setup
-
-```bash
-cd backend
-cp .env.example .env
-npm install
-```
+## Java Backend Setup
 
 Start PostgreSQL:
 
 ```bash
-cd ..
 docker compose up -d
 ```
 
-Run schema and seed:
+Run the Java backend:
 
-```bash
-cd backend
-npm run db:migrate
-npm run db:seed
-npm run dev
+```powershell
+cd backend-java
+$env:DATABASE_URL="postgres://ktm:ktm@localhost:5432/ktm_ride"
+$env:JWT_SECRET="local-dev-secret"
+$env:CORS_ORIGIN="*"
+& "C:\ProgramData\chocolatey\lib\maven\apache-maven-3.9.16\bin\mvn.cmd" spring-boot:run
 ```
 
-The API runs at `http://localhost:4000`.
+The API runs at `http://localhost:4001`.
 
-For password reset email in local or Render environments, configure SMTP on the Express backend:
+For password reset email in local or Render environments, configure SMTP on the Java backend:
 
 ```text
 PASSWORD_RESET_URL_BASE=http://localhost:4200/#/reset-password
@@ -174,7 +127,7 @@ GOOGLE_MAPS_API_KEY=your-key
 Set the backend URL:
 
 ```text
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:4000/api
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:4001/api
 ```
 
 Optional direct Instagram Stories handoff:
@@ -185,7 +138,7 @@ EXPO_PUBLIC_INSTAGRAM_APP_ID=your-facebook-app-id
 
 Without this value, RidePulse still generates the story image and falls back to Instagram image sharing or the Android share sheet.
 
-Use `10.0.2.2` for Android emulator, `http://localhost:4000/api` for iOS simulator, and your machine LAN IP for a physical device.
+Use `10.0.2.2` for Android emulator, `http://localhost:4001/api` for iOS simulator, and your machine LAN IP for a physical device.
 
 Run the app:
 
@@ -231,15 +184,13 @@ and publishes `web/dist/web/browser` with an SPA rewrite to `/index.html`.
 
 ## Database Schema
 
-The schema is in `backend/db/schema.sql` and includes:
+The Java backend creates and uses the RidePulse PostgreSQL schema, including:
 
 - `users`: account, password hash, rider name, bike model.
 - `password_reset_tokens`: one-time hashed reset tokens with expiry and usage tracking.
 - `rides`: summary stats and start/end coordinates.
 - `ride_points`: normalized GPS points for route rendering and speed-over-time analysis.
 - `ride_album_photos`: backend-synced ride album copies for web/mobile companion display.
-
-An experimental side-by-side Java/Spring Boot port lives in `backend-java/`. It is intended for contract-parity testing before any production switch; the active production backend remains the existing Render Node service until the Java service is smoke-tested.
 
 ## API Overview
 

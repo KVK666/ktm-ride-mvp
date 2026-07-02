@@ -12,7 +12,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 
 - Mobile app: Expo React Native, Android-first.
 - Web app: Angular standalone app in `web/`, with a cinematic public website and authenticated companion dashboard.
-- Backend: Render Java Spring Boot API is the current production mobile and web target; the Render Express API remains the rollback fallback.
+- Backend: Render Java Spring Boot API in `backend-java/` is the only backend implementation.
 - Database: PostgreSQL, currently hosted on Neon.
 - Backend hosting: Render Starter in Singapore, backed by Neon PostgreSQL.
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
@@ -25,8 +25,6 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Automatic latest APK release: `https://github.com/KVK666/ktm-ride-mvp/releases/tag/latest`.
 - Current production mobile API base URL: `https://ktm-ride-mvp-java.onrender.com/api`.
 - Current production web API base URL: `https://ktm-ride-mvp-java.onrender.com/api`.
-- Render Node rollback API URL: `https://ktm-ride-mvp.onrender.com/api`.
-- Cloudflare Worker fallback API URL: `https://duke-ride-api.dukeride-kvk.workers.dev/api`.
 
 Important compatibility rule: keep package IDs, deep links, API URLs, and legacy storage keys such as `duke_ride_*` stable unless a migration is explicitly planned and tested.
 
@@ -35,7 +33,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 ## What The App Does Now
 
 - Lets a rider register and log in with email/password.
-- Lets a rider request a password reset from mobile or web; email links open the web reset page and update the password through the Render Express API.
+- Lets a rider request a password reset from mobile or web; email links open the web reset page and update the password through the Java API.
 - Shows the logged-in rider name on the dashboard.
 - Shows a More area with Profile, Analytics, and Reports destinations.
 - Shows a Profile tab with backend-synced display photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
@@ -68,7 +66,6 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Ride Detail can generate varied ChatGPT image prompts from exact ride stats, time/place mood, and optional Open-Meteo weather; prompts are copied/shared manually into ChatGPT.
 - Shows analytics summary cards and charts for distance, ride count, duration, and top speed.
 - Generates basic reports and can export reports as PDF.
-- Keeps the old Cloudflare Worker project as legacy fallback code, but the production app and V2 Smart Journal backend target paid Render.
 - Adds a V2 Smart Journal layer on top of existing ride data: `/api/journal` returns latest ride, monthly recap, highlights, recent rides, and review count; `/api/rides/:id/intelligence` returns suggested title, summary text, badges, fastest/route chapter data, and safe fallbacks for malformed or missing GPS points.
 - Adds a V5 Home layer through `/api/home`, a compact Render endpoint that keeps `/api/journal` compatible while adding Home-specific memory seeds and pending review suggestions.
 - Home, Journal, Ride Detail, Ride, and You now use premium smart-journal primitives such as route heroes, smart highlights, ride badges, route replay, chapter timeline, intentional empty states, and inline skeletons.
@@ -78,7 +75,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - OTA updates are enabled for JavaScript and bundled assets through EAS Update. Native changes such as app icon, permissions, package ID, native dependencies, Google Maps setup, or Android manifest changes still require installing a new APK.
 - Adds an Angular web companion in `web/` using the same graphite/OLED and electric-lime identity. The public site has a Three.js animated route hero, premium product sections, APK download CTA, and sign-in entry; the protected companion supports login/register, Home, Journal, Navigate, rich Ride Detail, You, Analytics, Reports, Profile photo management, synced ride albums, fixed sidebar/topbar navigation, and branded RidePulse loading states. Web builds use the live Render API by default to avoid failed localhost probes in browser Network output.
 - Web ride recording is intentionally out of scope; the website directs riders to the Android app for GPS/background tracking, ride recovery, auto tracking, and OTA update workflows. Web foreground geolocation is used only for route planning.
-- Password reset uses the Render Express API plus SMTP environment variables. The Cloudflare Worker fallback does not have password-reset email parity in this version.
+- Password reset uses the Java API plus SMTP environment variables.
 
 ## Automatic Ride Tracking
 
@@ -117,9 +114,9 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/components/RouteArtwork.tsx`: lightweight SVG route artwork for Home, Journal, and ride-detail hero surfaces.
 - `mobile/src/components/JournalHero.tsx`, `SmartHighlight.tsx`, `RideBadge.tsx`, `RouteReplay.tsx`, `ChapterTimeline.tsx`, `PremiumEmptyState.tsx`, and `InlineSkeleton.tsx`: Smart Journal V2 primitives.
 - `mobile/src/components/MemoryCard.tsx`, `RideSlideshowModal.tsx`, and `OnboardingScreen.tsx`: local memories, album slideshow, and first-install walkthrough UI.
-- `backend/src/services/routePreviews.js`: bounded route-preview loader used by the Express fallback API.
-- `backend/src/services/passwordReset.js`: hashed one-time reset token creation, SMTP reset email delivery, and password update validation for the Render Express API.
-- `backend/src/services/journalIntelligence.js`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
+- `backend-java/src/main/java/com/ridepulse/api/service/RoutePreviewService.java`: bounded route-preview loader used by the Java API.
+- `backend-java/src/main/java/com/ridepulse/api/service/PasswordResetService.java`: hashed one-time reset token creation, SMTP reset email delivery, and password update validation.
+- `backend-java/src/main/java/com/ridepulse/api/service/JournalIntelligenceService.java`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
 - `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
 - `mobile/src/services/onboarding.ts`: walkthrough completion storage.
 - `mobile/src/services/profilePhoto.ts`: per-user profile photo picker, local cache, backend upload/download/delete sync.
@@ -133,16 +130,11 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/context/AuthContext.tsx`: auth bootstrap and pending ride sync after login.
 - `mobile/src/api/client.ts`: API client, SecureStore token, mirrored background token.
 - `scripts/install-android-release.ps1`: release installer that prebuilds native Android config before Gradle so app icon and OTA metadata stay in sync.
-- `worker/src/index.js`: Cloudflare Worker API routes for auth, rides, dashboard, analytics, and reports.
-- `worker/src/rideMath.js`: Worker-safe ride distance/speed summary logic.
-- `backend/src/routes/rides.js`: ride create/list/detail/delete API.
-- `backend/src/routes/profile.js`: authenticated profile-photo upload, fetch, and delete API.
-- `backend/src/routes/home.js`: compact Home journal API with memory seeds and pending review suggestions.
-- `backend/src/services/profilePhotoValidation.js`: profile-photo MIME/base64/size validation.
-- `backend/db/schema.sql`: users, rides, and ride_points schema.
-- `backend/scripts/removeDuplicateRides.js`: one-off duplicate ride cleanup for a rider ID prefix; dry-run by default.
-- `backend/scripts/remove-duplicate-rides.ps1`: Windows wrapper that prompts for `DATABASE_URL` securely before running duplicate cleanup.
-- `backend/scripts/removeDuplicateRidesViaApi.js`: one-off duplicate ride cleanup through the configured live API, useful when direct Neon connection details are confusing.
+- `backend-java/src/main/java/com/ridepulse/api/controller/RidesController.java`: ride create/list/detail/delete API.
+- `backend-java/src/main/java/com/ridepulse/api/controller/ProfileController.java`: authenticated profile-photo upload, fetch, and delete API.
+- `backend-java/src/main/java/com/ridepulse/api/controller/JournalController.java`: Home and Journal API surfaces.
+- `backend-java/src/main/java/com/ridepulse/api/service/PhotoValidationService.java`: profile-photo and ride-photo MIME/base64/size validation.
+- `backend-java/src/main/resources/db-queries.properties`: SQL, schema bootstrap statements, and `.pojo` mapping keys.
 
 ## Local Development Notes
 
@@ -185,20 +177,10 @@ Install on connected Android phone:
 Backend:
 
 ```powershell
-cd "C:\Users\BBS001\Documents\New project\backend"
-npm install
-npm run dev
-```
-
-Cloudflare Worker:
-
-```powershell
-cd "C:\Users\BBS001\Documents\New project\worker"
-npm install
-npm run check
-npx wrangler secret put DATABASE_URL
-npx wrangler secret put JWT_SECRET
-npm run deploy
+cd "C:\Users\BBS001\Documents\New project\backend-java"
+$env:DATABASE_URL="postgres://ktm:ktm@localhost:5432/ktm_ride"
+$env:JWT_SECRET="local-dev-secret"
+& "C:\ProgramData\chocolatey\lib\maven\apache-maven-3.9.16\bin\mvn.cmd" spring-boot:run
 ```
 
 Current production backend health check:
@@ -210,7 +192,8 @@ https://ktm-ride-mvp-java.onrender.com/health
 ## Latest Fix Notes
 
 - 2026-07-02: Hotfixed mobile and web clients to unwrap the Java API standard response wrapper (`data`) while still accepting the old Node response shape. Published EAS production OTA update group `53510c9a-57a8-435e-a859-5ed3d095a885` from commit `ef944f7` so login/register/API calls work against Java.
-- 2026-07-02: Cut mobile and web production configuration over to the Java Spring Boot backend at `https://ktm-ride-mvp-java.onrender.com/api`, with the Render Node API kept as rollback fallback. Published EAS production OTA update group `661624ee-e83b-4287-b3ef-ab31d25af376` from commit `ed8068b` so OTA-enabled installs receive the Java API URL.
+- 2026-07-02: Removed legacy Node Express and Cloudflare Worker backend code from the repo; `backend-java/` is now the only backend implementation.
+- 2026-07-02: Cut mobile and web production configuration over to the Java Spring Boot backend at `https://ktm-ride-mvp-java.onrender.com/api`. Published EAS production OTA update group `661624ee-e83b-4287-b3ef-ab31d25af376` from commit `ed8068b` so OTA-enabled installs receive the Java API URL.
 - 2026-05-20: Login was failing with `Unexpected server error` because the mobile `.env` was pointing at the Cloudflare Worker API, which was not verified healthy.
 - 2026-05-20: `mobile/.env` was switched back to `https://ktm-ride-mvp.onrender.com/api`.
 - 2026-05-20: A clean Android release build succeeded and the rebuilt APK was installed on the connected Moto phone.
@@ -263,7 +246,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-06-29: Fixed locally built Android APK OTA checks by embedding the required `expo-channel-name: production` request header in native Expo Updates metadata. Without that header, EAS returned `"channel-name": Required` even with the correct update URL.
 - 2026-06-29: Documented Gmail SMTP/App Password configuration for Render password reset email and added non-secret Gmail defaults to `render.yaml`; `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` remain Render-managed secrets.
 - 2026-06-29: Added non-secret password-reset config status to `/health` and safer Render log messages for accepted SMTP sends, SMTP failures, and unknown-account reset requests.
-- 2026-07-01: Added a side-by-side Java/Spring Boot backend in `backend-java/` as a contract-preserving port target for the active Render Express API. The Node backend remains the production fallback; Java defaults to port `4001`, keeps the existing PostgreSQL schema/JWT/API contracts, uses thin controllers with a standard response wrapper, keeps business flow in services, uses repository interfaces plus `NamedParameterJdbcTemplate` implementations with separate read-only/read-write datasources, stores SQL and `.pojo` mapping keys in `db-queries.properties`, and includes initial service tests plus deployment notes for a separate Render service.
+- 2026-07-01: Added a Java/Spring Boot backend in `backend-java/` as a contract-preserving port of the previous API. Java defaults to port `4001`, keeps the existing PostgreSQL schema/JWT/API contracts, uses thin controllers with a standard response wrapper, keeps business flow in services, uses repository interfaces plus `NamedParameterJdbcTemplate` implementations with separate read-only/read-write datasources, stores SQL and `.pojo` mapping keys in `db-queries.properties`, and includes service tests plus Render Docker deployment notes.
 
 ## Testing Checklist
 
@@ -324,8 +307,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 
 - True Google Maps trip import is not implemented; the app only tracks rides through RidePulse.
 - Imported ride photos are currently scanned/displayed from the local phone library and are not uploaded to the backend.
-- Profile display photos are synced to the Render backend; local cached copies are used only for speed and fallback.
-- Cloudflare Worker password-reset email parity is not implemented; Render Express is the active reset-capable API.
+- Profile display photos are synced to the Render Java backend; local cached copies are used only for speed and fallback.
 - No refresh-token flow yet.
 - The Angular web companion does not record rides in-browser; reliable ride tracking remains Android app-only.
 - No push notifications yet.

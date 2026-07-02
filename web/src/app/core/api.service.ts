@@ -11,25 +11,17 @@ export class ApiService {
   private readonly router = inject(Router);
 
   async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const bases = this.apiBases();
-    let networkError: unknown = null;
-
-    for (const baseUrl of bases) {
-      try {
-        return await this.requestFrom<T>(baseUrl, path, options);
-      } catch (error: unknown) {
-        if (this.canFallback(error)) {
-          networkError = error;
-          continue;
-        }
-        throw error;
+    try {
+      return await this.requestFrom<T>(environment.apiBaseUrl, path, options);
+    } catch (error: unknown) {
+      if ((error as { name?: string })?.name === 'AbortError') {
+        throw new Error('Request timed out. Check the backend connection.');
       }
+      if (error instanceof TypeError) {
+        throw new Error('Network request failed. Check your internet connection.');
+      }
+      throw error;
     }
-
-    if ((networkError as { name?: string })?.name === 'AbortError') {
-      throw new Error('Request timed out. Check the backend connection.');
-    }
-    throw new Error('Network request failed. Check your internet connection.');
   }
 
   private async requestFrom<T>(baseUrl: string, path: string, options: RequestInit = {}): Promise<T> {
@@ -130,15 +122,5 @@ export class ApiService {
       'message' in value &&
       'data' in value
     );
-  }
-
-  private apiBases() {
-    return [environment.apiBaseUrl, environment.fallbackApiBaseUrl]
-      .filter((value): value is string => Boolean(value))
-      .filter((value, index, values) => values.indexOf(value) === index);
-  }
-
-  private canFallback(error: unknown) {
-    return error instanceof TypeError || (error as { name?: string })?.name === 'AbortError';
   }
 }

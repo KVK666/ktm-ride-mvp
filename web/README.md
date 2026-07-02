@@ -41,7 +41,7 @@ Render uses:
 npm run build:render
 ```
 
-That script writes production environment values from `WEB_API_BASE_URL`, `WEB_FALLBACK_API_BASE_URL`, `WEB_GOOGLE_MAPS_API_KEY`, and APK/release URL variables before building.
+That script writes production environment values from `WEB_API_BASE_URL`, `WEB_GOOGLE_MAPS_API_KEY`, and APK/release URL variables before building.
 
 ## Running unit tests
 
