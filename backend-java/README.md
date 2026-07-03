@@ -21,6 +21,8 @@ $env:CORS_ORIGIN="*"
 mvn spring-boot:run
 ```
 
+For a custom PostgreSQL schema, set `DB_SCHEMA`. AWS RDS deployments that use a schema named `ridepulse_db` should use `DB_SCHEMA=ridepulse_db,public` so extension functions remain visible.
+
 The Java API listens on `PORT` or `4001` by default.
 
 ## Verification
@@ -54,4 +56,4 @@ services:
     healthCheckPath: /health
 ```
 
-Java is deployed through Render's Docker runtime. Configure `DATABASE_URL`, `DATABASE_SSL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGIN`, `PASSWORD_RESET_URL_BASE`, and SMTP variables in Render.
+Java is deployed through Render's Docker runtime. Configure `DATABASE_URL`, `DATABASE_SSL`, optional `DB_SCHEMA`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGIN`, `PASSWORD_RESET_URL_BASE`, and SMTP variables in Render.

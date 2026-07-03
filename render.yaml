@@ -13,6 +13,8 @@ services:
         value: "true"
       - key: DB_POOL_MAX
         value: "5"
+      - key: DB_SCHEMA
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_EXPIRES_IN

@@ -17,6 +17,7 @@ public final class QueryKeys {
   public static final String RIDE_LIST_TODAY = "ride.list-today";
   public static final String RIDE_LIST_MONTH = "ride.list-month";
   public static final String RIDE_LIST_YEAR = "ride.list-year";
+  public static final String RIDE_LIST_SEARCH = "ride.list-search";
   public static final String RIDE_LIST_ORDER = "ride.list-order";
   public static final String RIDE_BY_OWNER = "ride.by-owner";
   public static final String RIDE_EXISTS = "ride.exists";
@@ -48,6 +49,15 @@ public final class QueryKeys {
   public static final String PROFILE_UPDATE_PHOTO = "profile.update-photo";
   public static final String PROFILE_DELETE_PHOTO = "profile.delete-photo";
 
+  public static final String TRIP_LIST = "trip.list";
+  public static final String TRIP_BY_ID = "trip.by-id";
+  public static final String TRIP_RIDES = "trip.rides";
+  public static final String TRIP_INSERT = "trip.insert";
+  public static final String TRIP_UPDATE = "trip.update";
+  public static final String TRIP_DELETE = "trip.delete";
+  public static final String TRIP_ADD_RIDE = "trip.add-ride";
+  public static final String TRIP_REMOVE_RIDE = "trip.remove-ride";
+
   public static final String SCHEMA_UUID_EXTENSION = "schema.uuid-extension";
   public static final String SCHEMA_PGCRYPTO_EXTENSION = "schema.pgcrypto-extension";
   public static final String SCHEMA_USER_PROFILE_DATA = "schema.user-profile-data";
@@ -55,10 +65,14 @@ public final class QueryKeys {
   public static final String SCHEMA_USER_PROFILE_UPDATED = "schema.user-profile-updated";
   public static final String SCHEMA_PASSWORD_RESET_TABLE = "schema.password-reset-table";
   public static final String SCHEMA_RIDE_ALBUM_TABLE = "schema.ride-album-table";
+  public static final String SCHEMA_TRIPS_TABLE = "schema.trips-table";
+  public static final String SCHEMA_TRIP_RIDES_TABLE = "schema.trip-rides-table";
   public static final String SCHEMA_PASSWORD_RESET_USER_INDEX = "schema.password-reset-user-index";
   public static final String SCHEMA_PASSWORD_RESET_EXPIRES_INDEX = "schema.password-reset-expires-index";
   public static final String SCHEMA_RIDE_PHOTO_RIDE_INDEX = "schema.ride-photo-ride-index";
   public static final String SCHEMA_RIDE_PHOTO_USER_INDEX = "schema.ride-photo-user-index";
+  public static final String SCHEMA_TRIPS_USER_INDEX = "schema.trips-user-index";
+  public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
 
   private QueryKeys() {}
 }

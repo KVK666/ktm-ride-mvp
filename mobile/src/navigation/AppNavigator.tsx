@@ -12,6 +12,8 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
 import { RideDetailScreen } from "../screens/RideDetailScreen";
 import { RideScreen } from "../screens/RideScreen";
+import { TripDetailScreen } from "../screens/TripDetailScreen";
+import { TripsScreen } from "../screens/TripsScreen";
 import { useTheme } from "../theme/ThemeContext";
 import { typography } from "../theme/colors";
 
@@ -124,6 +126,8 @@ export function AppNavigator() {
     >
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: "Ride details" }} />
+      <Stack.Screen name="Trips" component={TripsScreen} options={{ title: "Trip albums" }} />
+      <Stack.Screen name="TripDetail" component={TripDetailScreen} options={{ title: "Trip album" }} />
     </Stack.Navigator>
   );
 }

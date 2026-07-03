@@ -10,6 +10,8 @@ import { NavigatePageComponent } from './features/companion/navigate-page.compon
 import { ProfilePageComponent } from './features/companion/profile-page.component';
 import { ReportsPageComponent } from './features/companion/reports-page.component';
 import { RideDetailPageComponent } from './features/companion/ride-detail-page.component';
+import { TripDetailPageComponent } from './features/companion/trip-detail-page.component';
+import { TripsPageComponent } from './features/companion/trips-page.component';
 import { YouPageComponent } from './features/companion/you-page.component';
 import { LandingPageComponent } from './features/landing/landing-page.component';
 
@@ -26,6 +28,8 @@ export const routes: Routes = [
       { path: 'home', component: HomePageComponent, title: 'RidePulse home' },
       { path: 'journal', component: JournalPageComponent, title: 'RidePulse journal' },
       { path: 'journal/:id', component: RideDetailPageComponent, title: 'Ride details' },
+      { path: 'trips', component: TripsPageComponent, title: 'RidePulse trip albums' },
+      { path: 'trips/:id', component: TripDetailPageComponent, title: 'Trip album' },
       { path: 'navigate', component: NavigatePageComponent, title: 'RidePulse navigate' },
       { path: 'analytics', component: AnalyticsPageComponent, title: 'Ride analytics' },
       { path: 'reports', component: ReportsPageComponent, title: 'Ride reports' },

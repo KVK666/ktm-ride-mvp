@@ -35,13 +35,18 @@ public class JdbcRideRepository implements RideRepository {
   }
 
   @Override
-  public List<Map<String, Object>> list(String userId, String period) {
+  public List<Map<String, Object>> list(String userId, String period, String searchQuery) {
     StringBuilder query = new StringBuilder(sql.get(QueryKeys.RIDE_SELECT)).append(" ").append(sql.get(QueryKeys.RIDE_LIST_BASE)).append(" ");
     if ("today".equals(period)) query.append(sql.get(QueryKeys.RIDE_LIST_TODAY)).append(" ");
     if ("month".equals(period)) query.append(sql.get(QueryKeys.RIDE_LIST_MONTH)).append(" ");
     if ("year".equals(period)) query.append(sql.get(QueryKeys.RIDE_LIST_YEAR)).append(" ");
+    query.append(sql.get(QueryKeys.RIDE_LIST_SEARCH)).append(" ");
     query.append(sql.get(QueryKeys.RIDE_LIST_ORDER));
-    return readOnlyJdbc.query(query.toString(), userParams(userId), (rs, rowNum) -> Rows.ride(rs));
+    String normalizedSearch = normalizeSearch(searchQuery);
+    MapSqlParameterSource params = userParams(userId)
+        .addValue("searchQuery", normalizedSearch)
+        .addValue("searchPattern", "%" + normalizedSearch + "%");
+    return readOnlyJdbc.query(query.toString(), params, (rs, rowNum) -> Rows.ride(rs));
   }
 
   @Override
@@ -199,5 +204,10 @@ public class JdbcRideRepository implements RideRepository {
 
   private MapSqlParameterSource rideParams(String userId, String rideId) {
     return userParams(userId).addValue("rideId", rideId);
+  }
+
+  private static String normalizeSearch(String value) {
+    if (value == null) return "";
+    return value.trim().toLowerCase();
   }
 }

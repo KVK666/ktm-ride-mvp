@@ -666,6 +666,44 @@ select {
   margin: 0;
 }
 
+.journal-search-panel,
+.trip-create-panel,
+.trip-detail-page .search-panel {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.search-panel .search-field {
+  min-height: 48px;
+  border: 1px solid rgba(245, 242, 234, 0.1);
+  border-radius: 16px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  background: rgba(8, 10, 12, 0.62);
+}
+
+.search-panel .search-field input {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.trip-create-panel textarea,
+.search-panel textarea {
+  width: 100%;
+  min-height: 98px;
+  border: 1px solid rgba(245, 242, 234, 0.1);
+  border-radius: 16px;
+  padding: 13px 14px;
+  color: var(--text);
+  background: rgba(8, 10, 12, 0.62);
+  font: inherit;
+  resize: vertical;
+}
+
 .route-facts {
   display: grid;
   gap: 12px;
@@ -852,6 +890,38 @@ select {
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+}
+
+.journal-tile > a {
+  color: inherit;
+  text-decoration: none;
+  display: contents;
+}
+
+.trip-tile-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--on-accent);
+  background: var(--accent);
+  margin-bottom: 18px;
+}
+
+.trip-ride-tile {
+  gap: 12px;
+}
+
+.remove-trip-ride,
+.compact-action {
+  min-height: 38px;
+  padding: 0 12px;
+  align-self: flex-start;
+}
+
+.search-results {
+  margin-top: 12px;
 }
 
 .tile-art {

@@ -6,6 +6,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration
 public class DatabaseConfig {
+  private static final Pattern POSTGRES_IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+
   @Bean(BeanNames.READ_WRITE_DATA_SOURCE)
   @Primary
   DataSource readWriteDataSource(Environment env) {
@@ -47,7 +50,7 @@ public class DatabaseConfig {
 
   private static DataSource hikari(String rawUrl, Environment env, boolean readOnly) {
     HikariConfig config = new HikariConfig();
-    config.setJdbcUrl(toJdbcUrl(rawUrl, sslRequired(env)));
+    config.setJdbcUrl(toJdbcUrl(rawUrl, sslRequired(env), env.getProperty("DB_SCHEMA")));
     Credentials credentials = credentials(rawUrl);
     if (credentials.user() != null) {
       config.setUsername(credentials.user());
@@ -61,20 +64,25 @@ public class DatabaseConfig {
     return new HikariDataSource(config);
   }
 
-  private static String toJdbcUrl(String rawUrl, boolean sslRequired) {
+  static String toJdbcUrl(String rawUrl, boolean sslRequired, String schema) {
+    String jdbcUrl;
     if (rawUrl.startsWith("jdbc:")) {
-      return withSslMode(rawUrl, sslRequired);
+      jdbcUrl = rawUrl;
+    } else if (rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://")) {
+      URI uri = URI.create(rawUrl);
+      String query = uri.getRawQuery();
+      jdbcUrl = "jdbc:postgresql://" + uri.getHost() + ":" + effectivePort(uri) + uri.getPath();
+      if (query != null && !query.isBlank()) {
+        jdbcUrl += "?" + query;
+      }
+    } else {
+      jdbcUrl = rawUrl;
     }
-    if (!rawUrl.startsWith("postgres://") && !rawUrl.startsWith("postgresql://")) {
-      return rawUrl;
+    String configuredJdbcUrl = withSslMode(jdbcUrl, sslRequired);
+    if (!configuredJdbcUrl.startsWith("jdbc:postgresql:")) {
+      return configuredJdbcUrl;
     }
-    URI uri = URI.create(rawUrl);
-    String query = uri.getRawQuery();
-    String jdbc = "jdbc:postgresql://" + uri.getHost() + ":" + effectivePort(uri) + uri.getPath();
-    if (query != null && !query.isBlank()) {
-      jdbc += "?" + query;
-    }
-    return withSslMode(jdbc, sslRequired);
+    return withCurrentSchema(configuredJdbcUrl, schema);
   }
 
   private static String withSslMode(String jdbcUrl, boolean sslRequired) {
@@ -82,6 +90,31 @@ public class DatabaseConfig {
       return jdbcUrl;
     }
     return jdbcUrl + (jdbcUrl.contains("?") ? "&" : "?") + "sslmode=require";
+  }
+
+  private static String withCurrentSchema(String jdbcUrl, String schema) {
+    if (schema == null || schema.isBlank() || containsQueryParam(jdbcUrl, "currentSchema")) {
+      return jdbcUrl;
+    }
+    String trimmedSchema = schema.trim();
+    for (String schemaPart : trimmedSchema.split(",")) {
+      String trimmedPart = schemaPart.trim();
+      if (trimmedPart.isBlank() || !POSTGRES_IDENTIFIER.matcher(trimmedPart).matches()) {
+        throw new IllegalStateException("DB_SCHEMA must be a comma-separated list of valid PostgreSQL identifiers");
+      }
+    }
+    return jdbcUrl + (jdbcUrl.contains("?") ? "&" : "?") + "currentSchema=" + trimmedSchema.replace(" ", "");
+  }
+
+  private static boolean containsQueryParam(String jdbcUrl, String paramName) {
+    String lowerUrl = jdbcUrl.toLowerCase();
+    String lowerParam = paramName.toLowerCase();
+    int queryStart = lowerUrl.indexOf('?');
+    if (queryStart < 0) {
+      return false;
+    }
+    String query = lowerUrl.substring(queryStart + 1);
+    return query.equals(lowerParam) || query.startsWith(lowerParam + "=") || query.contains("&" + lowerParam + "=");
   }
 
   private static boolean sslRequired(Environment env) {

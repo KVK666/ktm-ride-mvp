@@ -34,8 +34,11 @@ public class RidesController {
   }
 
   @GetMapping
-  ApiResponse<Map<String, Object>> list(HttpServletRequest request, @RequestParam(defaultValue = "all") String period) {
-    return ResponseUtil.ok(rideService.list(authSupport.user(request).id(), period));
+  ApiResponse<Map<String, Object>> list(
+      HttpServletRequest request,
+      @RequestParam(defaultValue = "all") String period,
+      @RequestParam(defaultValue = "") String q) {
+    return ResponseUtil.ok(rideService.list(authSupport.user(request).id(), period, q));
   }
 
   @GetMapping("/{id}/intelligence")

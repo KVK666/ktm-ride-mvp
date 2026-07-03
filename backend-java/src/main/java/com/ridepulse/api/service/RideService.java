@@ -39,8 +39,8 @@ public class RideService {
     this.photoValidationService = photoValidationService;
   }
 
-  public Map<String, Object> list(String userId, String period) {
-    List<Map<String, Object>> rides = rideRepository.list(userId, period);
+  public Map<String, Object> list(String userId, String period, String query) {
+    List<Map<String, Object>> rides = rideRepository.list(userId, period, query);
     return Map.of("rides", journalIntelligenceService.decorateRides(routePreviewService.attachRoutePreviews(rides), Map.of()));
   }
 

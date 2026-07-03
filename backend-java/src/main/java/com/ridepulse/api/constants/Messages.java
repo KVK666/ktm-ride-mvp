@@ -13,6 +13,8 @@ public final class Messages {
   public static final String INVALID_TOKEN = "Invalid or expired token";
   public static final String USER_NOT_FOUND = "User not found";
   public static final String RIDE_NOT_FOUND = "Ride not found";
+  public static final String TRIP_NOT_FOUND = "Trip not found";
+  public static final String TRIP_TITLE_REQUIRED = "Trip title is required";
   public static final String RIDE_PHOTO_NOT_FOUND = "Ride photo not found";
   public static final String PROFILE_PHOTO_NOT_FOUND = "Profile photo not found";
   public static final String INVALID_JSON = "Request body must be valid JSON";

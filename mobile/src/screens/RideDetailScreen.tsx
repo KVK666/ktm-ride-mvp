@@ -46,7 +46,7 @@ import { shareRideStoryImage } from "../services/rideStoryShare";
 import { getRideAlbum, importRideWindowPhotosToAlbum, pickManualPhotosForAlbum, removeAlbumPhoto } from "../services/rideAlbums";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
-import { Ride, RideAlbum, RideAlbumPhoto, RideIntelligence, RidePhoto, RidePoint } from "../types";
+import { Ride, RideAlbum, RideAlbumPhoto, RideIntelligence, RidePhoto, RidePoint, Trip } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 
 type RideDetailParams = {
@@ -90,6 +90,14 @@ export function RideDetailScreen() {
   const [promptWeatherLoading, setPromptWeatherLoading] = useState(false);
   const [promptWeatherRideId, setPromptWeatherRideId] = useState<string | null>(null);
   const [promptActionMessage, setPromptActionMessage] = useState("");
+  const [tripModalOpen, setTripModalOpen] = useState(false);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [tripsLoading, setTripsLoading] = useState(false);
+  const [tripActionMessage, setTripActionMessage] = useState("");
+  const [newTripTitle, setNewTripTitle] = useState("");
+  const [newTripDescription, setNewTripDescription] = useState("");
+  const [addingTripId, setAddingTripId] = useState<string | null>(null);
+  const [creatingTrip, setCreatingTrip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const storyCaptureRef = useRef<View | null>(null);
@@ -479,6 +487,95 @@ export function RideDetailScreen() {
     }
   }
 
+  async function openTripModal() {
+    if (!ride) {
+      return;
+    }
+    setTripModalOpen(true);
+    setTripActionMessage("");
+    setNewTripTitle(displayTitle || "");
+    setNewTripDescription("");
+    await loadTripOptions();
+  }
+
+  function closeTripModal() {
+    setTripModalOpen(false);
+    setTripActionMessage("");
+    setAddingTripId(null);
+    setCreatingTrip(false);
+  }
+
+  async function loadTripOptions() {
+    setTripsLoading(true);
+    try {
+      const response = await api<{ trips: Trip[] }>("/trips");
+      setTrips(Array.isArray(response.trips) ? response.trips : []);
+    } catch (err: any) {
+      setTripActionMessage(err.message || "Unable to load trips");
+    } finally {
+      setTripsLoading(false);
+    }
+  }
+
+  async function addRideToTrip(tripId: string) {
+    if (!ride || addingTripId) {
+      return;
+    }
+    setAddingTripId(tripId);
+    setTripActionMessage("");
+    try {
+      await api(`/trips/${tripId}/rides`, {
+        method: "POST",
+        body: JSON.stringify({ rideId: ride.id })
+      });
+      const trip = trips.find((item) => item.id === tripId);
+      setTripActionMessage(`Added to ${trip?.title || "trip"}.`);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      await loadTripOptions();
+    } catch (err: any) {
+      setTripActionMessage(err.message || "Unable to add ride to trip");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    } finally {
+      setAddingTripId(null);
+    }
+  }
+
+  async function createTripAndAddRide() {
+    if (!ride || creatingTrip) {
+      return;
+    }
+    const title = newTripTitle.trim();
+    if (!title) {
+      setTripActionMessage("Name the trip album first.");
+      return;
+    }
+    setCreatingTrip(true);
+    setTripActionMessage("");
+    try {
+      const created = await api<{ trip: Trip }>("/trips", {
+        method: "POST",
+        body: JSON.stringify({ title, description: newTripDescription.trim() || null })
+      });
+      if (!created.trip?.id) {
+        throw new Error("Trip was created, but could not be opened.");
+      }
+      await api(`/trips/${created.trip.id}/rides`, {
+        method: "POST",
+        body: JSON.stringify({ rideId: ride.id })
+      });
+      setNewTripTitle("");
+      setNewTripDescription("");
+      setTripActionMessage(`Created ${created.trip.title} and added this ride.`);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      await loadTripOptions();
+    } catch (err: any) {
+      setTripActionMessage(err.message || "Unable to create trip");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    } finally {
+      setCreatingTrip(false);
+    }
+  }
+
   function openPhotoViewer(index: number) {
     if (!photos[index]) {
       return;
@@ -573,6 +670,18 @@ export function RideDetailScreen() {
             />
           </View>
           {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.sectionTitle}>Trip album</Text>
+              <Text style={styles.sectionMeta}>
+                Add this ride to a manual trip album, or create a new trip around it.
+              </Text>
+            </View>
+          </View>
+          <PrimaryButton label="Add to trip" icon="albums" compact onPress={openTripModal} />
         </View>
 
         <View style={[styles.card, needsReview && styles.reviewCard]}>
@@ -817,6 +926,74 @@ export function RideDetailScreen() {
         onShare={sharePrompt}
         onOpenChatGpt={openChatGpt}
       />
+      <Modal visible={tripModalOpen} animationType="slide" onRequestClose={closeTripModal}>
+        <Screen>
+          <ScrollView contentContainerStyle={styles.promptModalContent}>
+            <View style={styles.promptHeader}>
+              <View style={styles.promptHeaderText}>
+                <Text style={styles.kicker}>Trip album</Text>
+                <Text style={styles.promptTitle}>Add this ride to a trip</Text>
+                <Text style={styles.sectionMeta}>Trips are manual albums. Rides stay in your journal even if a trip is deleted.</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close trip modal" onPress={closeTripModal} style={styles.promptClose}>
+                <Ionicons name="close" color={colors.text} size={22} />
+              </Pressable>
+            </View>
+
+            <View style={styles.tripCreateBox}>
+              <Text style={styles.tripModalTitle}>Create new trip</Text>
+              <TextInput
+                value={newTripTitle}
+                onChangeText={setNewTripTitle}
+                placeholder="Trip title"
+                placeholderTextColor={colors.muted}
+                maxLength={120}
+                style={styles.input}
+              />
+              <TextInput
+                value={newTripDescription}
+                onChangeText={setNewTripDescription}
+                placeholder="Optional notes"
+                placeholderTextColor={colors.muted}
+                maxLength={1000}
+                multiline
+                textAlignVertical="top"
+                style={[styles.input, styles.notesInput]}
+              />
+              <PrimaryButton label="Create and add" icon="add-circle" compact loading={creatingTrip} onPress={createTripAndAddRide} />
+            </View>
+
+            <View style={styles.tripListBox}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderText}>
+                  <Text style={styles.tripModalTitle}>Existing trips</Text>
+                  <Text style={styles.sectionMeta}>{tripsLoading ? "Loading trips..." : `${trips.length} trip album${trips.length === 1 ? "" : "s"}`}</Text>
+                </View>
+                <Pressable accessibilityRole="button" onPress={loadTripOptions} style={styles.promptClose}>
+                  <Ionicons name="refresh" color={colors.text} size={20} />
+                </Pressable>
+              </View>
+              {trips.map((trip) => (
+                <Pressable
+                  key={trip.id}
+                  accessibilityRole="button"
+                  disabled={Boolean(addingTripId)}
+                  onPress={() => addRideToTrip(trip.id)}
+                  style={({ pressed }) => [styles.tripOption, pressed && styles.pressedPhoto, addingTripId === trip.id && styles.disabledButton]}
+                >
+                  <View style={styles.tripOptionText}>
+                    <Text numberOfLines={2} style={styles.tripOptionTitle}>{trip.title}</Text>
+                    <Text style={styles.sectionMeta}>{trip.rideCount || 0} rides · {km(trip.distanceM || 0)}</Text>
+                  </View>
+                  <Text style={styles.tripOptionAction}>{addingTripId === trip.id ? "Adding..." : "Add"}</Text>
+                </Pressable>
+              ))}
+              {!tripsLoading && !trips.length ? <Text style={styles.sectionMeta}>No trips yet. Create one above.</Text> : null}
+            </View>
+            {tripActionMessage ? <Text style={styles.reviewMessage}>{tripActionMessage}</Text> : null}
+          </ScrollView>
+        </Screen>
+      </Modal>
       {viewerImages.length ? (
         <ImageViewing
           images={viewerImages}
@@ -1558,6 +1735,47 @@ const createStyles = (colors: ThemeColors) => ({
   promptModalContent: {
     padding: 16,
     gap: 12
+  },
+  tripCreateBox: {
+    padding: 14,
+    borderRadius: 20,
+    gap: 10,
+    backgroundColor: colors.surface
+  },
+  tripModalTitle: {
+    color: colors.text,
+    fontFamily: typography.bold,
+    fontSize: 16
+  },
+  tripListBox: {
+    padding: 14,
+    borderRadius: 20,
+    gap: 10,
+    backgroundColor: colors.surface
+  },
+  tripOption: {
+    minHeight: 58,
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.surfaceHigh
+  },
+  tripOptionText: {
+    flex: 1,
+    minWidth: 0
+  },
+  tripOptionTitle: {
+    color: colors.text,
+    fontFamily: typography.bold,
+    fontSize: 14,
+    marginBottom: 3
+  },
+  tripOptionAction: {
+    color: colors.accent,
+    fontFamily: typography.bold,
+    fontSize: 12
   },
   promptHeader: {
     flexDirection: "row",

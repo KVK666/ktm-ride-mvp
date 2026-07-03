@@ -37,9 +37,13 @@ public class SchemaService {
         QueryKeys.SCHEMA_USER_PROFILE_UPDATED,
         QueryKeys.SCHEMA_PASSWORD_RESET_TABLE,
         QueryKeys.SCHEMA_RIDE_ALBUM_TABLE,
+        QueryKeys.SCHEMA_TRIPS_TABLE,
+        QueryKeys.SCHEMA_TRIP_RIDES_TABLE,
         QueryKeys.SCHEMA_PASSWORD_RESET_USER_INDEX,
         QueryKeys.SCHEMA_PASSWORD_RESET_EXPIRES_INDEX,
         QueryKeys.SCHEMA_RIDE_PHOTO_RIDE_INDEX,
-        QueryKeys.SCHEMA_RIDE_PHOTO_USER_INDEX);
+        QueryKeys.SCHEMA_RIDE_PHOTO_USER_INDEX,
+        QueryKeys.SCHEMA_TRIPS_USER_INDEX,
+        QueryKeys.SCHEMA_TRIP_RIDES_RIDE_INDEX);
   }
 }

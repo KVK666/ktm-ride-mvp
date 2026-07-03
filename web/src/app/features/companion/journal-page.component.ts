@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { ApiService } from '../../core/api.service';
@@ -12,7 +13,7 @@ type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
 @Component({
   selector: 'app-journal-page',
   standalone: true,
-  imports: [LoadingPulseComponent, LucideAngularModule, RouterLink, RouteArtComponent],
+  imports: [FormsModule, LoadingPulseComponent, LucideAngularModule, RouterLink, RouteArtComponent],
   template: `
     <section class="page-title">
       <p class="kicker">EVERY ROAD, REMEMBERED</p>
@@ -25,6 +26,22 @@ type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
         <button type="button" [class.active]="filter() === item.key" (click)="choose(item.key)">{{ item.label }}</button>
       }
     </div>
+
+    <section class="search-panel journal-search-panel">
+      <label class="search-field">
+        <lucide-icon name="search" size="17" />
+        <input [(ngModel)]="searchQuery" (keyup.enter)="load()" placeholder="Search title, notes, places" />
+      </label>
+      <div class="button-row">
+        <button type="button" class="primary-action" (click)="load()">
+          <lucide-icon name="search" size="17" /> Search
+        </button>
+        <button type="button" class="secondary-action" (click)="clearSearch()">Clear</button>
+        <a class="secondary-action" routerLink="/app/trips">
+          <lucide-icon name="folder-open" size="17" /> Trip albums
+        </a>
+      </div>
+    </section>
 
     @if (error()) {
       <button class="notice danger" type="button" (click)="load()">{{ error() }} Tap to retry.</button>
@@ -61,6 +78,7 @@ export class JournalPageComponent implements OnInit {
   readonly km = km;
   readonly kmh = kmh;
   readonly dateLabel = dateLabel;
+  searchQuery = '';
   readonly filters: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'month', label: 'This month' },
@@ -99,12 +117,18 @@ export class JournalPageComponent implements OnInit {
     this.error.set('');
     try {
       const period = this.filter() === 'month' ? 'month' : 'all';
-      const response = await this.api.request<{ rides: Ride[] }>(`/rides?period=${period}`);
+      const query = this.searchQuery.trim();
+      const response = await this.api.request<{ rides: Ride[] }>(`/rides?period=${period}${query ? `&q=${encodeURIComponent(query)}` : ''}`);
       this.rides.set(Array.isArray(response.rides) ? response.rides : []);
     } catch (error: unknown) {
       this.error.set(error instanceof Error ? error.message : 'Unable to load journal.');
     } finally {
       this.loading.set(false);
     }
+  }
+
+  clearSearch() {
+    this.searchQuery = '';
+    void this.load();
   }
 }

@@ -60,7 +60,7 @@ For Android production builds, restrict the key to your Android package and SHA-
 
 ## Backend Setup
 
-The active and only backend implementation is the Java Spring Boot service in `backend-java/`, deployed to Render with Docker and backed by Neon PostgreSQL.
+The active and only backend implementation is the Java Spring Boot service in `backend-java/`, deployed to Render with Docker and backed by PostgreSQL.
 
 Production API:
 
@@ -87,6 +87,14 @@ $env:CORS_ORIGIN="*"
 ```
 
 The API runs at `http://localhost:4001`.
+
+For a hosted PostgreSQL database that stores RidePulse tables in a non-default schema, set `DB_SCHEMA`. For AWS with a schema named `ridepulse_db`, use:
+
+```powershell
+$env:DB_SCHEMA="ridepulse_db,public"
+```
+
+If `ridepulse_db` is the database name instead of a schema name, leave `DB_SCHEMA` unset and put `/ridepulse_db` in `DATABASE_URL`.
 
 For password reset email in local or Render environments, configure SMTP on the Java backend:
 
@@ -192,6 +200,8 @@ The Java backend creates and uses the RidePulse PostgreSQL schema, including:
 - `ride_points`: normalized GPS points for route rendering and speed-over-time analysis.
 - `ride_album_photos`: backend-synced ride album copies for web/mobile companion display.
 
+To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMENT.md#1a-migrate-existing-neon-data-to-aws). The migration script reads connection strings from environment variables and does not commit database secrets.
+
 ## API Overview
 
 - `POST /api/auth/register`
@@ -210,6 +220,13 @@ The Java backend creates and uses the RidePulse PostgreSQL schema, including:
 - `GET /api/rides/:id/photos`
 - `POST /api/rides/:id/photos`
 - `DELETE /api/rides/:id/photos/:photoId`
+- `GET /api/trips`
+- `POST /api/trips`
+- `GET /api/trips/:id`
+- `PATCH /api/trips/:id`
+- `DELETE /api/trips/:id`
+- `POST /api/trips/:id/rides`
+- `DELETE /api/trips/:id/rides/:rideId`
 - `GET /api/analytics/distance?bucket=daily|monthly|yearly`
 - `GET /api/analytics/speed/:rideId`
 - `GET /api/reports?period=day|month|year&date=2026-05-11`

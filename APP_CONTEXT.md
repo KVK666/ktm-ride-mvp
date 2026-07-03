@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-02
+Last updated: 2026-07-03
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -13,8 +13,8 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Mobile app: Expo React Native, Android-first.
 - Web app: Angular standalone app in `web/`, with a cinematic public website and authenticated companion dashboard.
 - Backend: Render Java Spring Boot API in `backend-java/` is the only backend implementation.
-- Database: PostgreSQL, currently hosted on Neon.
-- Backend hosting: Render Starter in Singapore, backed by Neon PostgreSQL.
+- Database: PostgreSQL, currently hosted on Neon; AWS RDS cutover is supported with `DB_SCHEMA` when using a custom schema.
+- Backend hosting: Render Starter in Singapore, currently backed by Neon PostgreSQL.
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT and Render-backed email password reset.
@@ -28,7 +28,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 
 Important compatibility rule: keep package IDs, deep links, API URLs, and legacy storage keys such as `duke_ride_*` stable unless a migration is explicitly planned and tested.
 
-Do not commit `.env` files, API keys, database passwords, or Neon connection strings.
+Do not commit `.env` files, API keys, database passwords, or Neon/AWS database connection strings.
 
 ## What The App Does Now
 
@@ -56,6 +56,8 @@ Do not commit `.env` files, API keys, database passwords, or Neon connection str
 - Shows dashboard totals for today, month, year, total rides, best top speed, average speed, and recent rides.
 - Dashboard shows a recovery card when an interrupted manual ride is locally stored and needs to be stopped/saved from the Ride tab.
 - Shows ride history by period, with route maps and full-screen map viewing.
+- Journal ride search is server-backed on mobile and web, matching ride title, notes, start label, and end label while preserving existing period filters.
+- Adds manual Trip Albums: riders can create trip folders, add existing rides, remove rides from a trip without deleting the ride, and browse trip detail on Android and the Angular companion.
 - Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
 - Ride Detail has a Ride Review section for ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail has a confirmed delete option for the selected ride, intended for test rides, unwanted rides, or duplicates that should be fully removed with their route points.
@@ -100,6 +102,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
 - `mobile/src/services/manualRideSession.ts`: crash-resilient local manual ride session storage, recovery, and map point compaction.
 - `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History, with ride review and duplicate cleanup.
+- `mobile/src/screens/TripsScreen.tsx` and `mobile/src/screens/TripDetailScreen.tsx`: manual Trip Albums list/detail UI.
 - `mobile/src/components/RideStoryCard.tsx`: local 9:16 ride story image layout rendered for capture/share.
 - `mobile/src/services/rideStoryPrompt.ts`: dynamic ChatGPT image prompt variants and optional Open-Meteo weather mood lookup.
 - `mobile/src/services/rideStoryShare.ts`: Android Instagram/share-sheet handoff for generated story images.
@@ -131,10 +134,12 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/api/client.ts`: API client, SecureStore token, mirrored background token.
 - `scripts/install-android-release.ps1`: release installer that prebuilds native Android config before Gradle so app icon and OTA metadata stay in sync.
 - `backend-java/src/main/java/com/ridepulse/api/controller/RidesController.java`: ride create/list/detail/delete API.
+- `backend-java/src/main/java/com/ridepulse/api/controller/TripsController.java`: authenticated manual Trip Albums API.
 - `backend-java/src/main/java/com/ridepulse/api/controller/ProfileController.java`: authenticated profile-photo upload, fetch, and delete API.
 - `backend-java/src/main/java/com/ridepulse/api/controller/JournalController.java`: Home and Journal API surfaces.
 - `backend-java/src/main/java/com/ridepulse/api/service/PhotoValidationService.java`: profile-photo and ride-photo MIME/base64/size validation.
 - `backend-java/src/main/resources/db-queries.properties`: SQL, schema bootstrap statements, and `.pojo` mapping keys.
+- `scripts/migrate-neon-to-aws.ps1`: guarded pg_dump/pg_restore helper for moving existing Neon `public` RidePulse data into an AWS PostgreSQL schema such as `ridepulse_db`.
 
 ## Local Development Notes
 
@@ -191,6 +196,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 
 ## Latest Fix Notes
 
+- 2026-07-03: Prepared the Neon-to-AWS PostgreSQL migration path. Java database config now supports `DB_SCHEMA`/JDBC `currentSchema` for custom schemas such as `ridepulse_db,public`, Render has an optional dashboard-managed `DB_SCHEMA` variable, and `scripts/migrate-neon-to-aws.ps1` can dump Neon data and restore/move app tables into AWS without committing connection strings. Production is not marked cut over until the script is run, Render `DATABASE_URL` is changed to AWS, and smoke tests pass.
 - 2026-07-02: Renamed the GitHub repository and main branch references to `ride-pulse`. Updated the local `origin` URL, APK release workflow trigger branch, Render/web APK download links, and current project context; kept production API/service URLs and package IDs stable.
 - 2026-07-02: Fixed web CORS failures on authenticated Java API calls by allowing browser `OPTIONS` preflight requests to bypass JWT token validation while keeping real `/api/*` requests protected.
 - 2026-07-02: Hotfixed mobile and web clients to unwrap the Java API standard response wrapper (`data`) while still accepting the old Node response shape. Published EAS production OTA update group `53510c9a-57a8-435e-a859-5ed3d095a885` from commit `ef944f7` so login/register/API calls work against Java.
@@ -246,6 +252,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-06-29: Added Render-backed forgot-password support. Mobile and web can request reset links, the Angular web companion exposes `/#/reset-password`, the backend stores only hashed one-time tokens with 30-minute expiry, and SMTP is configured through environment variables.
 - 2026-06-29: Published the forgot-password mobile UI through EAS Update on the `production` branch for runtime `0.1.0`. Update group `572d8d60-757d-4fff-9e8c-ff2a946f39e8` points at commit `c1b22af`.
 - 2026-06-29: Fixed locally built Android APK OTA checks by embedding the required `expo-channel-name: production` request header in native Expo Updates metadata. Without that header, EAS returned `"channel-name": Required` even with the correct update URL.
+- 2026-07-02: Added manual Trip Albums and server-backed ride search. Java now exposes `/api/trips` plus optional `/api/rides?q=...`, mobile adds Trip Albums screens and Ride Detail add-to-trip flow, and the Angular companion adds Trips pages plus Journal search.
 - 2026-06-29: Documented Gmail SMTP/App Password configuration for Render password reset email and added non-secret Gmail defaults to `render.yaml`; `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` remain Render-managed secrets.
 - 2026-06-29: Added non-secret password-reset config status to `/health` and safer Render log messages for accepted SMTP sends, SMTP failures, and unknown-account reset requests.
 - 2026-07-01: Added a Java/Spring Boot backend in `backend-java/` as a contract-preserving port of the previous API. Java defaults to port `4001`, keeps the existing PostgreSQL schema/JWT/API contracts, uses thin controllers with a standard response wrapper, keeps business flow in services, uses repository interfaces plus `NamedParameterJdbcTemplate` implementations with separate read-only/read-write datasources, stores SQL and `.pojo` mapping keys in `db-queries.properties`, and includes service tests plus Render Docker deployment notes.

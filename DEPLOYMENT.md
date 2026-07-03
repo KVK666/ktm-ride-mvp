@@ -1,10 +1,10 @@
 # Online Deployment
 
-This setup is for a small private rider group. The active production API is the Render Java Spring Boot service backed by Neon PostgreSQL. The Angular website deploys as a Render Static Site next to that API.
+This setup is for a small private rider group. The active production API is the Render Java Spring Boot service backed by PostgreSQL. The Angular website deploys as a Render Static Site next to that API.
 
 ## Recommended Stack
 
-- Database: Neon PostgreSQL
+- Database: PostgreSQL, currently Neon with AWS RDS supported for cutover
 - Backend API: Render Java Spring Boot service
 - Web: Render Static Site
 - Mobile app: standalone Android release APK pointed at the Java API URL
@@ -17,17 +17,55 @@ Current Java API URL:
 https://ktm-ride-mvp-java.onrender.com
 ```
 
-## 1. Create Or Reuse Neon Postgres
+## 1. Create Or Reuse Postgres
 
-1. Open Neon and create or reuse the `ktm-ride` project.
-2. Copy the pooled PostgreSQL connection string.
-3. Keep `sslmode=require` in the URL.
+1. Create or reuse a PostgreSQL database.
+2. Copy the PostgreSQL connection string.
+3. Keep `sslmode=require` in the URL for hosted databases.
 
 The connection string looks like:
 
 ```text
 postgresql://user:password@host/dbname?sslmode=require
 ```
+
+If AWS uses a separate schema named `ridepulse_db` inside a database, configure the Java API with:
+
+```text
+DB_SCHEMA=ridepulse_db,public
+```
+
+The `public` fallback keeps PostgreSQL extension functions visible while RidePulse tables live in `ridepulse_db`. If `ridepulse_db` is the database name and tables live in that database's default `public` schema, leave `DB_SCHEMA` unset and use `/ridepulse_db` in `DATABASE_URL`.
+
+## 1a. Migrate Existing Neon Data To AWS
+
+Use a short maintenance window so new rides are not written to Neon while the final dump is running. Do not paste database URLs into committed files.
+
+From PowerShell:
+
+```powershell
+cd "C:\Users\BBS001\Documents\New project"
+$env:NEON_DATABASE_URL="postgresql://neon-user:neon-password@neon-host/neon-db?sslmode=require"
+$env:AWS_DATABASE_URL="postgresql://aws-user:aws-password@aws-host/aws-db?sslmode=require"
+.\scripts\migrate-neon-to-aws.ps1 -TargetSchema ridepulse_db
+```
+
+The script exports the existing Neon `public` schema, restores it to AWS, moves RidePulse app tables into `ridepulse_db`, and prints restored table, user, and ride counts. It stops if RidePulse tables already exist on the target unless `-AllowNonEmptyTarget` is passed after a manual backup/review.
+
+After the data copy, set these on the Render Java API service:
+
+```text
+DATABASE_URL=postgresql://aws-user:aws-password@aws-host/aws-db?sslmode=require
+DATABASE_SSL=true
+DB_SCHEMA=ridepulse_db,public
+```
+
+Then redeploy/restart the Java API and verify:
+
+1. `GET https://ktm-ride-mvp-java.onrender.com/health`
+2. Login with a real rider.
+3. Confirm Dashboard, Journal, Trips, Analytics, Reports, profile photo, and ride album data load.
+4. Save one short test ride after cutover and confirm it appears in AWS.
 
 ## 2. Create Database Tables
 

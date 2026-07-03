@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface RideRepository {
-  List<Map<String, Object>> list(String userId, String period);
+  List<Map<String, Object>> list(String userId, String period, String query);
 
   Optional<Map<String, Object>> findOwnedRide(String userId, String rideId);
 

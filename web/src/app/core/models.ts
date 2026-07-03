@@ -49,6 +49,19 @@ export type Ride = {
   albumHint?: string;
 };
 
+export type Trip = {
+  id: string;
+  title: string;
+  description?: string | null;
+  coverRideId?: string | null;
+  rideCount: number;
+  distanceM: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type DashboardStats = {
   todayDistanceM: number;
   monthDistanceM: number;

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../api/client";
 import { JournalCard } from "../components/JournalCard";
 import { PremiumEmptyState } from "../components/PremiumEmptyState";
@@ -27,6 +27,7 @@ export function HistoryScreen() {
   const { colors } = useTheme();
   const [filter, setFilter] = useState<Filter>("all");
   const [rides, setRides] = useState<Ride[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -37,14 +38,15 @@ export function HistoryScreen() {
     try {
       setError("");
       const period = filter === "month" ? "month" : "all";
-      const response = await api<{ rides: Ride[] }>(`/rides?period=${period}`);
+      const query = searchQuery.trim();
+      const response = await api<{ rides: Ride[] }>(`/rides?period=${period}${query ? `&q=${encodeURIComponent(query)}` : ""}`);
       setRides(Array.isArray(response.rides) ? response.rides : []);
     } catch (err: any) {
       setError(err.message || "Your journal is unavailable");
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, searchQuery]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -101,6 +103,33 @@ export function HistoryScreen() {
           <Text style={[styles.title, { color: colors.text }]}>Journal</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>Editorial cards, smart labels, and the routes that made the month.</Text>
         </View>
+        <View style={styles.headerActions}>
+          <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="search" color={colors.muted} size={18} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search title, notes, places"
+              placeholderTextColor={colors.muted}
+              returnKeyType="search"
+              autoCapitalize="none"
+              style={[styles.searchInput, { color: colors.text }]}
+            />
+            {searchQuery ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Clear ride search" onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" color={colors.muted} size={18} />
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate("Trips")}
+            style={({ pressed }) => [styles.tripsButton, { backgroundColor: colors.accent }, pressed && styles.pressed]}
+          >
+            <Ionicons name="albums" color={colors.onAccent} size={18} />
+            <Text style={[styles.tripsButtonText, { color: colors.onAccent }]}>Trips</Text>
+          </Pressable>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
           {filters.map((item) => {
             const selected = filter === item.key;
@@ -119,7 +148,7 @@ export function HistoryScreen() {
         {!loading && !error && !displayedRides.length ? (
           <PremiumEmptyState
             title={filter === "unreviewed" ? "Everything is reviewed" : "No journeys in this chapter"}
-            body={filter === "unreviewed" ? "Nice. Your ride stories are caught up." : "Choose another filter, or record your next ride to begin one."}
+            body={searchQuery.trim() ? "Try another search, or clear it to return to all rides." : filter === "unreviewed" ? "Nice. Your ride stories are caught up." : "Choose another filter, or record your next ride to begin one."}
             actionLabel="Start a ride"
             onAction={() => navigation.navigate("Ride")}
           />
@@ -135,6 +164,11 @@ const styles = StyleSheet.create({
   eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 },
   title: { fontFamily: typography.extraBold, fontSize: 38, lineHeight: 44, letterSpacing: -0.8 },
   subtitle: { fontFamily: typography.regular, fontSize: 14, lineHeight: 21, maxWidth: 350 },
+  headerActions: { gap: 10 },
+  searchBox: { minHeight: 46, borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 9 },
+  searchInput: { flex: 1, minWidth: 0, fontFamily: typography.medium, fontSize: 13, paddingVertical: 0 },
+  tripsButton: { alignSelf: "flex-start", minHeight: 42, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 7 },
+  tripsButtonText: { fontFamily: typography.bold, fontSize: 12 },
   filters: { gap: 8, paddingRight: 20 },
   filter: { minHeight: 42, borderRadius: 999, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
   filterText: { fontFamily: typography.bold, fontSize: 11 },
@@ -144,5 +178,6 @@ const styles = StyleSheet.create({
   errorTitle: { fontFamily: typography.bold, fontSize: 13 },
   errorCopy: { fontFamily: typography.regular, fontSize: 11, marginTop: 2 },
   loading: { height: 220, alignItems: "center", justifyContent: "center", gap: 10 },
-  loadingText: { fontFamily: typography.medium }
+  loadingText: { fontFamily: typography.medium },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.992 }] }
 });

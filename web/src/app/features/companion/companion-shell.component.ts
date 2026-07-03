@@ -99,6 +99,7 @@ export class CompanionShellComponent implements OnInit {
   readonly nav = [
     { path: '/app/home', label: 'Home', icon: 'house' },
     { path: '/app/journal', label: 'Journal', icon: 'history' },
+    { path: '/app/trips', label: 'Trips', icon: 'folder-open' },
     { path: '/app/navigate', label: 'Navigate', icon: 'navigation' },
     { path: '/app/analytics', label: 'Analytics', icon: 'chart-column-increasing' },
     { path: '/app/reports', label: 'Reports', icon: 'file-text' },
