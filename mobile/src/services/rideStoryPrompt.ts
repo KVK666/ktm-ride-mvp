@@ -240,6 +240,8 @@ export function buildRideStoryPrompt(
   const variant = STORY_PROMPT_VARIANTS.find((item) => item.id === variantId) || STORY_PROMPT_VARIANTS[0];
   const context = analyzeRidePromptContext(ride);
   const angle = variant.angles[Math.abs(seed) % variant.angles.length];
+  const routeLine = routePromptLine(ride);
+  const insightLine = [ride.aiSummary, ride.keyInsight, ride.rideKindReason].map((value) => value?.trim()).find(Boolean);
   const weatherLine = weather
     ? `${weather.label} from Open-Meteo near ride start`
     : "Weather unavailable, infer only a general mood from time and place";
@@ -250,11 +252,12 @@ export function buildRideStoryPrompt(
     "Use these ride facts exactly. Do not invent or change any distance, speed, date, time, location, or bike detail:",
     `Ride title: ${rideTitle(ride)}`,
     `Date and start time: ${shortDate(ride.startedAt)} at ${time(ride.startedAt)}`,
-    `Route: ${ride.startLabel || "Start point"} to ${ride.endLabel || "End point"}`,
+    `Route: ${routeLine}`,
     `Distance: ${km(ride.distanceM)}`,
     `Duration: ${duration(ride.durationS)}`,
     `Top speed: ${kmh(ride.topSpeedKmh)}`,
     `Average speed: ${kmh(ride.avgSpeedKmh)}`,
+    insightLine ? `RidePulse insight: ${insightLine}` : null,
     "",
     "Mood cues:",
     `Time mood: ${context.timeMood}`,
@@ -273,14 +276,14 @@ export function buildRideStoryPrompt(
     "Leave clean space for the ride stats, or include the stats using the exact text above.",
     "Do not use official motorcycle manufacturer logos. A generic unbranded motorcycle silhouette is okay.",
     "Do not add extra claims, fake sponsors, random rider names, license plates, or unsafe riding behavior."
-  ].join("\n");
+  ].filter((line): line is string => line != null).join("\n");
 }
 
 function analyzeRidePromptContext(ride: Ride): RidePromptContext {
   const startedAt = new Date(ride.startedAt);
   const hour = Number.isNaN(startedAt.getTime()) ? 12 : startedAt.getHours();
   const distanceKm = ride.distanceM / 1000;
-  const allLabels = `${ride.startLabel || ""} ${ride.endLabel || ""} ${ride.title || ""}`.toLowerCase();
+  const allLabels = `${cleanRouteLabel(ride.startLabel) || ""} ${cleanRouteLabel(ride.endLabel) || ""} ${ride.title || ""} ${ride.aiTitle || ""} ${ride.aiSummary || ""}`.toLowerCase();
 
   return {
     timeMood: timeMood(hour),
@@ -455,5 +458,26 @@ function containsAny(value: string, needles: string[]) {
 }
 
 function rideTitle(ride: Ride) {
-  return ride.title?.trim() || `${shortDate(ride.startedAt)} ride`;
+  return ride.title?.trim() || ride.aiTitle?.trim() || ride.smartTitle?.trim() || `${shortDate(ride.startedAt)} ride`;
+}
+
+function routePromptLine(ride: Ride) {
+  const start = cleanRouteLabel(ride.startLabel);
+  const end = cleanRouteLabel(ride.endLabel);
+  if (start && end) {
+    return `${start} to ${end}`;
+  }
+  if (start || end) {
+    return start || end;
+  }
+  return "Saved RidePulse route, exact GPS trace kept private";
+}
+
+function cleanRouteLabel(value?: string | null) {
+  const label = String(value || "").replace(/\([^)]*\)/g, "").trim();
+  const lower = label.toLowerCase();
+  if (!label || lower.startsWith("auto start") || lower.startsWith("auto end") || /-?\d+\.\d{3,}/.test(label)) {
+    return "";
+  }
+  return label.length > 72 ? label.slice(0, 72) : label;
 }

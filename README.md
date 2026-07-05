@@ -39,7 +39,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Post-ride review with ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
 - Ride Detail story sharing with a local Instagram Story image and dynamic ChatGPT image prompts based on ride details, place mood, time, and optional weather.
-- Backend-owned AI Ride Intelligence for human ride titles, summaries, ride-kind detection, key insights, best moments, and high-confidence trip automation suggestions with deterministic fallback when AI is unavailable.
+- Backend-owned AI Ride Intelligence for human ride titles, summaries, ride-kind detection, key insights, best moments, and trip automation suggestions, with deterministic fallback and long-ride trip suggestions when AI is unavailable.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
 - Basic charts for distance, ride duration trends, and top speed comparison.
@@ -240,7 +240,7 @@ To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMEN
 - `GET /api/analytics/speed/:rideId`
 - `GET /api/reports?period=day|month|year&date=2026-05-11`
 
-Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `rideKind`, `rideKindConfidence`, `rideKindReason`, `keyInsight`, `bestMoment`, `tripSuggestion`, `aiStatus`, and `aiGeneratedAt`. Existing route labels remain available as `startLabel` and `endLabel` for maps and route facts.
+Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `rideKind`, `rideKindConfidence`, `rideKindReason`, `keyInsight`, `bestMoment`, `tripSuggestion`, `aiStatus`, and `aiGeneratedAt`. Existing route labels remain available as `startLabel` and `endLabel` for maps and route facts; AI titles, summaries, story prompts, and trip suggestions should avoid treating map labels as the main ride meaning.
 
 ## Safety Notes
 

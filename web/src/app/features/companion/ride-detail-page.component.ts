@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
@@ -232,7 +232,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
     }
   `
 })
-export class RideDetailPageComponent implements OnInit {
+export class RideDetailPageComponent implements OnDestroy, OnInit {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -249,6 +249,8 @@ export class RideDetailPageComponent implements OnInit {
   readonly slideshowOpen = signal(false);
   titleDraft = '';
   notesDraft = '';
+  private aiRefreshAttempts = 0;
+  private aiRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   readonly km = km;
   readonly kmh = kmh;
   readonly duration = duration;
@@ -294,11 +296,19 @@ export class RideDetailPageComponent implements OnInit {
     if (!ride) {
       return '';
     }
-    return `Create a cinematic RidePulse story image for "${this.displayTitle()}": ${km(ride.distanceM)}, ${duration(ride.durationS)}, top speed ${kmh(ride.topSpeedKmh)}, from ${ride.startLabel} to ${ride.endLabel}, dark graphite OLED mood with electric-lime route glow.`;
+    const route = this.routePromptLine(ride);
+    const insight = this.intelligence()?.keyInsight || ride.keyInsight || this.intelligence()?.summaryText || ride.aiSummary;
+    return `Create a cinematic RidePulse story image for "${this.displayTitle()}": ${km(ride.distanceM)}, ${duration(ride.durationS)}, top speed ${kmh(ride.topSpeedKmh)}, route context: ${route}${insight ? `, RidePulse insight: ${insight}` : ''}. Keep exact stats, avoid fake location details, use a dark graphite OLED mood with electric-lime route glow.`;
   });
 
   ngOnInit() {
     void this.load();
+  }
+
+  ngOnDestroy() {
+    if (this.aiRefreshTimer) {
+      clearTimeout(this.aiRefreshTimer);
+    }
   }
 
   async load() {
@@ -310,6 +320,7 @@ export class RideDetailPageComponent implements OnInit {
     }
     this.loading.set(true);
     this.error.set('');
+    this.aiRefreshAttempts = 0;
     try {
       const [rideResponse, intel, duplicates, photos] = await Promise.all([
         this.api.request<{ ride: Ride }>(`/rides/${encodeURIComponent(id)}`),
@@ -324,6 +335,7 @@ export class RideDetailPageComponent implements OnInit {
       this.photos.set(Array.isArray(photos?.photos) ? photos.photos : []);
       this.titleDraft = ride?.title || '';
       this.notesDraft = ride?.notes || '';
+      this.scheduleAiRefresh();
     } catch (error: unknown) {
       this.error.set(error instanceof Error ? error.message : 'Unable to load ride.');
     } finally {
@@ -450,6 +462,51 @@ export class RideDetailPageComponent implements OnInit {
   timeLabel(value?: string) {
     const date = value ? new Date(value) : null;
     return date && Number.isFinite(date.getTime()) ? date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '--';
+  }
+
+  private scheduleAiRefresh() {
+    if (this.aiRefreshTimer) {
+      clearTimeout(this.aiRefreshTimer);
+      this.aiRefreshTimer = null;
+    }
+    if (!this.aiThinking() || this.aiRefreshAttempts >= 4) {
+      return;
+    }
+    this.aiRefreshTimer = setTimeout(() => {
+      this.aiRefreshAttempts += 1;
+      void this.refreshAiOnly();
+    }, 4500);
+  }
+
+  private async refreshAiOnly() {
+    const ride = this.ride();
+    if (!ride) return;
+    try {
+      const [rideResponse, intel] = await Promise.all([
+        this.api.request<{ ride: Ride }>(`/rides/${encodeURIComponent(ride.id)}`),
+        this.api.optional<{ intelligence: RideIntelligence }>(`/rides/${encodeURIComponent(ride.id)}/intelligence`)
+      ]);
+      this.ride.set(rideResponse.ride || ride);
+      this.intelligence.set(intel?.intelligence || this.intelligence());
+    } finally {
+      this.scheduleAiRefresh();
+    }
+  }
+
+  private routePromptLine(ride: Ride) {
+    const start = this.cleanRouteLabel(ride.startLabel);
+    const end = this.cleanRouteLabel(ride.endLabel);
+    if (start && end) return `${start} to ${end}`;
+    return start || end || 'Saved RidePulse route, exact GPS trace kept private';
+  }
+
+  private cleanRouteLabel(value?: string | null) {
+    const label = String(value || '').replace(/\([^)]*\)/g, '').trim();
+    const lower = label.toLowerCase();
+    if (!label || lower.startsWith('auto start') || lower.startsWith('auto end') || /-?\d+\.\d{3,}/.test(label)) {
+      return '';
+    }
+    return label.length > 72 ? label.slice(0, 72) : label;
   }
 
   private kindLabel(kind?: string | null) {

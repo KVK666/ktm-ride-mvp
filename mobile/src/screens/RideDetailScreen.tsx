@@ -99,6 +99,7 @@ export function RideDetailScreen() {
   const [creatingTrip, setCreatingTrip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [aiRefreshCount, setAiRefreshCount] = useState(0);
   const storyCaptureRef = useRef<View | null>(null);
 
   const load = useCallback(async () => {
@@ -120,6 +121,7 @@ export function RideDetailScreen() {
       setPhotos(nextAlbum?.photos || []);
       setPhotosSearched(Boolean(nextAlbum?.photos.length));
       setIntelligence(null);
+      setAiRefreshCount(0);
       setTitleDraft(nextRide.title || "");
       setNotesDraft(nextRide.notes || "");
       setReviewMessage(route.params.reviewMode ? "Review this ride before your next trip." : "");
@@ -155,6 +157,48 @@ export function RideDetailScreen() {
       load();
     }, [load])
   );
+
+  useEffect(() => {
+    if (!ride || aiRefreshCount >= 4) {
+      return;
+    }
+    const status = intelligence?.classification?.status || ride.aiStatus;
+    if (status !== "pending") {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const [rideResponse, smart] = await Promise.all([
+          api<{ ride: Ride }>(`/rides/${ride.id}`),
+          api<{ intelligence: RideIntelligence }>(`/rides/${ride.id}/intelligence`)
+        ]);
+        if (cancelled || !rideResponse.ride) {
+          return;
+        }
+        const nextRide = normalizeRide(rideResponse.ride);
+        setRide(nextRide);
+        setIntelligence(normalizeIntelligence(smart.intelligence, nextRide));
+      } catch (err) {
+        logDiagnostic({
+          level: "warn",
+          area: "ride-review",
+          message: "Pending ride AI refresh failed",
+          details: diagnosticDetails(err)
+        });
+      } finally {
+        if (!cancelled) {
+          setAiRefreshCount((current) => current + 1);
+        }
+      }
+    }, 4500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [aiRefreshCount, intelligence?.classification?.status, ride]);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,6 +245,11 @@ export function RideDetailScreen() {
     [promptSeed, promptVariantId, promptWeather, ride]
   );
   const displayTitle = intelligence?.suggestedTitle || rideTitle(ride || ({} as Ride));
+  const currentTripSuggestion = useMemo(
+    () => intelligence?.tripAutomation || parseTripSuggestion(ride?.tripSuggestion),
+    [intelligence?.tripAutomation, ride?.tripSuggestion]
+  );
+  const actionableTripSuggestion = Boolean(currentTripSuggestion && ["suggest", "auto_add", "auto_create"].includes(currentTripSuggestion.action));
 
   async function saveReview(markReviewed = false) {
     if (!ride || reviewSaving) {
@@ -492,8 +541,8 @@ export function RideDetailScreen() {
     }
     setTripModalOpen(true);
     setTripActionMessage("");
-    setNewTripTitle(displayTitle || "");
-    setNewTripDescription("");
+    setNewTripTitle(currentTripSuggestion?.title || displayTitle || "");
+    setNewTripDescription(currentTripSuggestion?.reason || "");
     await loadTripOptions();
   }
 
@@ -539,21 +588,22 @@ export function RideDetailScreen() {
     }
   }
 
-  async function createTripAndAddRide() {
+  async function createTripAndAddRide(override?: { title?: string | null; description?: string | null }) {
     if (!ride || creatingTrip) {
       return;
     }
-    const title = newTripTitle.trim();
+    const title = (override?.title || newTripTitle).trim();
     if (!title) {
       setTripActionMessage("Name the trip album first.");
       return;
     }
+    const description = (override?.description || newTripDescription).trim();
     setCreatingTrip(true);
     setTripActionMessage("");
     try {
       const created = await api<{ trip: Trip }>("/trips", {
         method: "POST",
-        body: JSON.stringify({ title, description: newTripDescription.trim() || null })
+        body: JSON.stringify({ title, description: description || null })
       });
       if (!created.trip?.id) {
         throw new Error("Trip was created, but could not be opened.");
@@ -573,6 +623,20 @@ export function RideDetailScreen() {
     } finally {
       setCreatingTrip(false);
     }
+  }
+
+  async function applySuggestedTrip() {
+    if (!currentTripSuggestion || !ride) {
+      return;
+    }
+    if ((currentTripSuggestion.action === "auto_add" || currentTripSuggestion.action === "suggest") && currentTripSuggestion.tripId) {
+      await addRideToTrip(currentTripSuggestion.tripId);
+      return;
+    }
+    await createTripAndAddRide({
+      title: currentTripSuggestion.title || displayTitle,
+      description: currentTripSuggestion.reason || ""
+    });
   }
 
   function openPhotoViewer(index: number) {
@@ -932,12 +996,33 @@ export function RideDetailScreen() {
               <View style={styles.promptHeaderText}>
                 <Text style={styles.kicker}>Trip album</Text>
                 <Text style={styles.promptTitle}>Add this ride to a trip</Text>
-                <Text style={styles.sectionMeta}>Trips are manual albums. Rides stay in your journal even if a trip is deleted.</Text>
+                <Text style={styles.sectionMeta}>RidePulse can suggest a trip, but manual trip controls stay available.</Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel="Close trip modal" onPress={closeTripModal} style={styles.promptClose}>
                 <Ionicons name="close" color={colors.text} size={22} />
               </Pressable>
             </View>
+
+            {currentTripSuggestion && currentTripSuggestion.action !== "none" ? (
+              <View style={styles.tripSuggestionCard}>
+                <Text style={styles.tripSuggestionEyebrow}>
+                  {currentTripSuggestion.action === "auto_added" || currentTripSuggestion.action === "auto_created" ? "AI TRIP ACTION" : "AI TRIP SUGGESTION"}
+                </Text>
+                <Text style={styles.tripSuggestionTitle}>
+                  {tripSuggestionText(currentTripSuggestion)}
+                </Text>
+                {currentTripSuggestion.reason ? <Text style={styles.sectionMeta}>{currentTripSuggestion.reason}</Text> : null}
+                {actionableTripSuggestion ? (
+                  <PrimaryButton
+                    label={currentTripSuggestion.tripId ? "Add to suggested trip" : "Create suggested trip"}
+                    icon={currentTripSuggestion.tripId ? "albums" : "sparkles"}
+                    compact
+                    loading={creatingTrip || Boolean(addingTripId)}
+                    onPress={applySuggestedTrip}
+                  />
+                ) : null}
+              </View>
+            ) : null}
 
             <View style={styles.tripCreateBox}>
               <Text style={styles.tripModalTitle}>Create new trip</Text>
@@ -959,7 +1044,7 @@ export function RideDetailScreen() {
                 textAlignVertical="top"
                 style={[styles.input, styles.notesInput]}
               />
-              <PrimaryButton label="Create and add" icon="add-circle" compact loading={creatingTrip} onPress={createTripAndAddRide} />
+              <PrimaryButton label="Create and add" icon="add-circle" compact loading={creatingTrip} onPress={() => createTripAndAddRide()} />
             </View>
 
             <View style={styles.tripListBox}>
@@ -1970,6 +2055,26 @@ const createStyles = (colors: ThemeColors) => ({
     borderRadius: 20,
     gap: 10,
     backgroundColor: colors.surface
+  },
+  tripSuggestionCard: {
+    padding: 14,
+    borderRadius: 20,
+    gap: 9,
+    backgroundColor: colors.elevated,
+    borderWidth: 1,
+    borderColor: colors.accent
+  },
+  tripSuggestionEyebrow: {
+    color: colors.accent,
+    fontFamily: typography.bold,
+    fontSize: 10,
+    letterSpacing: 1
+  },
+  tripSuggestionTitle: {
+    color: colors.text,
+    fontFamily: typography.extraBold,
+    fontSize: 18,
+    lineHeight: 23
   },
   tripModalTitle: {
     color: colors.text,

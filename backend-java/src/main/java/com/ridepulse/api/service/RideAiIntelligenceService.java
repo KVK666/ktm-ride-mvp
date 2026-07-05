@@ -175,6 +175,7 @@ public class RideAiIntelligenceService {
         JSON keys: aiTitle, aiSummary, rideKind, rideKindConfidence, rideKindReason, keyInsight, bestMoment, tripSuggestion.
         tripSuggestion must be an object with action none|suggest|auto_add|auto_create, confidence, title, reason, and optional tripId.
         Use auto_add/auto_create only when confidence is very high. Otherwise use suggest or none.
+        Prefer a one-tap suggest action when a ride feels like a trip chapter but does not clearly belong to an existing trip.
         Keep copy concise and useful for a motorcyclist.
         """;
   }
@@ -190,7 +191,7 @@ public class RideAiIntelligenceService {
     result.put("rideKindReason", fallbackReason(ride, kind));
     result.put("keyInsight", fallbackInsight(ride, kind));
     result.put("bestMoment", fallbackBestMoment(ride));
-    result.put("tripSuggestion", toJson(Map.of("action", "none", "confidence", 0.0, "reason", "No high-confidence trip grouping yet.")));
+    result.put("tripSuggestion", toJson(fallbackTripSuggestion(ride, kind)));
     result.put("aiStatus", "fallback");
     return result;
   }
@@ -202,7 +203,15 @@ public class RideAiIntelligenceService {
     if (confidence < HIGH_TRIP_CONFIDENCE) return suggestion.isEmpty() ? Map.of("action", "none", "confidence", confidence) : suggestion;
     try {
       if ("auto_add".equals(action) && !string(suggestion.get("tripId")).isBlank()) {
-        tripRepository.addRide(string(suggestion.get("tripId")), rideId);
+        String tripId = string(suggestion.get("tripId"));
+        if (tripRepository.find(userId, tripId).isEmpty()) {
+          Map<String, Object> downgraded = new LinkedHashMap<>(suggestion);
+          downgraded.put("action", "suggest");
+          downgraded.put("reason", "RidePulse needs you to confirm this trip match.");
+          downgraded.remove("tripId");
+          return downgraded;
+        }
+        tripRepository.addRide(tripId, rideId);
         Map<String, Object> updated = new LinkedHashMap<>(suggestion);
         updated.put("action", "auto_added");
         return updated;
@@ -337,6 +346,19 @@ public class RideAiIntelligenceService {
     double topSpeed = Rows.numeric(ride == null ? null : ride.get("topSpeedKmh"));
     if (topSpeed > 0) return "Strongest speed: " + Math.round(topSpeed) + " km/h.";
     return "The complete route is saved and ready to review.";
+  }
+
+  private Map<String, Object> fallbackTripSuggestion(Map<String, Object> ride, String kind) {
+    double distanceM = Rows.numeric(ride == null ? null : ride.get("distanceM"));
+    long minutes = Math.round(Rows.numeric(ride == null ? null : ride.get("durationS")) / 60d);
+    if ("long_trip".equals(kind) || distanceM >= 45000 || minutes >= 90) {
+      return Map.of(
+          "action", "suggest",
+          "confidence", 0.72,
+          "title", timeTitle(ride == null ? null : ride.get("startedAt")) + " trip",
+          "reason", "This ride has enough distance or duration to become a trip album.");
+    }
+    return Map.of("action", "none", "confidence", 0.0, "reason", "No high-confidence trip grouping yet.");
   }
 
   private String routeShape(Map<String, Object> ride, List<Map<String, Object>> points) {
