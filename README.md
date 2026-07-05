@@ -39,6 +39,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Post-ride review with ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
 - Ride Detail story sharing with a local Instagram Story image and dynamic ChatGPT image prompts based on ride details, place mood, time, and optional weather.
+- Backend-owned AI Ride Intelligence for human ride titles, summaries, ride-kind detection, key insights, best moments, and high-confidence trip automation suggestions with deterministic fallback when AI is unavailable.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
 - Basic charts for distance, ride duration trends, and top speed comparison.
@@ -57,6 +58,14 @@ Create a Google Cloud API key and enable:
 - Geocoding API
 
 For Android production builds, restrict the key to your Android package and SHA-1 signing certificate. For iOS, restrict it to your bundle identifier.
+
+Optional backend AI enrichment is configured only on the Java API server:
+
+- `RIDEPULSE_AI_API_KEY` or `OPENAI_API_KEY`
+- `RIDEPULSE_AI_MODEL` (defaults to `gpt-4o-mini`)
+- `RIDEPULSE_AI_URL` (defaults to the OpenAI chat completions endpoint)
+
+Mobile and web clients never store AI secrets. If no AI key is configured, rides still save and receive deterministic fallback titles, summaries, ride kind, and insight fields.
 
 ## Backend Setup
 
@@ -230,6 +239,8 @@ To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMEN
 - `GET /api/analytics/distance?bucket=daily|monthly|yearly`
 - `GET /api/analytics/speed/:rideId`
 - `GET /api/reports?period=day|month|year&date=2026-05-11`
+
+Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `rideKind`, `rideKindConfidence`, `rideKindReason`, `keyInsight`, `bestMoment`, `tripSuggestion`, `aiStatus`, and `aiGeneratedAt`. Existing route labels remain available as `startLabel` and `endLabel` for maps and route facts.
 
 ## Safety Notes
 

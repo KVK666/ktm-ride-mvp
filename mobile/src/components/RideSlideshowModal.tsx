@@ -113,8 +113,8 @@ function IntroSlide({ ride }: { ride: Ride }) {
     <View style={styles.inner}>
       <RouteArtwork coordinates={ride.points || ride.routePreview} start={{ latitude: ride.startLatitude, longitude: ride.startLongitude }} end={{ latitude: ride.endLatitude, longitude: ride.endLongitude }} height={360} style={styles.heroArt} />
       <Text style={[styles.kicker, { color: colors.accent }]}>RIDE MEMORY</Text>
-      <Text style={[styles.title, { color: colors.text }]}>{ride.smartTitle || ride.title || `${shortDate(ride.startedAt)} ride`}</Text>
-      <Text style={[styles.body, { color: colors.textSoft }]}>{ride.summaryText || `${ride.startLabel} to ${ride.endLabel}`}</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{ride.title || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`}</Text>
+      <Text style={[styles.body, { color: colors.textSoft }]}>{ride.aiSummary || ride.summaryText || `${shortDate(ride.startedAt)} ride memory`}</Text>
     </View>
   );
 }

@@ -28,6 +28,10 @@ public interface RideRepository {
 
   void insertPoints(String rideId, List<Map<String, Object>> points);
 
+  void markAiPending(String userId, String rideId);
+
+  void saveAiIntelligence(String userId, String rideId, Map<String, Object> intelligence);
+
   int delete(String userId, String rideId);
 
   List<Map<String, Object>> photos(String userId, String rideId);

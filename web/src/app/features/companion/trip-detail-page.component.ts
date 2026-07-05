@@ -64,7 +64,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
             @for (ride of availableSearchResults(); track ride.id) {
               <article class="ride-row">
                 <div>
-                  <strong>{{ ride.smartTitle || ride.title || ride.startLabel }}</strong>
+                  <strong>{{ ride.title || ride.aiTitle || ride.smartTitle || dateLabel(ride.startedAt) + ' ride' }}</strong>
                   <span>{{ dateLabel(ride.startedAt) }} / {{ km(ride.distanceM) }} / {{ kmh(ride.topSpeedKmh) }}</span>
                 </div>
                 <button type="button" class="primary-action compact-action" [disabled]="addingRideId() === ride.id" (click)="addRide(ride)">
@@ -89,8 +89,8 @@ import { RouteArtComponent } from '../../shared/route-art.component';
               <a [routerLink]="['/app/journal', ride.id]">
                 <div class="tile-art"><app-route-art [points]="ride.routePreview || ride.points" /></div>
                 <p>{{ dateLabel(ride.startedAt) }}</p>
-                <h3>{{ ride.smartTitle || ride.title || ride.startLabel }}</h3>
-                <span>{{ ride.summaryText || ride.endLabel }}</span>
+                <h3>{{ ride.title || ride.aiTitle || ride.smartTitle || dateLabel(ride.startedAt) + ' ride' }}</h3>
+                <span>{{ ride.aiSummary || ride.summaryText || ride.highlightReason || ride.endLabel }}</span>
                 <div class="tile-metrics">
                   <b>{{ km(ride.distanceM) }}</b>
                   <b>{{ kmh(ride.topSpeedKmh) }}</b>

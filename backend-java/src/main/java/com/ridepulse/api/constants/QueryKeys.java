@@ -30,6 +30,8 @@ public final class QueryKeys {
   public static final String RIDE_INSERT_POINT = "ride.insert-point";
   public static final String RIDE_BY_CLIENT_ID = "ride.by-client-id";
   public static final String RIDE_DELETE = "ride.delete";
+  public static final String RIDE_AI_MARK_PENDING = "ride.ai-mark-pending";
+  public static final String RIDE_AI_SAVE = "ride.ai-save";
 
   public static final String RIDE_PHOTO_LIST = "ride-photo.list";
   public static final String RIDE_PHOTO_INSERT = "ride-photo.insert";
@@ -67,6 +69,16 @@ public final class QueryKeys {
   public static final String SCHEMA_RIDE_ALBUM_TABLE = "schema.ride-album-table";
   public static final String SCHEMA_TRIPS_TABLE = "schema.trips-table";
   public static final String SCHEMA_TRIP_RIDES_TABLE = "schema.trip-rides-table";
+  public static final String SCHEMA_RIDE_AI_TITLE = "schema.ride-ai-title";
+  public static final String SCHEMA_RIDE_AI_SUMMARY = "schema.ride-ai-summary";
+  public static final String SCHEMA_RIDE_KIND = "schema.ride-kind";
+  public static final String SCHEMA_RIDE_KIND_CONFIDENCE = "schema.ride-kind-confidence";
+  public static final String SCHEMA_RIDE_KIND_REASON = "schema.ride-kind-reason";
+  public static final String SCHEMA_RIDE_KEY_INSIGHT = "schema.ride-key-insight";
+  public static final String SCHEMA_RIDE_BEST_MOMENT = "schema.ride-best-moment";
+  public static final String SCHEMA_RIDE_TRIP_SUGGESTION = "schema.ride-trip-suggestion";
+  public static final String SCHEMA_RIDE_AI_STATUS = "schema.ride-ai-status";
+  public static final String SCHEMA_RIDE_AI_GENERATED_AT = "schema.ride-ai-generated-at";
   public static final String SCHEMA_PASSWORD_RESET_USER_INDEX = "schema.password-reset-user-index";
   public static final String SCHEMA_PASSWORD_RESET_EXPIRES_INDEX = "schema.password-reset-expires-index";
   public static final String SCHEMA_RIDE_PHOTO_RIDE_INDEX = "schema.ride-photo-ride-index";

@@ -23,7 +23,8 @@ class RideServiceTest {
         mock(RideMathService.class),
         routePreviewService,
         journalIntelligenceService,
-        mock(PhotoValidationService.class));
+        mock(PhotoValidationService.class),
+        mock(RideAiIntelligenceService.class));
     List<Map<String, Object>> rides = List.of(Map.of("id", "ride-1", "title", "Hill climb"));
 
     when(rideRepository.list("user-1", "all", "hill")).thenReturn(rides);

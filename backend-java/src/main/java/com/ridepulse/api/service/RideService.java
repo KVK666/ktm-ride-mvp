@@ -16,6 +16,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class RideService {
@@ -25,18 +27,21 @@ public class RideService {
   private final RoutePreviewService routePreviewService;
   private final JournalIntelligenceService journalIntelligenceService;
   private final PhotoValidationService photoValidationService;
+  private final RideAiIntelligenceService rideAiIntelligenceService;
 
   RideService(
       RideRepository rideRepository,
       RideMathService rideMathService,
       RoutePreviewService routePreviewService,
       JournalIntelligenceService journalIntelligenceService,
-      PhotoValidationService photoValidationService) {
+      PhotoValidationService photoValidationService,
+      RideAiIntelligenceService rideAiIntelligenceService) {
     this.rideRepository = rideRepository;
     this.rideMathService = rideMathService;
     this.routePreviewService = routePreviewService;
     this.journalIntelligenceService = journalIntelligenceService;
     this.photoValidationService = photoValidationService;
+    this.rideAiIntelligenceService = rideAiIntelligenceService;
   }
 
   public Map<String, Object> list(String userId, String period, String query) {
@@ -46,11 +51,14 @@ public class RideService {
 
   public Map<String, Object> intelligence(String userId, String rideId) {
     Map<String, Object> ride = ownedRide(userId, rideId);
+    rideAiIntelligenceService.processRideIfMissingAsync(userId, ride);
     Map<String, Object> statsRow = rideRepository.intelligenceStats(userId);
     Map<String, Object> context = Map.of(
         "monthDistanceM", Rows.numeric(statsRow.get("month_distance_m")),
         "longestRideDistanceM", Rows.numeric(statsRow.get("longest_ride_distance_m")));
-    return Map.of("intelligence", journalIntelligenceService.buildRideIntelligence(ride, rideRepository.intelligencePoints(rideId), context));
+    return Map.of("intelligence", rideAiIntelligenceService.decorateIntelligence(
+        journalIntelligenceService.buildRideIntelligence(ride, rideRepository.intelligencePoints(rideId), context),
+        ride));
   }
 
   public Map<String, Object> duplicates(String userId, String rideId) {
@@ -126,9 +134,11 @@ public class RideService {
     try {
       String rideId = rideRepository.insertRide(userId, normalizedBody, rideClientId, startedAt, endedAt, points, summary);
       rideRepository.insertPoints(rideId, points);
+      afterCommit(() -> rideAiIntelligenceService.processRideAsync(userId, rideId));
       Map<String, Object> response = new LinkedHashMap<>();
       response.put("rideId", rideId);
       response.put("summary", summary);
+      response.put("aiStatus", "pending");
       return new CreateRideResult(true, response);
     } catch (DuplicateKeyException error) {
       Map<String, Object> duplicate = rideRepository.findByClientRideId(userId, rideClientId).orElse(null);
@@ -207,5 +217,18 @@ public class RideService {
 
   private static String string(Object value) {
     return value == null ? "" : String.valueOf(value);
+  }
+
+  private static void afterCommit(Runnable action) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        @Override
+        public void afterCommit() {
+          action.run();
+        }
+      });
+      return;
+    }
+    action.run();
   }
 }

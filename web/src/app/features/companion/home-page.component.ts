@@ -18,8 +18,8 @@ import { RouteArtComponent } from '../../shared/route-art.component';
       <section class="page-grid">
         <article class="hero-card">
           <p class="kicker">RIDEPULSE JOURNAL</p>
-          <h2>{{ latest()?.smartTitle || latest()?.title || 'The road remembers.' }}</h2>
-          <p>{{ latest()?.summaryText || latest()?.highlightReason || 'Start a ride in the mobile app and your web companion will light up here.' }}</p>
+          <h2>{{ latest()?.title || latest()?.aiTitle || latest()?.smartTitle || 'The road remembers.' }}</h2>
+          <p>{{ latest()?.aiSummary || latest()?.summaryText || latest()?.highlightReason || 'Start a ride in the mobile app and your web companion will light up here.' }}</p>
           <div class="route-preview"><app-route-art [points]="latest()?.routePreview || latest()?.points" /></div>
           @if (latest()) {
             <a class="text-link" [routerLink]="['/app/journal', latest()?.id]">Open ride details <lucide-icon name="arrow-right" size="16" /></a>
@@ -63,7 +63,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
         <div class="ride-list">
           @for (ride of recent(); track ride.id) {
             <a class="ride-row" [routerLink]="['/app/journal', ride.id]">
-              <div><strong>{{ ride.smartTitle || ride.title || ride.startLabel }}</strong><span>{{ dateLabel(ride.startedAt) }} · {{ ride.endLabel }}</span></div>
+              <div><strong>{{ ride.title || ride.aiTitle || ride.smartTitle || dateLabel(ride.startedAt) + ' ride' }}</strong><span>{{ dateLabel(ride.startedAt) }} · {{ ride.endLabel }}</span></div>
               <b>{{ km(ride.distanceM) }}</b>
             </a>
           } @empty {

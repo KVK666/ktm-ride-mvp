@@ -179,11 +179,21 @@ public class JournalIntelligenceService {
   private String buildSuggestedTitle(Map<String, Object> ride, Map<String, Object> timeMood) {
     String title = string(ride.get("title")).trim();
     if (!title.isBlank()) return title;
-    String destination = shortPlace(ride.get("endLabel"));
-    return timeMood.get("title") + " to " + (destination.isBlank() ? "the finish" : destination);
+    String aiTitle = string(ride.get("aiTitle")).trim();
+    if (!aiTitle.isBlank()) return aiTitle;
+    String kind = string(ride.get("rideKind"));
+    if ("long_trip".equals(kind)) return timeMood.get("title") + " long ride";
+    if ("fast_ride".equals(kind)) return "Fast " + String.valueOf(timeMood.get("title")).toLowerCase();
+    if ("night_ride".equals(kind)) return "Night cruise";
+    if ("city_errand".equals(kind)) return "Short errand ride";
+    if ("short_spin".equals(kind)) return "Quick " + String.valueOf(timeMood.get("title")).toLowerCase();
+    if (number(ride.get("distanceM")) >= 30000) return timeMood.get("title") + " open-road ride";
+    return timeMood.get("title") + " ride";
   }
 
   private String buildSummaryText(Map<String, Object> ride, Map<String, Object> timeMood, Map<String, Object> distanceMood, Map<String, Object> paceMood, Map<String, Object> fastestSegment) {
+    String aiSummary = string(ride.get("aiSummary")).trim();
+    if (!aiSummary.isBlank()) return aiSummary;
     String pace = fastestSegment != null && number(fastestSegment.get("speedKmh")) > 0
         ? " with a " + Math.round(number(fastestSegment.get("speedKmh"))) + " km/h strongest section"
         : "";
@@ -191,6 +201,7 @@ public class JournalIntelligenceService {
   }
 
   private String buildHighlightReason(Map<String, Object> ride, Map<String, Object> context, Map<String, Object> fastestSegment, List<String> badges) {
+    if (!string(ride.get("keyInsight")).isBlank()) return string(ride.get("keyInsight"));
     if (badges.contains("Personal best")) return "Your longest ride so far.";
     if (fastestSegment != null && number(fastestSegment.get("speedKmh")) >= 80) return "A route with a memorable fast section.";
     if (ride.get("reviewedAt") == null) return "Ready for a title, note, or photo pass.";
@@ -201,6 +212,7 @@ public class JournalIntelligenceService {
   }
 
   private String buildMemoryReason(Map<String, Object> ride, Map<String, Object> intelligence) {
+    if (!string(ride.get("bestMoment")).isBlank()) return string(ride.get("bestMoment"));
     @SuppressWarnings("unchecked")
     List<String> badges = (List<String>) intelligence.getOrDefault("badges", List.of());
     if (badges.contains("Personal best")) return "A personal-best route for your memory rail.";

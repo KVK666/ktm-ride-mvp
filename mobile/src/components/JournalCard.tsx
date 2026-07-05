@@ -12,7 +12,7 @@ export function JournalCard({ ride, onPress, featured = false }: { ride: Ride; o
   const { colors } = useTheme();
   const start = { latitude: ride.startLatitude, longitude: ride.startLongitude };
   const end = { latitude: ride.endLatitude, longitude: ride.endLongitude };
-  const title = ride.smartTitle || ride.title?.trim() || `${ride.startLabel} to ${ride.endLabel}`;
+  const title = ride.title?.trim() || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`;
   const badges = Array.isArray(ride.badges) ? ride.badges.slice(0, featured ? 3 : 2) : [];
 
   return (
@@ -36,7 +36,7 @@ export function JournalCard({ ride, onPress, featured = false }: { ride: Ride; o
         </View>
         {ride.summaryText || ride.highlightReason || badges.length ? (
           <View style={styles.storyBlock}>
-            {ride.summaryText || ride.highlightReason ? <Text numberOfLines={2} style={[styles.summary, { color: colors.textSoft }]}>{ride.summaryText || ride.highlightReason}</Text> : null}
+            {ride.aiSummary || ride.summaryText || ride.highlightReason ? <Text numberOfLines={2} style={[styles.summary, { color: colors.textSoft }]}>{ride.aiSummary || ride.summaryText || ride.highlightReason}</Text> : null}
             {badges.length ? <View style={styles.badges}>{badges.map((badge, index) => <RideBadge key={`${badge}-${index}`} label={badge} tone={index === 0 ? "accent" : "blue"} />)}</View> : null}
           </View>
         ) : null}

@@ -27,7 +27,6 @@ import { ChapterTimeline } from "../components/ChapterTimeline";
 import { RideBadge } from "../components/RideBadge";
 import { RouteReplay } from "../components/RouteReplay";
 import { RideSlideshowModal } from "../components/RideSlideshowModal";
-import { RouteArtwork } from "../components/RouteArtwork";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
 import { RIDE_STORY_HEIGHT, RIDE_STORY_WIDTH, RideStoryCard } from "../components/RideStoryCard";
@@ -46,7 +45,7 @@ import { shareRideStoryImage } from "../services/rideStoryShare";
 import { getRideAlbum, importRideWindowPhotosToAlbum, pickManualPhotosForAlbum, removeAlbumPhoto } from "../services/rideAlbums";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
-import { Ride, RideAlbum, RideAlbumPhoto, RideIntelligence, RidePhoto, RidePoint, Trip } from "../types";
+import { Ride, RideAlbum, RideAlbumPhoto, RideIntelligence, RidePhoto, RidePoint, Trip, TripSuggestion } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 
 type RideDetailParams = {
@@ -614,7 +613,7 @@ export function RideDetailScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
-        <RouteArtwork coordinates={ride.points} start={{ latitude: ride.startLatitude, longitude: ride.startLongitude }} end={{ latitude: ride.endLatitude, longitude: ride.endLongitude }} height={270} />
+        <AIInsightHero ride={ride} intelligence={intelligence} title={displayTitle} />
         <View style={styles.hero}>
           <Text style={styles.kicker}>JOURNEY</Text>
           <Text style={styles.title}>{displayTitle}</Text>
@@ -627,7 +626,7 @@ export function RideDetailScreen() {
 
         <View style={styles.smartCard}>
           <Text style={styles.kicker}>SMART JOURNAL</Text>
-          <Text style={styles.smartTitle}>{intelligence?.summaryText || ride.summaryText || "RidePulse built a story layer from this ride’s saved route."}</Text>
+          <Text style={styles.smartTitle}>{intelligence?.summaryText || ride.aiSummary || ride.summaryText || "RidePulse built a story layer from this ride's saved route."}</Text>
           {intelligence?.highlightReason || ride.highlightReason ? <Text style={styles.sectionMeta}>{intelligence?.highlightReason || ride.highlightReason}</Text> : null}
           {ride.albumHint ? <Text style={styles.albumHint}>{ride.albumHint}</Text> : null}
           {intelligence?.badges?.length || ride.badges?.length ? (
@@ -1033,8 +1032,60 @@ export function RideDetailScreen() {
   );
 }
 
+function AIInsightHero({ ride, intelligence, title }: { ride: Ride; intelligence: RideIntelligence | null; title: string }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const classification = intelligence?.classification;
+  const kindLabel = classification?.label || rideKindLabel(ride.rideKind) || "Smart ride";
+  const confidence = finiteNumber(classification?.confidence ?? ride.rideKindConfidence ?? 0);
+  const confidenceLabel = confidence > 0 ? `${Math.round(confidence * 100)}% confidence` : "Learning from this ride";
+  const status = classification?.status || ride.aiStatus || "fallback";
+  const tripSuggestion = intelligence?.tripAutomation || parseTripSuggestion(ride.tripSuggestion);
+  const tripText = tripSuggestionText(tripSuggestion);
+  const bestMetric = bestMetricText(ride, intelligence);
+  const thinking = status === "pending";
+
+  return (
+    <View style={styles.aiHero}>
+      <View style={styles.aiHeroTop}>
+        <View style={styles.aiIcon}>
+          <Ionicons name={thinking ? "sparkles" : "analytics"} color={colors.onAccent} size={22} />
+        </View>
+        <View style={styles.aiHeroText}>
+          <Text style={styles.aiKicker}>{thinking ? "AI THINKING" : "AI RIDE INTELLIGENCE"}</Text>
+          <Text numberOfLines={2} style={styles.aiTitle}>{title}</Text>
+        </View>
+      </View>
+
+      <View style={styles.aiTypeRow}>
+        <View style={styles.aiTypePill}>
+          <Text style={styles.aiTypeText}>{kindLabel}</Text>
+        </View>
+        <Text style={styles.aiConfidence}>{confidenceLabel}</Text>
+      </View>
+
+      <Text style={styles.aiInsight}>
+        {thinking
+          ? "RidePulse saved the ride first and is now building the smarter name, summary, and trip decision."
+          : intelligence?.keyInsight || ride.keyInsight || classification?.reason || ride.rideKindReason || "RidePulse built this from distance, speed, and timing signals."}
+      </Text>
+
+      <View style={styles.aiFactGrid}>
+        <View style={styles.aiFact}>
+          <Text style={styles.aiFactLabel}>Best signal</Text>
+          <Text numberOfLines={2} style={styles.aiFactValue}>{bestMetric}</Text>
+        </View>
+        <View style={styles.aiFact}>
+          <Text style={styles.aiFactLabel}>Trip assist</Text>
+          <Text numberOfLines={2} style={styles.aiFactValue}>{tripText}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function rideTitle(ride: Ride) {
-  return ride.title?.trim() || ride.smartTitle || `${shortDate(ride.startedAt)} ride`;
+  return ride.title?.trim() || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`;
 }
 
 function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
@@ -1059,13 +1110,23 @@ function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
     } : fallback.comparisons,
     chapters: Array.isArray(value?.chapters)
       ? value.chapters.map(normalizeChapter).filter(Boolean).slice(0, 4) as RideIntelligence["chapters"]
-      : fallback.chapters
+      : fallback.chapters,
+    classification: value?.classification && typeof value.classification === "object" ? {
+      rideKind: typeof value.classification.rideKind === "string" ? value.classification.rideKind : ride.rideKind || fallback.classification?.rideKind,
+      label: typeof value.classification.label === "string" ? value.classification.label : rideKindLabel(ride.rideKind),
+      confidence: value.classification.confidence == null ? ride.rideKindConfidence || fallback.classification?.confidence : finiteNumber(value.classification.confidence),
+      reason: typeof value.classification.reason === "string" ? value.classification.reason : ride.rideKindReason || fallback.classification?.reason,
+      status: typeof value.classification.status === "string" ? value.classification.status : ride.aiStatus || fallback.classification?.status
+    } : fallback.classification,
+    keyInsight: typeof value?.keyInsight === "string" ? value.keyInsight : ride.keyInsight || fallback.keyInsight,
+    bestMoment: typeof value?.bestMoment === "string" ? value.bestMoment : ride.bestMoment || fallback.bestMoment,
+    tripAutomation: parseTripSuggestion(value?.tripAutomation || ride.tripSuggestion) || fallback.tripAutomation
   };
 }
 
 function buildFallbackIntelligence(ride: Ride): RideIntelligence {
-  const title = ride.smartTitle || ride.title?.trim() || `${shortDate(ride.startedAt)} ride`;
-  const summary = ride.summaryText || `${km(ride.distanceM)} recorded from ${ride.startLabel} to ${ride.endLabel}.`;
+  const title = ride.title?.trim() || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`;
+  const summary = ride.aiSummary || ride.summaryText || `${km(ride.distanceM)} captured as a ${rideKindLabel(ride.rideKind).toLowerCase()}.`;
   const badges = Array.isArray(ride.badges) && ride.badges.length ? ride.badges : [
     ride.distanceM >= 30000 ? "Open road" : "Quick spin",
     ride.reviewedAt ? "Reviewed" : "Needs story"
@@ -1078,10 +1139,78 @@ function buildFallbackIntelligence(ride: Ride): RideIntelligence {
     fastestSegment: null,
     midpoint: null,
     comparisons: {},
+    classification: {
+      rideKind: ride.rideKind || "scenic_leisure",
+      label: rideKindLabel(ride.rideKind),
+      confidence: ride.rideKindConfidence || 0.55,
+      reason: ride.rideKindReason || "RidePulse used the saved ride summary to classify this ride.",
+      status: ride.aiStatus || "fallback"
+    },
+    keyInsight: ride.keyInsight || "Built from saved ride data.",
+    bestMoment: ride.bestMoment || bestMetricText(ride, null),
+    tripAutomation: parseTripSuggestion(ride.tripSuggestion),
     chapters: [
       { id: "start", title: "Roll out", body: ride.startLabel, timestamp: ride.startedAt, coordinate: { latitude: ride.startLatitude, longitude: ride.startLongitude } },
       { id: "finish", title: "Finish", body: ride.endLabel, timestamp: ride.endedAt || null, coordinate: { latitude: ride.endLatitude, longitude: ride.endLongitude } }
     ]
+  };
+}
+
+function bestMetricText(ride: Ride, intelligence: RideIntelligence | null) {
+  if (intelligence?.bestMoment || ride.bestMoment) {
+    return String(intelligence?.bestMoment || ride.bestMoment);
+  }
+  if (ride.topSpeedKmh > 0) {
+    return `${kmh(ride.topSpeedKmh)} top speed`;
+  }
+  return `${km(ride.distanceM)} saved`;
+}
+
+function tripSuggestionText(suggestion?: TripSuggestion | null) {
+  if (!suggestion) {
+    return "No trip action yet";
+  }
+  if (suggestion.action === "auto_created") return suggestion.title ? `Created ${suggestion.title}` : "Created a trip";
+  if (suggestion.action === "auto_added") return suggestion.title ? `Added to ${suggestion.title}` : "Added to a trip";
+  if (suggestion.action === "suggest" || suggestion.action === "auto_create" || suggestion.action === "auto_add") {
+    return suggestion.title ? `Suggests ${suggestion.title}` : "Trip suggestion ready";
+  }
+  return "No confident trip match";
+}
+
+function rideKindLabel(kind?: string | null) {
+  switch (kind) {
+    case "commute": return "Commute";
+    case "short_spin": return "Short spin";
+    case "city_errand": return "City errand";
+    case "long_trip": return "Long trip";
+    case "fast_ride": return "Fast ride";
+    case "night_ride": return "Night ride";
+    default: return "Scenic ride";
+  }
+}
+
+function parseTripSuggestion(value: unknown): TripSuggestion | null {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    try {
+      return parseTripSuggestion(JSON.parse(value));
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value !== "object") {
+    return null;
+  }
+  const suggestion = value as Record<string, unknown>;
+  return {
+    action: typeof suggestion.action === "string" ? suggestion.action : "none",
+    confidence: optionalNumber(suggestion.confidence),
+    title: typeof suggestion.title === "string" ? suggestion.title : null,
+    reason: typeof suggestion.reason === "string" ? suggestion.reason : null,
+    tripId: typeof suggestion.tripId === "string" ? suggestion.tripId : null
   };
 }
 
@@ -1306,6 +1435,16 @@ function normalizeRide(ride: any): Ride {
     topSpeedKmh: finiteNumber(ride?.topSpeedKmh),
     avgSpeedKmh: finiteNumber(ride?.avgSpeedKmh),
     startedAt: typeof ride?.startedAt === "string" ? ride.startedAt : "",
+    aiTitle: typeof ride?.aiTitle === "string" ? ride.aiTitle : null,
+    aiSummary: typeof ride?.aiSummary === "string" ? ride.aiSummary : null,
+    rideKind: typeof ride?.rideKind === "string" ? ride.rideKind : null,
+    rideKindConfidence: optionalNumber(ride?.rideKindConfidence),
+    rideKindReason: typeof ride?.rideKindReason === "string" ? ride.rideKindReason : null,
+    keyInsight: typeof ride?.keyInsight === "string" ? ride.keyInsight : null,
+    bestMoment: typeof ride?.bestMoment === "string" ? ride.bestMoment : null,
+    tripSuggestion: parseTripSuggestion(ride?.tripSuggestion),
+    aiStatus: typeof ride?.aiStatus === "string" ? ride.aiStatus : null,
+    aiGeneratedAt: typeof ride?.aiGeneratedAt === "string" ? ride.aiGeneratedAt : null,
     points: Array.isArray(ride?.points)
       ? ride.points.map(normalizeRidePoint).filter((point): point is RidePoint => Boolean(point))
       : []
@@ -1362,6 +1501,96 @@ const createStyles = (colors: ThemeColors) => ({
     padding: 20,
     paddingBottom: 38,
     gap: 18
+  },
+  aiHero: {
+    backgroundColor: colors.elevated,
+    borderRadius: 28,
+    padding: 18,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  aiHeroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  aiIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  aiHeroText: {
+    flex: 1,
+    minWidth: 0
+  },
+  aiKicker: {
+    color: colors.accent,
+    fontFamily: typography.bold,
+    fontSize: 10,
+    letterSpacing: 1.2
+  },
+  aiTitle: {
+    color: colors.text,
+    fontFamily: typography.extraBold,
+    fontSize: 24,
+    lineHeight: 30,
+    marginTop: 3
+  },
+  aiTypeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap"
+  },
+  aiTypePill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: `${colors.accent}18`
+  },
+  aiTypeText: {
+    color: colors.accent,
+    fontFamily: typography.bold,
+    fontSize: 12
+  },
+  aiConfidence: {
+    color: colors.muted,
+    fontFamily: typography.medium,
+    fontSize: 12
+  },
+  aiInsight: {
+    color: colors.text,
+    fontFamily: typography.medium,
+    fontSize: 14,
+    lineHeight: 21
+  },
+  aiFactGrid: {
+    flexDirection: "row",
+    gap: 10
+  },
+  aiFact: {
+    flex: 1,
+    minHeight: 82,
+    borderRadius: 18,
+    padding: 12,
+    backgroundColor: colors.surface
+  },
+  aiFactLabel: {
+    color: colors.muted,
+    fontFamily: typography.bold,
+    fontSize: 10,
+    letterSpacing: 0.7
+  },
+  aiFactValue: {
+    color: colors.text,
+    fontFamily: typography.extraBold,
+    fontSize: 15,
+    lineHeight: 20,
+    marginTop: 6
   },
   hero: {
     gap: 4

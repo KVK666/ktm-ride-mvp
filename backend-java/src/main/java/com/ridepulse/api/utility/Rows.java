@@ -30,6 +30,16 @@ public final class Rows {
     row.put("startedAt", instantString(rs.getObject("started_at")));
     row.put("endedAt", instantString(rs.getObject("ended_at")));
     row.put("createdAt", instantString(rs.getObject("created_at")));
+    row.put("aiTitle", rs.getString("ai_title"));
+    row.put("aiSummary", rs.getString("ai_summary"));
+    row.put("rideKind", rs.getString("ride_kind"));
+    row.put("rideKindConfidence", numberOrNull(rs.getObject("ride_kind_confidence")));
+    row.put("rideKindReason", rs.getString("ride_kind_reason"));
+    row.put("keyInsight", rs.getString("key_insight"));
+    row.put("bestMoment", rs.getString("best_moment"));
+    row.put("tripSuggestion", rs.getString("trip_suggestion"));
+    row.put("aiStatus", rs.getString("ai_status"));
+    row.put("aiGeneratedAt", instantString(rs.getObject("ai_generated_at")));
     return row;
   }
 

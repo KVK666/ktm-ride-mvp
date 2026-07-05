@@ -13,7 +13,7 @@ export function JournalHero({ ride, onPress }: { ride: Ride; onPress: () => void
   const { colors } = useTheme();
   const start = { latitude: ride.startLatitude, longitude: ride.startLongitude };
   const end = { latitude: ride.endLatitude, longitude: ride.endLongitude };
-  const title = ride.smartTitle || ride.title?.trim() || "Your latest escape";
+  const title = ride.title?.trim() || ride.aiTitle || ride.smartTitle || "Your latest escape";
   const badges = Array.isArray(ride.badges) ? ride.badges.slice(0, 3) : [];
 
   return (
@@ -26,7 +26,7 @@ export function JournalHero({ ride, onPress }: { ride: Ride; onPress: () => void
           <Ionicons name="arrow-up-outline" color={colors.text} size={20} style={styles.arrow} />
         </View>
         <Text numberOfLines={2} style={[styles.title, { color: colors.text }]}>{title}</Text>
-        <Text numberOfLines={2} style={[styles.summary, { color: colors.textSoft }]}>{ride.summaryText || ride.highlightReason || `${shortDate(ride.startedAt)} · ${duration(ride.durationS)}`}</Text>
+        <Text numberOfLines={2} style={[styles.summary, { color: colors.textSoft }]}>{ride.aiSummary || ride.summaryText || ride.highlightReason || `${shortDate(ride.startedAt)} · ${duration(ride.durationS)}`}</Text>
         <View style={styles.footer}>
           <Text style={[styles.distance, { color: colors.text }]}>{km(ride.distanceM)}</Text>
           <View style={styles.badges}>

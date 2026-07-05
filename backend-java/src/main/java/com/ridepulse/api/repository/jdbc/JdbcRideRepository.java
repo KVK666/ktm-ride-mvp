@@ -158,6 +158,28 @@ public class JdbcRideRepository implements RideRepository {
 
   @Override
   @Transactional
+  public void markAiPending(String userId, String rideId) {
+    readWriteJdbc.update(sql.get(QueryKeys.RIDE_AI_MARK_PENDING), rideParams(userId, rideId));
+  }
+
+  @Override
+  @Transactional
+  public void saveAiIntelligence(String userId, String rideId, Map<String, Object> intelligence) {
+    MapSqlParameterSource params = rideParams(userId, rideId)
+        .addValue("aiTitle", text(intelligence.get("aiTitle")))
+        .addValue("aiSummary", text(intelligence.get("aiSummary")))
+        .addValue("rideKind", text(intelligence.get("rideKind")))
+        .addValue("rideKindConfidence", number(intelligence.get("rideKindConfidence")))
+        .addValue("rideKindReason", text(intelligence.get("rideKindReason")))
+        .addValue("keyInsight", text(intelligence.get("keyInsight")))
+        .addValue("bestMoment", text(intelligence.get("bestMoment")))
+        .addValue("tripSuggestion", jsonText(intelligence.get("tripSuggestion")))
+        .addValue("aiStatus", text(intelligence.get("aiStatus"), "fallback"));
+    readWriteJdbc.update(sql.get(QueryKeys.RIDE_AI_SAVE), params);
+  }
+
+  @Override
+  @Transactional
   public int delete(String userId, String rideId) {
     return readWriteJdbc.update(sql.get(QueryKeys.RIDE_DELETE), rideParams(userId, rideId));
   }
@@ -209,5 +231,31 @@ public class JdbcRideRepository implements RideRepository {
   private static String normalizeSearch(String value) {
     if (value == null) return "";
     return value.trim().toLowerCase();
+  }
+
+  private static String text(Object value) {
+    return text(value, null);
+  }
+
+  private static String text(Object value, String fallback) {
+    if (value == null) return fallback;
+    String text = String.valueOf(value).trim();
+    return text.isBlank() ? fallback : text;
+  }
+
+  private static Double number(Object value) {
+    if (value == null) return null;
+    if (value instanceof Number number) return number.doubleValue();
+    try {
+      return Double.parseDouble(String.valueOf(value));
+    } catch (NumberFormatException ignored) {
+      return null;
+    }
+  }
+
+  private static String jsonText(Object value) {
+    if (value == null) return "{}";
+    String text = String.valueOf(value).trim();
+    return text.isBlank() ? "{}" : text;
   }
 }

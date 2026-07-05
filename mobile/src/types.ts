@@ -88,6 +88,24 @@ export type Ride = {
   timeOfDayLabel?: string;
   reviewPrompt?: string | null;
   albumHint?: string;
+  aiTitle?: string | null;
+  aiSummary?: string | null;
+  rideKind?: string | null;
+  rideKindConfidence?: number | null;
+  rideKindReason?: string | null;
+  keyInsight?: string | null;
+  bestMoment?: string | null;
+  tripSuggestion?: TripSuggestion | string | null;
+  aiStatus?: "pending" | "ready" | "fallback" | "failed" | string | null;
+  aiGeneratedAt?: string | null;
+};
+
+export type TripSuggestion = {
+  action: "none" | "suggest" | "auto_add" | "auto_create" | "auto_added" | "auto_created" | string;
+  confidence?: number | null;
+  title?: string | null;
+  reason?: string | null;
+  tripId?: string | null;
 };
 
 export type Trip = {
@@ -147,6 +165,16 @@ export type RideIntelligence = {
     monthSharePercent?: number | null;
   };
   chapters: RideChapter[];
+  classification?: {
+    rideKind?: string | null;
+    label?: string | null;
+    confidence?: number | null;
+    reason?: string | null;
+    status?: string | null;
+  };
+  keyInsight?: string | null;
+  bestMoment?: string | null;
+  tripAutomation?: TripSuggestion | null;
 };
 
 export type JournalHighlight = {

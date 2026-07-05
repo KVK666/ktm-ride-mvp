@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { ApiService } from '../../core/api.service';
 import { dateLabel, duration, km, kmh, numberValue } from '../../core/format';
-import { Ride, RideAlbumPhoto, RideIntelligence, RidePoint } from '../../core/models';
+import { Ride, RideAlbumPhoto, RideIntelligence, RidePoint, TripSuggestion } from '../../core/models';
 import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
 import { GoogleRouteMapComponent } from '../../shared/google-route-map.component';
 import { RouteArtComponent } from '../../shared/route-art.component';
@@ -18,18 +18,26 @@ import { RouteArtComponent } from '../../shared/route-art.component';
     @if (loading()) {
       <app-loading-pulse label="Loading ride details" />
     } @else if (ride(); as current) {
-      <section class="detail-hero">
-        <div>
-          <p class="kicker">{{ dateLabel(current.startedAt) }}</p>
-          <h2>{{ displayTitle() }}</h2>
-          <p>{{ intelligence()?.summaryText || current.summaryText || current.notes || current.endLabel }}</p>
-          <div class="badge-row">
-            @for (badge of badges(); track badge) {
-              <span>{{ badge }}</span>
-            }
+      <section class="ai-insight-hero">
+        <div class="ai-insight-head">
+          <div class="ai-icon"><lucide-icon [name]="aiThinking() ? 'sparkles' : 'activity'" size="24" /></div>
+          <div>
+            <p class="kicker">{{ aiThinking() ? 'AI THINKING' : 'AI RIDE INTELLIGENCE' }}</p>
+            <h2>{{ displayTitle() }}</h2>
           </div>
         </div>
-        <div class="detail-art"><app-route-art [points]="routePoints()" /></div>
+        <div class="badge-row">
+          <span>{{ rideKindLabel() }}</span>
+          <span>{{ confidenceLabel() }}</span>
+          @if (current.aiGeneratedAt) {
+            <span>{{ dateLabel(current.aiGeneratedAt) }}</span>
+          }
+        </div>
+        <p>{{ aiInsight() }}</p>
+        <div class="ai-fact-grid">
+          <article><span>Best signal</span><strong>{{ bestMoment() }}</strong></article>
+          <article><span>Trip assist</span><strong>{{ tripAssistLabel() }}</strong></article>
+        </div>
       </section>
 
       @if (message()) {
@@ -251,9 +259,36 @@ export class RideDetailPageComponent implements OnInit {
   readonly maxSpeed = computed(() => Math.max(...this.speedPoints().map((point) => numberValue(point.speedKmh)), 1));
   readonly displayTitle = computed(() => {
     const ride = this.ride();
-    return this.intelligence()?.suggestedTitle || ride?.smartTitle || ride?.title || `${dateLabel(ride?.startedAt)} ride`;
+    return this.intelligence()?.suggestedTitle || ride?.title || ride?.aiTitle || ride?.smartTitle || `${dateLabel(ride?.startedAt)} ride`;
   });
   readonly badges = computed(() => this.intelligence()?.badges?.length ? this.intelligence()?.badges || [] : this.ride()?.badges || []);
+  readonly aiThinking = computed(() => (this.intelligence()?.classification?.status || this.ride()?.aiStatus) === 'pending');
+  readonly rideKindLabel = computed(() => this.intelligence()?.classification?.label || this.kindLabel(this.ride()?.rideKind));
+  readonly confidenceLabel = computed(() => {
+    const confidence = numberValue(this.intelligence()?.classification?.confidence ?? this.ride()?.rideKindConfidence);
+    return confidence > 0 ? `${Math.round(confidence * 100)}% confidence` : 'Learning';
+  });
+  readonly aiInsight = computed(() => {
+    if (this.aiThinking()) {
+      return 'RidePulse saved the ride first and is building a smarter name, summary, and trip decision now.';
+    }
+    return this.intelligence()?.keyInsight
+      || this.ride()?.keyInsight
+      || this.intelligence()?.classification?.reason
+      || this.ride()?.rideKindReason
+      || this.intelligence()?.summaryText
+      || this.ride()?.aiSummary
+      || 'RidePulse built this from distance, speed, and timing signals.';
+  });
+  readonly bestMoment = computed(() => this.intelligence()?.bestMoment || this.ride()?.bestMoment || `${kmh(this.ride()?.topSpeedKmh)} top speed`);
+  readonly tripAssistLabel = computed(() => {
+    const suggestion = this.tripSuggestion(this.intelligence()?.tripAutomation || this.ride()?.tripSuggestion);
+    if (!suggestion) return 'No trip action yet';
+    if (suggestion.action === 'auto_created') return suggestion.title ? `Created ${suggestion.title}` : 'Created a trip';
+    if (suggestion.action === 'auto_added') return suggestion.title ? `Added to ${suggestion.title}` : 'Added to a trip';
+    if (['suggest', 'auto_add', 'auto_create'].includes(suggestion.action)) return suggestion.title ? `Suggests ${suggestion.title}` : 'Trip suggestion ready';
+    return 'No confident trip match';
+  });
   readonly storyPrompt = computed(() => {
     const ride = this.ride();
     if (!ride) {
@@ -415,6 +450,30 @@ export class RideDetailPageComponent implements OnInit {
   timeLabel(value?: string) {
     const date = value ? new Date(value) : null;
     return date && Number.isFinite(date.getTime()) ? date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '--';
+  }
+
+  private kindLabel(kind?: string | null) {
+    switch (kind) {
+      case 'commute': return 'Commute';
+      case 'short_spin': return 'Short spin';
+      case 'city_errand': return 'City errand';
+      case 'long_trip': return 'Long trip';
+      case 'fast_ride': return 'Fast ride';
+      case 'night_ride': return 'Night ride';
+      default: return 'Scenic ride';
+    }
+  }
+
+  private tripSuggestion(value: TripSuggestion | string | null | undefined): TripSuggestion | null {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      try {
+        return this.tripSuggestion(JSON.parse(value));
+      } catch {
+        return null;
+      }
+    }
+    return value;
   }
 
   private rideId() {

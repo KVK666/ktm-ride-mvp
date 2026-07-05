@@ -58,7 +58,9 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Shows ride history by period, with route maps and full-screen map viewing.
 - Journal ride search is server-backed on mobile and web, matching ride title, notes, start label, and end label while preserving existing period filters.
 - Adds manual Trip Albums: riders can create trip folders, add existing rides, remove rides from a trip without deleting the ride, and browse trip detail on Android and the Angular companion.
+- Adds backend-owned AI ride intelligence with deterministic fallback: saved rides can receive human-readable AI titles, summaries, ride kind/confidence/reason, key insight, best moment, and trip automation suggestions without blocking ride save.
 - Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
+- Ride Detail now opens with an AI Insight Hero instead of decorative route artwork, showing ride kind, confidence, key insight, best signal, and trip assist state while keeping exact start/end labels in Route Summary for maps.
 - Ride Detail has a Ride Review section for ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail has a confirmed delete option for the selected ride, intended for test rides, unwanted rides, or duplicates that should be fully removed with their route points.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
@@ -114,12 +116,13 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/screens/ProfileScreen.tsx`: profile, backend display photo, diagnostics, app update checker, and auto tracking toggle.
 - `mobile/src/theme/ThemeContext.tsx`: persisted app theme mode and legacy theme migration.
 - `mobile/src/theme/colors.ts`: Midnight and True Black palette values plus shared typography, layout, and motion tokens.
-- `mobile/src/components/RouteArtwork.tsx`: lightweight SVG route artwork for Home, Journal, and ride-detail hero surfaces.
+- `mobile/src/components/RouteArtwork.tsx`: lightweight SVG route artwork for Home, Journal, memories, onboarding, and slideshow surfaces.
 - `mobile/src/components/JournalHero.tsx`, `SmartHighlight.tsx`, `RideBadge.tsx`, `RouteReplay.tsx`, `ChapterTimeline.tsx`, `PremiumEmptyState.tsx`, and `InlineSkeleton.tsx`: Smart Journal V2 primitives.
 - `mobile/src/components/MemoryCard.tsx`, `RideSlideshowModal.tsx`, and `OnboardingScreen.tsx`: local memories, album slideshow, and first-install walkthrough UI.
 - `backend-java/src/main/java/com/ridepulse/api/service/RoutePreviewService.java`: bounded route-preview loader used by the Java API.
 - `backend-java/src/main/java/com/ridepulse/api/service/PasswordResetService.java`: hashed one-time reset token creation, SMTP reset email delivery, and password update validation.
 - `backend-java/src/main/java/com/ridepulse/api/service/JournalIntelligenceService.java`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
+- `backend-java/src/main/java/com/ridepulse/api/service/RideAiIntelligenceService.java`: backend-only AI/fallback ride naming, classification, insight, best moment, and high-confidence trip automation.
 - `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
 - `mobile/src/services/onboarding.ts`: walkthrough completion storage.
 - `mobile/src/services/profilePhoto.ts`: per-user profile photo picker, local cache, backend upload/download/delete sync.
@@ -253,6 +256,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-06-29: Published the forgot-password mobile UI through EAS Update on the `production` branch for runtime `0.1.0`. Update group `572d8d60-757d-4fff-9e8c-ff2a946f39e8` points at commit `c1b22af`.
 - 2026-06-29: Fixed locally built Android APK OTA checks by embedding the required `expo-channel-name: production` request header in native Expo Updates metadata. Without that header, EAS returned `"channel-name": Required` even with the correct update URL.
 - 2026-07-02: Added manual Trip Albums and server-backed ride search. Java now exposes `/api/trips` plus optional `/api/rides?q=...`, mobile adds Trip Albums screens and Ride Detail add-to-trip flow, and the Angular companion adds Trips pages plus Journal search.
+- 2026-07-05: Added AI Ride Intelligence on the Java backend. Rides save immediately, then backend-only AI/fallback enrichment adds human titles, summaries, ride kind confidence/reasons, key insight, best moment, and trip automation state. Mobile Ride Detail now uses an AI Insight Hero instead of decorative route art; web/mobile Journal and Trip surfaces prefer human AI titles over raw start/end labels. AI provider keys stay server-side through environment variables.
 - 2026-06-29: Documented Gmail SMTP/App Password configuration for Render password reset email and added non-secret Gmail defaults to `render.yaml`; `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` remain Render-managed secrets.
 - 2026-06-29: Added non-secret password-reset config status to `/health` and safer Render log messages for accepted SMTP sends, SMTP failures, and unknown-account reset requests.
 - 2026-07-01: Added a Java/Spring Boot backend in `backend-java/` as a contract-preserving port of the previous API. Java defaults to port `4001`, keeps the existing PostgreSQL schema/JWT/API contracts, uses thin controllers with a standard response wrapper, keeps business flow in services, uses repository interfaces plus `NamedParameterJdbcTemplate` implementations with separate read-only/read-write datasources, stores SQL and `.pojo` mapping keys in `db-queries.properties`, and includes service tests plus Render Docker deployment notes.

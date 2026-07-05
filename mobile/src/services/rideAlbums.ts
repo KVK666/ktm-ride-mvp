@@ -86,7 +86,7 @@ export async function savePhotosToAlbum(
   const nextPhotos = dedupePhotos([...existingPhotos, ...synced]);
   const album = {
     rideId: ride.id,
-    title: ride.smartTitle || ride.title || `${shortDate(ride.startedAt)} ride`,
+    title: ride.title || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`,
     coverUri: nextPhotos[0]?.uri || null,
     photos: nextPhotos,
     updatedAt: new Date().toISOString()
@@ -136,7 +136,7 @@ export async function buildRideMemories(rides: Ride[], journal?: JournalResponse
     memories.push({
       id: `album-${item.ride.id}`,
       type: "album",
-      title: item.album?.title || item.ride.smartTitle || "Ride album",
+      title: item.album?.title || item.ride.aiTitle || item.ride.smartTitle || "Ride album",
       subtitle: `${item.album?.photos.length || 0} photos · ${km(item.ride.distanceM)}`,
       rideId: item.ride.id,
       coverUri: item.album?.coverUri || null,
