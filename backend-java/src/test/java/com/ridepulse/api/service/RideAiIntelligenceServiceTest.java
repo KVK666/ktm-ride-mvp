@@ -56,4 +56,23 @@ class RideAiIntelligenceServiceTest {
     Map<String, Object> tripAutomation = (Map<String, Object>) decorated.get("tripAutomation");
     assertThat(tripAutomation).containsEntry("action", "suggest").containsEntry("title", "Sunday highway run");
   }
+
+  @Test
+  void configStatusReportsNonSecretProviderSettings() {
+    RideAiIntelligenceService configured = new RideAiIntelligenceService(
+        mock(RideRepository.class),
+        mock(TripRepository.class),
+        new ObjectMapper(),
+        "sk-test-secret",
+        "gpt-test",
+        "https://api.openai.com/v1/chat/completions");
+
+    Map<String, Object> status = configured.configStatus();
+
+    assertThat(status)
+        .containsEntry("apiKeyPresent", true)
+        .containsEntry("model", "gpt-test")
+        .containsEntry("endpointHost", "api.openai.com")
+        .doesNotContainKey("apiKey");
+  }
 }

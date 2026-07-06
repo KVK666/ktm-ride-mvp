@@ -157,6 +157,10 @@ public class RideService {
     return rideRepository.ownedRideExists(userId, rideId);
   }
 
+  public boolean ownedRideExistsFresh(String userId, String rideId) {
+    return rideRepository.ownedRideExistsFresh(userId, rideId);
+  }
+
   private Map<String, Object> ownedRide(String userId, String rideId) {
     return rideRepository.findOwnedRide(userId, rideId)
         .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.RIDE_NOT_FOUND));

@@ -29,19 +29,22 @@ class TripServiceTest {
 
   @Test
   void addsRideOnlyAfterTripAndRideOwnershipAreVerified() {
-    when(tripRepository.find("user-1", "trip-1")).thenReturn(Optional.of(Map.of("id", "trip-1", "title", "Weekend")));
-    when(rideService.ownedRideExists("user-1", "ride-1")).thenReturn(true);
-    when(tripRepository.rides("user-1", "trip-1")).thenReturn(List.of(Map.of("id", "ride-1")));
+    when(tripRepository.findFresh("user-1", "trip-1")).thenReturn(Optional.of(Map.of("id", "trip-1", "title", "Weekend")));
+    when(rideService.ownedRideExistsFresh("user-1", "ride-1")).thenReturn(true);
+    when(tripRepository.addRide("trip-1", "ride-1")).thenReturn(1);
+    when(tripRepository.ridesFresh("user-1", "trip-1")).thenReturn(List.of(Map.of("id", "ride-1")));
 
     Map<String, Object> response = service.addRide("user-1", "trip-1", Map.of("rideId", "ride-1"));
 
     verify(tripRepository).addRide("trip-1", "ride-1");
+    verify(tripRepository).touch("user-1", "trip-1");
+    verify(tripRepository).ridesFresh("user-1", "trip-1");
     assertThat(response).containsKey("trip").containsKey("rides");
   }
 
   @Test
   void rejectsAddingRideToAnotherUsersTrip() {
-    when(tripRepository.find("user-1", "trip-2")).thenReturn(Optional.empty());
+    when(tripRepository.findFresh("user-1", "trip-2")).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.addRide("user-1", "trip-2", Map.of("rideId", "ride-1")))
         .isInstanceOf(ApiException.class);
@@ -49,12 +52,27 @@ class TripServiceTest {
 
   @Test
   void removingRideKeepsTheRideAndReturnsUpdatedTrip() {
-    when(tripRepository.find("user-1", "trip-1")).thenReturn(Optional.of(Map.of("id", "trip-1", "title", "Weekend")));
-    when(tripRepository.rides("user-1", "trip-1")).thenReturn(List.of());
+    when(tripRepository.findFresh("user-1", "trip-1")).thenReturn(Optional.of(Map.of("id", "trip-1", "title", "Weekend")));
+    when(tripRepository.removeRide("trip-1", "ride-1")).thenReturn(1);
+    when(tripRepository.ridesFresh("user-1", "trip-1")).thenReturn(List.of());
 
     Map<String, Object> response = service.removeRide("user-1", "trip-1", "ride-1");
 
     verify(tripRepository).removeRide("trip-1", "ride-1");
+    verify(tripRepository).touch("user-1", "trip-1");
     assertThat(response.get("rides")).isEqualTo(List.of());
+  }
+
+  @Test
+  void createReturnsTripFromFreshPostWriteRead() {
+    when(tripRepository.create("user-1", "Weekend", "Hill loop")).thenReturn("trip-1");
+    when(tripRepository.findFresh("user-1", "trip-1")).thenReturn(Optional.of(Map.of("id", "trip-1", "title", "Weekend")));
+    when(tripRepository.ridesFresh("user-1", "trip-1")).thenReturn(List.of());
+
+    Map<String, Object> response = service.create("user-1", Map.of("title", "Weekend", "description", "Hill loop"));
+
+    verify(tripRepository).findFresh("user-1", "trip-1");
+    verify(tripRepository).ridesFresh("user-1", "trip-1");
+    assertThat(response.get("trip")).isEqualTo(Map.of("id", "trip-1", "title", "Weekend"));
   }
 }

@@ -9,7 +9,11 @@ public interface TripRepository {
 
   Optional<Map<String, Object>> find(String userId, String tripId);
 
+  Optional<Map<String, Object>> findFresh(String userId, String tripId);
+
   List<Map<String, Object>> rides(String userId, String tripId);
+
+  List<Map<String, Object>> ridesFresh(String userId, String tripId);
 
   String create(String userId, String title, String description);
 
@@ -20,4 +24,6 @@ public interface TripRepository {
   int addRide(String tripId, String rideId);
 
   int removeRide(String tripId, String rideId);
+
+  int touch(String userId, String tripId);
 }

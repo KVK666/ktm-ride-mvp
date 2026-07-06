@@ -18,11 +18,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RideAiIntelligenceService {
+  private static final Logger log = LoggerFactory.getLogger(RideAiIntelligenceService.class);
   private static final double HIGH_TRIP_CONFIDENCE = 0.86;
   private static final int MAX_LABEL_LENGTH = 72;
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
@@ -54,10 +57,19 @@ public class RideAiIntelligenceService {
   public void processRideAsync(String userId, String rideId) {
     try {
       rideRepository.markAiPending(userId, rideId);
-    } catch (Exception ignored) {
+      log.info("ride ai pending marked rideId={}", rideId);
+    } catch (Exception error) {
+      log.warn("ride ai pending marker failed rideId={} message={}", rideId, error.getMessage());
       // Ride saving must not fail because the optional intelligence marker failed.
     }
     CompletableFuture.runAsync(() -> processRide(userId, rideId));
+  }
+
+  public Map<String, Object> configStatus() {
+    return Map.of(
+        "apiKeyPresent", !apiKey.isBlank(),
+        "model", model,
+        "endpointHost", endpointHost());
   }
 
   public void processRideIfMissingAsync(String userId, Map<String, Object> ride) {
@@ -89,14 +101,18 @@ public class RideAiIntelligenceService {
   private void processRide(String userId, String rideId) {
     try {
       Map<String, Object> ride = rideRepository.findOwnedRide(userId, rideId).orElse(null);
-      if (ride == null) return;
+      if (ride == null) {
+        log.warn("ride ai skipped missing ride rideId={}", rideId);
+        return;
+      }
       List<Map<String, Object>> points = rideRepository.intelligencePoints(rideId);
       Map<String, Object> fallback = fallbackIntelligence(ride, points);
-      Map<String, Object> ai = callAi(ride, points, userId);
+      Map<String, Object> ai = callAi(ride, points, userId, rideId);
       Map<String, Object> intelligence = ai.isEmpty() ? fallback : merge(fallback, ai);
       Map<String, Object> tripSuggestion = applyTripAutomation(userId, rideId, intelligence);
       intelligence.put("tripSuggestion", toJson(tripSuggestion));
       rideRepository.saveAiIntelligence(userId, rideId, intelligence);
+      log.info("ride ai saved rideId={} status={}", rideId, stringOrDefault(intelligence.get("aiStatus"), "fallback"));
     } catch (Exception error) {
       try {
         Map<String, Object> ride = rideRepository.findOwnedRide(userId, rideId).orElse(null);
@@ -104,15 +120,20 @@ public class RideAiIntelligenceService {
           Map<String, Object> fallback = fallbackIntelligence(ride, rideRepository.intelligencePoints(rideId));
           fallback.put("aiStatus", "fallback");
           rideRepository.saveAiIntelligence(userId, rideId, fallback);
+          log.warn("ride ai fallback saved after processing error rideId={} message={}", rideId, error.getMessage());
         }
-      } catch (Exception ignored) {
+      } catch (Exception fallbackError) {
+        log.warn("ride ai fallback save failed rideId={} message={}", rideId, fallbackError.getMessage());
         // Keep failures contained; ride creation and reads must stay reliable.
       }
     }
   }
 
-  private Map<String, Object> callAi(Map<String, Object> ride, List<Map<String, Object>> points, String userId) {
-    if (apiKey.isBlank()) return Map.of();
+  private Map<String, Object> callAi(Map<String, Object> ride, List<Map<String, Object>> points, String userId, String rideId) {
+    if (apiKey.isBlank()) {
+      log.info("ride ai provider skipped missing api key rideId={} model={} endpointHost={}", rideId, model, endpointHost());
+      return Map.of();
+    }
     try {
       Map<String, Object> request = Map.of(
           "model", model,
@@ -127,12 +148,20 @@ public class RideAiIntelligenceService {
           .header("Content-Type", "application/json")
           .POST(HttpRequest.BodyPublishers.ofString(toJson(request)))
           .build();
+      log.info("ride ai provider request started rideId={} model={} endpointHost={}", rideId, model, endpointHost());
       HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-      if (response.statusCode() < 200 || response.statusCode() >= 300) return Map.of();
+      if (response.statusCode() < 200 || response.statusCode() >= 300) {
+        log.warn("ride ai provider non-success rideId={} status={} endpointHost={}", rideId, response.statusCode(), endpointHost());
+        return Map.of();
+      }
       JsonNode content = objectMapper.readTree(response.body()).path("choices").path(0).path("message").path("content");
-      if (!content.isTextual()) return Map.of();
+      if (!content.isTextual()) {
+        log.warn("ride ai provider response missing content rideId={}", rideId);
+        return Map.of();
+      }
       return normalizeAiResponse(objectMapper.readValue(content.asText(), MAP_TYPE));
-    } catch (Exception ignored) {
+    } catch (Exception error) {
+      log.warn("ride ai provider call failed rideId={} endpointHost={} message={}", rideId, endpointHost(), error.getMessage());
       return Map.of();
     }
   }
@@ -457,6 +486,15 @@ public class RideAiIntelligenceService {
 
   private String string(Object value) {
     return value == null ? "" : String.valueOf(value);
+  }
+
+  private String endpointHost() {
+    try {
+      String host = URI.create(apiUrl).getHost();
+      return host == null || host.isBlank() ? "unknown" : host;
+    } catch (Exception ignored) {
+      return "invalid";
+    }
   }
 
   private double numberOrDefault(Object value, double fallback) {

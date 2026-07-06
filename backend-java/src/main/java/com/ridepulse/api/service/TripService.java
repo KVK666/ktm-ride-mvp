@@ -46,7 +46,7 @@ public class TripService {
     String title = requiredText(body == null ? null : body.get("title"), 120);
     String description = optionalText(body == null ? null : body.get("description"), 1000);
     String tripId = tripRepository.create(userId, title, description);
-    return get(userId, tripId);
+    return getFresh(userId, tripId);
   }
 
   @Transactional
@@ -57,7 +57,7 @@ public class TripService {
     if (updated == 0) {
       throw new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.TRIP_NOT_FOUND);
     }
-    return get(userId, tripId);
+    return getFresh(userId, tripId);
   }
 
   @Transactional
@@ -72,26 +72,45 @@ public class TripService {
   public Map<String, Object> addRide(String userId, String tripId, Map<String, Object> body) {
     String rideId = requiredId(body == null ? null : body.get("rideId"));
     requireTrip(userId, tripId);
-    if (!rideService.ownedRideExists(userId, rideId)) {
+    if (!rideService.ownedRideExistsFresh(userId, rideId)) {
       throw new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.RIDE_NOT_FOUND);
     }
-    tripRepository.addRide(tripId, rideId);
-    return get(userId, tripId);
+    int added = tripRepository.addRide(tripId, rideId);
+    if (added > 0) {
+      tripRepository.touch(userId, tripId);
+    }
+    return getFresh(userId, tripId);
   }
 
   @Transactional
   public Map<String, Object> removeRide(String userId, String tripId, String rideId) {
     requireTrip(userId, tripId);
-    tripRepository.removeRide(tripId, rideId);
-    return get(userId, tripId);
+    int removed = tripRepository.removeRide(tripId, rideId);
+    if (removed > 0) {
+      tripRepository.touch(userId, tripId);
+    }
+    return getFresh(userId, tripId);
   }
 
   private Object decoratedRides(String userId, String tripId) {
     return journalIntelligenceService.decorateRides(routePreviewService.attachRoutePreviews(tripRepository.rides(userId, tripId)), Map.of());
   }
 
+  private Map<String, Object> getFresh(String userId, String tripId) {
+    Map<String, Object> trip = tripRepository.findFresh(userId, tripId)
+        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.TRIP_NOT_FOUND));
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("trip", trip);
+    response.put("rides", decoratedRidesFresh(userId, tripId));
+    return response;
+  }
+
+  private Object decoratedRidesFresh(String userId, String tripId) {
+    return journalIntelligenceService.decorateRides(routePreviewService.attachRoutePreviews(tripRepository.ridesFresh(userId, tripId)), Map.of());
+  }
+
   private void requireTrip(String userId, String tripId) {
-    if (tripRepository.find(userId, tripId).isEmpty()) {
+    if (tripRepository.findFresh(userId, tripId).isEmpty()) {
       throw new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.TRIP_NOT_FOUND);
     }
   }

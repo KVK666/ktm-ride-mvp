@@ -67,6 +67,8 @@ Optional backend AI enrichment is configured only on the Java API server:
 
 Mobile and web clients never store AI secrets. If no AI key is configured, rides still save and receive deterministic fallback titles, summaries, ride kind, and insight fields.
 
+Check `/health` for non-secret AI config status before debugging usage: `config.rideAi.apiKeyPresent` reports whether Render has an AI key, while `model` and `endpointHost` show the configured provider target without exposing credentials. Render logs include `ride ai provider skipped missing api key`, `ride ai provider request started`, `ride ai provider non-success`, and `ride ai saved` messages so OpenAI dashboard usage can be matched against backend attempts.
+
 ## Backend Setup
 
 The active and only backend implementation is the Java Spring Boot service in `backend-java/`, deployed to Render with Docker and backed by PostgreSQL.

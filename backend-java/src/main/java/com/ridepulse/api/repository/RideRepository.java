@@ -12,6 +12,8 @@ public interface RideRepository {
 
   boolean ownedRideExists(String userId, String rideId);
 
+  boolean ownedRideExistsFresh(String userId, String rideId);
+
   List<Map<String, Object>> points(String rideId);
 
   List<Map<String, Object>> intelligencePoints(String rideId);

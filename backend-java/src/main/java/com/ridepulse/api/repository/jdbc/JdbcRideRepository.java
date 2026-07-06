@@ -60,6 +60,11 @@ public class JdbcRideRepository implements RideRepository {
   }
 
   @Override
+  public boolean ownedRideExistsFresh(String userId, String rideId) {
+    return Boolean.TRUE.equals(readWriteJdbc.query(sql.get(QueryKeys.RIDE_EXISTS), rideParams(userId, rideId), (ResultSetExtractor<Boolean>) rs -> rs.next()));
+  }
+
+  @Override
   public List<Map<String, Object>> points(String rideId) {
     return readOnlyJdbc.query(sql.get(QueryKeys.RIDE_POINTS_FULL), rideParams(rideId), (rs, rowNum) -> Rows.point(rs));
   }

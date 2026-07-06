@@ -35,6 +35,12 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      - key: RIDEPULSE_AI_API_KEY
+        sync: false
+      - key: RIDEPULSE_AI_MODEL
+        value: gpt-4o-mini
+      - key: RIDEPULSE_AI_URL
+        value: https://api.openai.com/v1/chat/completions
   - type: web
     runtime: static
     name: ridepulse-web

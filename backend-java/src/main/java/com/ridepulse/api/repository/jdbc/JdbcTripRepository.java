@@ -43,8 +43,18 @@ public class JdbcTripRepository implements TripRepository {
   }
 
   @Override
+  public Optional<Map<String, Object>> findFresh(String userId, String tripId) {
+    return readWriteJdbc.query(sql.get(QueryKeys.TRIP_BY_ID), tripParams(userId, tripId), rs -> rs.next() ? Optional.of(trip(rs)) : Optional.empty());
+  }
+
+  @Override
   public List<Map<String, Object>> rides(String userId, String tripId) {
     return readOnlyJdbc.query(sql.get(QueryKeys.TRIP_RIDES), tripParams(userId, tripId), (rs, rowNum) -> Rows.ride(rs));
+  }
+
+  @Override
+  public List<Map<String, Object>> ridesFresh(String userId, String tripId) {
+    return readWriteJdbc.query(sql.get(QueryKeys.TRIP_RIDES), tripParams(userId, tripId), (rs, rowNum) -> Rows.ride(rs));
   }
 
   @Override
@@ -78,6 +88,12 @@ public class JdbcTripRepository implements TripRepository {
   @Transactional
   public int removeRide(String tripId, String rideId) {
     return readWriteJdbc.update(sql.get(QueryKeys.TRIP_REMOVE_RIDE), rideParams(tripId, rideId));
+  }
+
+  @Override
+  @Transactional
+  public int touch(String userId, String tripId) {
+    return readWriteJdbc.update(sql.get(QueryKeys.TRIP_TOUCH), tripParams(userId, tripId));
   }
 
   private Map<String, Object> trip(ResultSet rs) throws SQLException {

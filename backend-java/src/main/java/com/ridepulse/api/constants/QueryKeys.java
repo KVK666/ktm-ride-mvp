@@ -59,6 +59,7 @@ public final class QueryKeys {
   public static final String TRIP_DELETE = "trip.delete";
   public static final String TRIP_ADD_RIDE = "trip.add-ride";
   public static final String TRIP_REMOVE_RIDE = "trip.remove-ride";
+  public static final String TRIP_TOUCH = "trip.touch";
 
   public static final String SCHEMA_UUID_EXTENSION = "schema.uuid-extension";
   public static final String SCHEMA_PGCRYPTO_EXTENSION = "schema.pgcrypto-extension";
