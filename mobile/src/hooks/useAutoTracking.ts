@@ -1,10 +1,11 @@
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AutoTrackingStatus,
   disableAutoTracking,
   enableAutoTracking,
   getAutoTrackingStatus,
+  subscribeToMotionActivities,
   syncPendingRidesForCurrentUser
 } from "../services/autoRideTracking";
 
@@ -38,6 +39,11 @@ export function useAutoTracking() {
       return () => clearInterval(interval);
     }, [refresh])
   );
+
+  useEffect(() => {
+    const subscription = subscribeToMotionActivities(refresh);
+    return () => subscription.remove();
+  }, [refresh]);
 
   const toggle = useCallback(
     async (enabled: boolean) => {

@@ -34,7 +34,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Google Maps route lookup with Geocoding API and Directions API.
 - Safety confirmation before navigation: "Set your destination before riding. Do not interact with the phone while riding."
 - Start Ride / Stop Ride tracking with foreground and background location support.
-- Optional automatic ride tracking with speed-based start/stop detection and pending upload retry.
+- Optional automatic ride tracking with Android motion-first arming, speed-based start/stop confirmation, and pending upload retry.
 - Ride storage with start/end location, path points, distance, duration, top speed, average speed, and timestamps.
 - Post-ride review with ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
@@ -44,7 +44,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Daily, monthly, and yearly ride history.
 - Basic charts for distance, ride duration trends, and top speed comparison.
 - JSON report endpoint and in-app PDF export.
-- Location permission, background location prompt, battery optimization warning copy, and internet/API error messages.
+- Location/activity permission, background location prompt, battery optimization warning copy, and internet/API error messages.
 - Brand-neutral RidePulse launcher name, icon, Graphite and OLED Black themes, and compact mobile UI controls.
 - Angular web companion with a cinematic public site, Three.js hero scene, login/register, dashboard, journal, Google Maps route planner, rich ride detail, synced ride albums, analytics, reports export, profile photo management, fixed companion navigation, and branded RidePulse loading states.
 
@@ -247,6 +247,8 @@ Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `r
 ## Safety Notes
 
 This app is designed so the destination can be set before riding and ride tracking can run with minimal interaction. Do not interact with the phone while riding. Mount the device securely, configure permissions before moving, and follow local traffic laws.
+
+Android auto tracking uses activity recognition to stay armed without immediately starting high-accuracy GPS. RidePulse starts the foreground GPS service only after vehicle-like movement is detected, then confirms the ride using the normal speed and distance rules. If motion detection is unavailable, the app falls back to lower-power location watching and says so in the Ride/Profile status.
 
 ## Online Deployment
 

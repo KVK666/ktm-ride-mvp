@@ -1,4 +1,5 @@
 import "./src/services/locationTask";
+import "./src/services/activityRecognitionTask";
 
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";

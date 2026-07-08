@@ -60,6 +60,7 @@ module.exports = {
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
+        "ACTIVITY_RECOGNITION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "ACCESS_MEDIA_LOCATION",
@@ -69,6 +70,7 @@ module.exports = {
     },
     plugins: [
       "./plugins/withFullBleedAndroidIcon",
+      "./plugins/withActivityRecognitionAndroid",
       "./plugins/withExpoUpdatesChannel",
       "./plugins/withInstagramPackageQuery",
       "expo-font",

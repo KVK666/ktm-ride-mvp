@@ -346,8 +346,8 @@ export function ProfileScreen() {
               <Text style={styles.cardTitle}>Auto tracking</Text>
               <Text style={styles.cardCopy}>
                 {autoTracking.status.enabled
-                  ? `Status: ${autoTracking.status.label}`
-                  : "Enable hands-free ride detection before you start riding."}
+                  ? `Status: ${autoTracking.status.label}. ${autoTracking.status.hint || "Motion-first detection is armed."}`
+                  : "Enable hands-free ride detection before you start riding. RidePulse waits for motion before turning on ride GPS."}
               </Text>
             </View>
             <Switch

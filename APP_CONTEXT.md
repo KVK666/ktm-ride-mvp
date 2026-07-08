@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-03
+Last updated: 2026-07-08
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -88,16 +88,19 @@ Auto tracking is implemented as an optional setting and is off by default.
 - Toggle location: Ride tab and Profile tab.
 - Manual Start/Stop remains available.
 - Manual tracking takes priority so an auto ride is not created at the same time.
-- Auto tracking uses background GPS with both reported speed and inferred speed from GPS distance/time.
+- On Android, auto tracking arms activity recognition first so enabled auto tracking does not immediately start high-accuracy GPS or the persistent RidePulse foreground location notification.
+- When activity recognition reports vehicle-like movement, RidePulse starts a short high-accuracy GPS probe and then uses both reported speed and inferred speed from GPS distance/time to confirm the ride.
+- If activity recognition is unavailable or permission is denied, auto tracking falls back to lower-power background location with clear status copy.
 - Auto-start rule: sustained movement around `8 km/h` or clear GPS movement for about `30 seconds` and at least `100 meters`.
 - Auto-start tolerates short bad/zero-speed GPS samples for about `75 seconds`.
+- GPS probe timeout: movement checks stop after about `3 minutes` if the auto-start rule is not met.
 - Auto-stop rule: speed below `5 km/h` for about `5 minutes`.
 - Discard rule: auto rides under `2 minutes` or under `500 meters` are ignored.
 - If upload fails, auto rides are queued locally and retried when the app opens/logs in.
 - Pending auto ride sync is deduplicated and guarded so repeated retries do not submit the same ride multiple times.
-- Auto tracking status labels: `Off`, `Watching`, `Auto ride in progress`, `Pending upload`.
+- Auto tracking status labels: `Off`, `Armed`, `Checking movement`, `Auto ride in progress`, `Pending upload`.
 
-Known limitation: auto tracking detects sustained movement, not the exact vehicle. It cannot perfectly know bike vs car.
+Known limitation: auto tracking detects vehicle-like movement and sustained GPS movement, not the exact vehicle. It cannot perfectly know bike vs car.
 
 ## Important Files
 
@@ -109,6 +112,7 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/services/rideStoryPrompt.ts`: dynamic ChatGPT image prompt variants and optional Open-Meteo weather mood lookup.
 - `mobile/src/services/rideStoryShare.ts`: Android Instagram/share-sheet handoff for generated story images.
 - `mobile/plugins/withInstagramPackageQuery.js`: Expo config plugin that exposes Instagram to Android package queries for reliable share targeting.
+- `mobile/plugins/withActivityRecognitionAndroid.js`: Expo config plugin that preserves Android activity-recognition permission, native receiver/service, Gradle dependency, and React package registration across prebuild.
 - `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, backend display photo, diagnostics, and auto tracking toggle.
 - `mobile/eas.json`: EAS build/update channels. Production builds and OTA updates use the `production` channel.
@@ -128,7 +132,8 @@ Known limitation: auto tracking detects sustained movement, not the exact vehicl
 - `mobile/src/services/profilePhoto.ts`: per-user profile photo picker, local cache, backend upload/download/delete sync.
 - `mobile/src/components/ProfileAvatar.tsx`: shared backend-backed avatar display used by Home, You, and Profile surfaces.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
-- `mobile/src/services/autoRideTracking.ts`: auto tracking state machine, thresholds, background handling, pending queue.
+- `mobile/src/services/autoRideTracking.ts`: motion-first auto tracking state machine, thresholds, background handling, pending queue.
+- `mobile/src/services/activityRecognition.ts` and `activityRecognitionTask.ts`: Android native activity-recognition bridge and Headless JS task for motion-first ride wakeups.
 - `mobile/src/services/locationTask.ts`: Expo background location task entrypoint.
 - `mobile/src/services/rideUpload.ts`: ride upload and pending auto ride sync.
 - `mobile/src/services/trackingKeys.ts`: local storage keys and background task name.

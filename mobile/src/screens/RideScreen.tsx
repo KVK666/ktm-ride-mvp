@@ -374,7 +374,7 @@ export function RideScreen() {
               <Text style={styles.autoTitle}>Auto tracking</Text>
               <Text style={styles.autoCopy}>
                 {autoTracking.status.enabled
-                  ? "Watching for sustained riding movement in the background."
+                  ? autoTracking.status.hint || "Armed for motion-first ride detection."
                   : "Off by default. Enable before riding when you want hands-free ride logs."}
               </Text>
             </View>
@@ -396,6 +396,7 @@ export function RideScreen() {
               <Text style={styles.statusValue}>{autoTracking.status.label}</Text>
             </View>
           </View>
+          {autoTracking.status.enabled && autoTracking.status.hint ? <Text style={styles.autoHint}>{autoTracking.status.hint}</Text> : null}
           {autoTracking.status.pendingCount ? (
             <View style={styles.pendingUploadBox}>
               <Text style={styles.pendingText}>
@@ -601,6 +602,12 @@ const createStyles = (colors: ThemeColors) => ({
     lineHeight: 18,
     fontSize: 12,
     fontFamily: typography.regular
+  },
+  autoHint: {
+    color: colors.muted,
+    lineHeight: 18,
+    fontSize: 12,
+    fontFamily: typography.medium
   },
   statusRow: {
     flexDirection: "row",

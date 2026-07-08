@@ -2,6 +2,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
+import {
+  addActivityRecognitionListener,
+  getActivityRecognitionStatus,
+  MotionActivity,
+  startActivityRecognition,
+  stopActivityRecognition
+} from "./activityRecognition";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import { appendManualRidePoints } from "./manualRideSession";
 import {
@@ -25,18 +32,37 @@ const AUTO_START_SPEED_KMH = 8;
 const AUTO_START_DURATION_MS = 30 * 1000;
 const AUTO_START_DISTANCE_M = 100;
 const AUTO_START_GRACE_MS = 75 * 1000;
+const AUTO_PROBE_TIMEOUT_MS = 3 * 60 * 1000;
+const AUTO_ACTIVITY_INTERVAL_MS = 20 * 1000;
+const AUTO_VEHICLE_CONFIDENCE = 60;
+const AUTO_REPEATED_VEHICLE_CONFIDENCE = 45;
+const AUTO_REPEATED_ACTIVITY_WINDOW_MS = 2 * 60 * 1000;
 const AUTO_MAX_POINT_GAP_MS = 5 * 60 * 1000;
 const AUTO_STOP_SPEED_KMH = 5;
 const AUTO_STOP_DURATION_MS = 5 * 60 * 1000;
 const MIN_AUTO_RIDE_DURATION_MS = 2 * 60 * 1000;
 const MIN_AUTO_RIDE_DISTANCE_M = 500;
 const MAX_AUTO_POINTS = 6000;
-const AUTO_TRACKING_SERVICE_VERSION = "2";
+const AUTO_TRACKING_SERVICE_VERSION = "3";
 const AUTO_TRACKING_SERVICE_VERSION_KEY = "duke_ride_auto_tracking_service_version";
 
 type AutoRideState =
   | {
-      status: "watching";
+      status: "armed";
+      fallbackGps?: boolean;
+      fallbackReason?: string;
+      lastActivity?: MotionActivity;
+      lastVehicleActivityAt?: string;
+      candidateStartedAt?: string;
+      candidateLastMovingAt?: string;
+      candidatePoints?: RidePoint[];
+      lastPoint?: RidePoint;
+    }
+  | {
+      status: "probing";
+      probeStartedAt: string;
+      lastActivity?: MotionActivity;
+      lastVehicleActivityAt?: string;
       candidateStartedAt?: string;
       candidateLastMovingAt?: string;
       candidatePoints?: RidePoint[];
@@ -51,9 +77,10 @@ type AutoRideState =
 
 export type AutoTrackingStatus = {
   enabled: boolean;
-  label: "Off" | "Watching" | "Auto ride in progress" | "Pending upload";
+  label: "Off" | "Armed" | "Checking movement" | "Auto ride in progress" | "Pending upload";
   pendingCount: number;
   autoRideActive: boolean;
+  hint?: string;
 };
 
 export async function getAutoTrackingEnabled() {
@@ -72,22 +99,39 @@ export async function getAutoTrackingStatus(): Promise<AutoTrackingStatus> {
   if (state.status === "riding") {
     return { enabled, label: "Auto ride in progress", pendingCount, autoRideActive: true };
   }
+  if (state.status === "probing") {
+    return {
+      enabled,
+      label: "Checking movement",
+      pendingCount,
+      autoRideActive: false,
+      hint: "RidePulse is briefly checking GPS because vehicle movement was detected."
+    };
+  }
   if (pendingCount) {
     return { enabled, label: "Pending upload", pendingCount, autoRideActive: false };
   }
-  return { enabled, label: "Watching", pendingCount, autoRideActive: false };
+  return {
+    enabled,
+    label: "Armed",
+    pendingCount,
+    autoRideActive: false,
+    hint: state.fallbackGps
+      ? `Motion detection unavailable; using low-power location fallback.${state.fallbackReason ? ` ${state.fallbackReason}` : ""}`
+      : "Motion detection is armed. GPS will start after vehicle-like movement."
+  };
 }
 
 export async function enableAutoTracking() {
   await ensureBackgroundPermissions();
   await AsyncStorage.setItem(AUTO_TRACKING_ENABLED_KEY, "true");
-  await writeAutoRideState({ status: "watching" });
-  await startBackgroundLocationUpdates("RidePulse auto tracking is watching for rides.", true);
+  await writeAutoRideState({ status: "armed" });
+  await armMotionFirstAutoTracking();
   await AsyncStorage.setItem(AUTO_TRACKING_SERVICE_VERSION_KEY, AUTO_TRACKING_SERVICE_VERSION);
   await logDiagnostic({
     level: "info",
     area: "auto-tracking",
-    message: "Automatic ride tracking enabled"
+    message: "Automatic ride tracking armed"
   });
   return getAutoTrackingStatus();
 }
@@ -95,6 +139,14 @@ export async function enableAutoTracking() {
 export async function disableAutoTracking() {
   await AsyncStorage.setItem(AUTO_TRACKING_ENABLED_KEY, "false");
   await AsyncStorage.removeItem(AUTO_RIDE_STATE_KEY);
+  await stopActivityRecognition().catch((err) => {
+    void logDiagnostic({
+      level: "warn",
+      area: "auto-tracking",
+      message: "Motion detection stop failed while disabling auto tracking",
+      details: diagnosticDetails(err)
+    });
+  });
   const manualActive = (await AsyncStorage.getItem(MANUAL_TRACKING_ACTIVE_KEY)) === "true";
   if (!manualActive) {
     await stopBackgroundLocationUpdatesIfRunning();
@@ -105,9 +157,11 @@ export async function disableAutoTracking() {
 export async function setManualTrackingActive(active: boolean) {
   await AsyncStorage.setItem(MANUAL_TRACKING_ACTIVE_KEY, active ? "true" : "false");
   if (active) {
-    await writeAutoRideState({ status: "watching" });
+    await writeAutoRideState({ status: "armed" });
   } else if (!(await getAutoTrackingEnabled())) {
     await stopBackgroundLocationUpdatesIfRunning();
+  } else {
+    await armMotionFirstAutoTracking();
   }
 }
 
@@ -162,6 +216,58 @@ export async function syncPendingRidesForCurrentUser() {
   return syncPendingAutoRides();
 }
 
+export function subscribeToMotionActivities(onHandled?: () => void) {
+  return addActivityRecognitionListener((activity) => {
+    void handleMotionActivity(activity)
+      .then(onHandled)
+      .catch((err) => {
+        void logDiagnostic({
+          level: "error",
+          area: "auto-tracking",
+          message: "Motion activity handling failed",
+          details: diagnosticDetails(err)
+        });
+      });
+  });
+}
+
+export async function handleMotionActivity(rawActivity: MotionActivity) {
+  const activity = normalizeMotionActivity(rawActivity);
+  const enabled = await getAutoTrackingEnabled();
+  const manualActive = (await AsyncStorage.getItem(MANUAL_TRACKING_ACTIVE_KEY)) === "true";
+  if (!enabled || manualActive) {
+    return;
+  }
+
+  let state = await readAutoRideState();
+  if (state.status === "riding") {
+    return;
+  }
+
+  if (isStoppedActivity(activity) && state.status === "probing" && !state.candidatePoints?.length) {
+    await stopBackgroundLocationUpdatesIfRunning();
+    await writeAutoRideState({
+      status: "armed",
+      lastActivity: activity,
+      lastVehicleActivityAt: state.lastVehicleActivityAt
+    });
+    await logDiagnostic({
+      level: "info",
+      area: "auto-tracking",
+      message: "GPS probe cancelled after still activity"
+    });
+    return;
+  }
+
+  if (isVehicleLikeActivity(activity, state)) {
+    await startGpsProbeFromMotion(activity, state);
+    return;
+  }
+
+  state = { ...state, lastActivity: activity };
+  await writeAutoRideState(state);
+}
+
 async function ensureBackgroundPermissions() {
   const foreground = await Location.requestForegroundPermissionsAsync();
   if (foreground.status !== "granted") {
@@ -193,7 +299,18 @@ async function ensureAutoTrackingServiceCurrent() {
 
   const storedVersion = await AsyncStorage.getItem(AUTO_TRACKING_SERVICE_VERSION_KEY);
   if (storedVersion === AUTO_TRACKING_SERVICE_VERSION) {
-    return;
+    const state = await readAutoRideState();
+    if (state.status !== "armed" || state.fallbackGps) {
+      return;
+    }
+    try {
+      const activityStatus = await getActivityRecognitionStatus();
+      if (activityStatus.running) {
+        return;
+      }
+    } catch {
+      return;
+    }
   }
 
   const foreground = await Location.getForegroundPermissionsAsync();
@@ -202,16 +319,75 @@ async function ensureAutoTrackingServiceCurrent() {
     return;
   }
 
-  await startBackgroundLocationUpdates("RidePulse auto tracking is watching for rides.", true);
+  await armMotionFirstAutoTracking();
   await AsyncStorage.setItem(AUTO_TRACKING_SERVICE_VERSION_KEY, AUTO_TRACKING_SERVICE_VERSION);
   await logDiagnostic({
     level: "info",
     area: "auto-tracking",
-    message: "Automatic ride tracking service refreshed"
+    message: "Automatic ride tracking service refreshed for motion-first detection"
   });
 }
 
-async function startBackgroundLocationUpdates(notificationBody: string, restart = false) {
+async function armMotionFirstAutoTracking() {
+  try {
+    await startActivityRecognition(AUTO_ACTIVITY_INTERVAL_MS);
+    const state = await readAutoRideState();
+    if (state.status !== "riding" && state.status !== "probing") {
+      await writeAutoRideState({
+        status: "armed",
+        lastActivity: state.lastActivity,
+        lastVehicleActivityAt: state.lastVehicleActivityAt
+      });
+      await stopBackgroundLocationUpdatesIfRunning();
+    }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "Motion detection unavailable.";
+    await writeAutoRideState({
+      status: "armed",
+      fallbackGps: true,
+      fallbackReason: reason
+    });
+    await startBackgroundLocationUpdates("Motion detection is unavailable. RidePulse is using low-power location fallback.", true, "fallback");
+    await logDiagnostic({
+      level: "warn",
+      area: "auto-tracking",
+      message: "Motion-first auto tracking fell back to low-power location",
+      details: diagnosticDetails(err)
+    });
+  }
+}
+
+async function startGpsProbeFromMotion(activity: MotionActivity, state: AutoRideState) {
+  const now = new Date().toISOString();
+  const nextState: AutoRideState = state.status === "probing"
+    ? {
+        ...state,
+        lastActivity: activity,
+        lastVehicleActivityAt: now
+      }
+    : {
+        status: "probing",
+        probeStartedAt: now,
+        lastActivity: activity,
+        lastVehicleActivityAt: now,
+        candidatePoints: state.status === "armed" ? state.candidatePoints : undefined,
+        lastPoint: state.status === "armed" ? state.lastPoint : undefined
+      };
+  await writeAutoRideState(nextState);
+  await startBackgroundLocationUpdates("RidePulse detected movement and is checking for a ride.", true, "probe");
+  await logDiagnostic({
+    level: "info",
+    area: "auto-tracking",
+    message: "GPS probe started from motion detection",
+    details: `${activity.type} confidence=${activity.confidence}`
+  });
+}
+
+async function startBackgroundLocationUpdates(
+  notificationBody: string,
+  restart = false,
+  mode: "tracking" | "probe" | "fallback" = "tracking"
+) {
   const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
   if (running && !restart) {
     return;
@@ -221,9 +397,11 @@ async function startBackgroundLocationUpdates(notificationBody: string, restart 
   }
 
   await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-    accuracy: Location.Accuracy.Highest,
-    distanceInterval: 15,
-    timeInterval: 5000,
+    accuracy: mode === "fallback" ? Location.Accuracy.Balanced : Location.Accuracy.Highest,
+    distanceInterval: mode === "fallback" ? 150 : 15,
+    timeInterval: mode === "fallback" ? 60000 : 5000,
+    deferredUpdatesDistance: mode === "fallback" ? 150 : undefined,
+    deferredUpdatesInterval: mode === "fallback" ? 60000 : undefined,
     mayShowUserSettingsDialog: true,
     showsBackgroundLocationIndicator: true,
     foregroundService: {
@@ -271,6 +449,10 @@ async function updateAutoRideState(state: AutoRideState, point: RidePoint): Prom
     return updateActiveRide(state, point);
   }
 
+  if (state.status === "armed" && !state.fallbackGps) {
+    return { ...state, lastPoint: point };
+  }
+
   const previousPoint = recentPoint(state.candidatePoints?.[state.candidatePoints.length - 1] || state.lastPoint, point);
   const movement = movementBetween(previousPoint, point);
   const moving =
@@ -279,7 +461,7 @@ async function updateAutoRideState(state: AutoRideState, point: RidePoint): Prom
     movement.distanceM >= 15;
 
   if (!moving && !state.candidatePoints?.length) {
-    return { status: "watching", lastPoint: point };
+    return { ...state, lastPoint: point };
   }
 
   const candidateSeed = state.candidatePoints?.length
@@ -298,6 +480,14 @@ async function updateAutoRideState(state: AutoRideState, point: RidePoint): Prom
   const quietMs = timestampMs(point.recordedAt) - timestampMs(candidateLastMovingAt);
 
   if (durationMs >= AUTO_START_DURATION_MS && distanceM >= AUTO_START_DISTANCE_M) {
+    await stopActivityRecognition().catch((err) => {
+      void logDiagnostic({
+        level: "warn",
+        area: "auto-tracking",
+        message: "Motion detection stop failed after automatic ride start",
+        details: diagnosticDetails(err)
+      });
+    });
     await logDiagnostic({
       level: "info",
       area: "auto-tracking",
@@ -313,11 +503,46 @@ async function updateAutoRideState(state: AutoRideState, point: RidePoint): Prom
   }
 
   if (quietMs > AUTO_START_GRACE_MS) {
-    return { status: "watching", lastPoint: point };
+    if (state.status === "probing" || !state.fallbackGps) {
+      await stopBackgroundLocationUpdatesIfRunning();
+      return {
+        status: "armed",
+        lastActivity: state.lastActivity,
+        lastVehicleActivityAt: state.lastVehicleActivityAt,
+        lastPoint: point
+      };
+    }
+    return {
+      status: "armed",
+      fallbackGps: true,
+      fallbackReason: state.fallbackReason,
+      lastActivity: state.lastActivity,
+      lastVehicleActivityAt: state.lastVehicleActivityAt,
+      lastPoint: point
+    };
+  }
+
+  if (state.status === "probing") {
+    const probeMs = timestampMs(point.recordedAt) - timestampMs(state.probeStartedAt);
+    if (probeMs >= AUTO_PROBE_TIMEOUT_MS) {
+      await stopBackgroundLocationUpdatesIfRunning();
+      await logDiagnostic({
+        level: "info",
+        area: "auto-tracking",
+        message: "GPS probe stopped without starting an automatic ride",
+        details: `duration=${Math.round(probeMs / 1000)}s distance=${Math.round(distanceM)}m`
+      });
+      return {
+        status: "armed",
+        lastActivity: state.lastActivity,
+        lastVehicleActivityAt: state.lastVehicleActivityAt,
+        lastPoint: point
+      };
+    }
   }
 
   return {
-    status: "watching",
+    ...state,
     candidateStartedAt,
     candidateLastMovingAt,
     candidatePoints,
@@ -341,7 +566,8 @@ async function updateActiveRide(
 
   if (stoppedMs >= AUTO_STOP_DURATION_MS) {
     await finalizeAutoRide(points, state.startedAt, point.recordedAt);
-    return { status: "watching" };
+    await armMotionFirstAutoTracking();
+    return { status: "armed" };
   }
 
   return { ...state, points, lastMovingAt };
@@ -440,6 +666,44 @@ function movementBetween(previous: RidePoint | undefined, current: RidePoint) {
   return { distanceM, inferredSpeedKmh, reportedSpeedKmh };
 }
 
+function normalizeMotionActivity(activity: MotionActivity): MotionActivity {
+  return {
+    type: typeof activity?.type === "string" ? activity.type : "UNKNOWN",
+    confidence: Number.isFinite(Number(activity?.confidence)) ? Number(activity.confidence) : 0,
+    detectedAt: typeof activity?.detectedAt === "string" ? activity.detectedAt : new Date().toISOString()
+  };
+}
+
+function isVehicleLikeActivity(activity: MotionActivity, state: AutoRideState) {
+  if (state.status === "riding") {
+    return false;
+  }
+
+  if (activity.type === "IN_VEHICLE" && activity.confidence >= AUTO_VEHICLE_CONFIDENCE) {
+    return true;
+  }
+
+  if (activity.type === "ON_BICYCLE" && activity.confidence >= 80) {
+    return true;
+  }
+
+  if (activity.type !== "IN_VEHICLE" || activity.confidence < AUTO_REPEATED_VEHICLE_CONFIDENCE) {
+    return false;
+  }
+
+  const previous = state.lastActivity;
+  if (previous?.type !== "IN_VEHICLE" || previous.confidence < AUTO_REPEATED_VEHICLE_CONFIDENCE) {
+    return false;
+  }
+
+  const gapMs = timestampMs(activity.detectedAt) - timestampMs(previous.detectedAt);
+  return gapMs >= 0 && gapMs <= AUTO_REPEATED_ACTIVITY_WINDOW_MS;
+}
+
+function isStoppedActivity(activity: MotionActivity) {
+  return activity.type === "STILL" && activity.confidence >= 75;
+}
+
 function recentPoint(previous: RidePoint | undefined, current: RidePoint) {
   if (!previous) {
     return undefined;
@@ -481,7 +745,16 @@ function toRidePoint(location: Location.LocationObject): RidePoint | null {
 async function readAutoRideState(): Promise<AutoRideState> {
   try {
     const stored = await AsyncStorage.getItem(AUTO_RIDE_STATE_KEY);
-    const parsed = stored ? JSON.parse(stored) : { status: "watching" };
+    const parsed = stored ? JSON.parse(stored) : { status: "armed" };
+    if (parsed?.status === "watching") {
+      return {
+        status: "armed",
+        candidateStartedAt: parsed.candidateStartedAt,
+        candidateLastMovingAt: parsed.candidateLastMovingAt,
+        candidatePoints: Array.isArray(parsed.candidatePoints) ? parsed.candidatePoints.filter(isRidePoint) : undefined,
+        lastPoint: parsed.lastPoint && isRidePoint(parsed.lastPoint) ? parsed.lastPoint : undefined
+      };
+    }
     if (isAutoRideState(parsed)) {
       return parsed;
     }
@@ -498,7 +771,7 @@ async function readAutoRideState(): Promise<AutoRideState> {
     } catch {
       // Ignore cleanup failures; returning a fresh state keeps tracking alive.
     }
-    return { status: "watching" };
+    return { status: "armed" };
   }
 }
 
@@ -557,7 +830,7 @@ function isRidePoint(point: any): point is RidePoint {
 }
 
 function isAutoRideState(value: any): value is AutoRideState {
-  if (!value || (value.status !== "watching" && value.status !== "riding")) {
+  if (!value || (value.status !== "armed" && value.status !== "probing" && value.status !== "riding")) {
     return false;
   }
 
@@ -568,6 +841,10 @@ function isAutoRideState(value: any): value is AutoRideState {
       Array.isArray(value.points) &&
       value.points.every(isRidePoint)
     );
+  }
+
+  if (value.status === "probing" && typeof value.probeStartedAt !== "string") {
+    return false;
   }
 
   return (
