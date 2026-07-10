@@ -688,6 +688,19 @@ export function RideDetailScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        {intelligence?.cleanupCandidate ? (
+          <View style={styles.cleanupCard}>
+            <View style={styles.cleanupIcon}>
+              <Ionicons name="alert-circle" color={colors.danger} size={22} />
+            </View>
+            <View style={styles.cleanupText}>
+              <Text style={styles.cleanupTitle}>Check this recording</Text>
+              <Text style={styles.cleanupCopy}>{intelligence.cleanupReason || "This ride recorded very little movement."}</Text>
+              <Text style={styles.cleanupAction}>Mark it reviewed below to keep it, or use Ride controls to delete it.</Text>
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.smartCard}>
           <Text style={styles.kicker}>SMART JOURNAL</Text>
           <Text style={styles.smartTitle}>{intelligence?.summaryText || ride.aiSummary || ride.summaryText || "RidePulse built a story layer from this ride's saved route."}</Text>
@@ -1205,7 +1218,9 @@ function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
     } : fallback.classification,
     keyInsight: typeof value?.keyInsight === "string" ? value.keyInsight : ride.keyInsight || fallback.keyInsight,
     bestMoment: typeof value?.bestMoment === "string" ? value.bestMoment : ride.bestMoment || fallback.bestMoment,
-    tripAutomation: parseTripSuggestion(value?.tripAutomation || ride.tripSuggestion) || fallback.tripAutomation
+    tripAutomation: parseTripSuggestion(value?.tripAutomation || ride.tripSuggestion) || fallback.tripAutomation,
+    cleanupCandidate: Boolean(value?.cleanupCandidate ?? ride.cleanupCandidate ?? fallback.cleanupCandidate),
+    cleanupReason: typeof value?.cleanupReason === "string" ? value.cleanupReason : ride.cleanupReason || fallback.cleanupReason
   };
 }
 
@@ -1234,6 +1249,8 @@ function buildFallbackIntelligence(ride: Ride): RideIntelligence {
     keyInsight: ride.keyInsight || "Built from saved ride data.",
     bestMoment: ride.bestMoment || bestMetricText(ride, null),
     tripAutomation: parseTripSuggestion(ride.tripSuggestion),
+    cleanupCandidate: Boolean(ride.cleanupCandidate),
+    cleanupReason: ride.cleanupReason || null,
     chapters: [
       { id: "start", title: "Roll out", body: ride.startLabel, timestamp: ride.startedAt, coordinate: { latitude: ride.startLatitude, longitude: ride.startLongitude } },
       { id: "finish", title: "Finish", body: ride.endLabel, timestamp: ride.endedAt || null, coordinate: { latitude: ride.endLatitude, longitude: ride.endLongitude } }
@@ -1702,6 +1719,44 @@ const createStyles = (colors: ThemeColors) => ({
     borderRadius: 28,
     padding: 18,
     gap: 10
+  },
+  cleanupCard: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: `${colors.danger}55`,
+    backgroundColor: `${colors.danger}12`
+  },
+  cleanupIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: `${colors.danger}18`
+  },
+  cleanupText: {
+    flex: 1,
+    gap: 4
+  },
+  cleanupTitle: {
+    color: colors.text,
+    fontFamily: typography.extraBold,
+    fontSize: 15
+  },
+  cleanupCopy: {
+    color: colors.textSoft,
+    fontFamily: typography.regular,
+    fontSize: 12,
+    lineHeight: 18
+  },
+  cleanupAction: {
+    color: colors.danger,
+    fontFamily: typography.bold,
+    fontSize: 11,
+    lineHeight: 17
   },
   smartTitle: {
     color: colors.text,

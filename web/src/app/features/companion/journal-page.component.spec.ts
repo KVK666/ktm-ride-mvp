@@ -36,4 +36,17 @@ describe('JournalPageComponent', () => {
     ).toBe(true);
     expect(search.getAttribute('aria-label')).toBe('Search rides');
   });
+
+  it('shows only flagged rides in the cleanup queue', () => {
+    const fixture = TestBed.createComponent(JournalPageComponent);
+    const component = fixture.componentInstance;
+    component.rides.set([
+      { id: 'noise', cleanupCandidate: true },
+      { id: 'ride', cleanupCandidate: false },
+    ] as never[]);
+
+    component.choose('cleanup');
+
+    expect(component.displayed().map((ride) => ride.id)).toEqual(['noise']);
+  });
 });

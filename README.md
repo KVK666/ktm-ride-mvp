@@ -37,6 +37,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Optional automatic ride tracking with Android motion-first arming, speed-based start/stop confirmation, and pending upload retry.
 - Ride storage with start/end location, path points, distance, duration, top speed, average speed, and timestamps.
 - Post-ride review with ride title, notes, reviewed status, and confirmed duplicate cleanup.
+- Non-destructive ride Cleanup queue for unreviewed near-zero movement recordings, with explicit keep-by-review or confirmed-delete decisions on mobile and web.
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
 - Ride Detail story sharing with a local Instagram Story image and dynamic ChatGPT image prompts based on ride details, place mood, time, and optional weather.
 - Backend-owned AI Ride Intelligence for human ride titles, summaries, ride-kind detection, key insights, best moments, and trip automation suggestions, with deterministic fallback and long-ride trip suggestions when AI is unavailable.

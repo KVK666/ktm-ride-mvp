@@ -57,6 +57,8 @@ export type Ride = {
   tripSuggestion?: TripSuggestion | string | null;
   aiStatus?: string | null;
   aiGeneratedAt?: string | null;
+  cleanupCandidate?: boolean;
+  cleanupReason?: string | null;
 };
 
 export type TripSuggestion = {
@@ -157,6 +159,8 @@ export type RideIntelligence = {
   keyInsight?: string | null;
   bestMoment?: string | null;
   tripAutomation?: TripSuggestion | null;
+  cleanupCandidate?: boolean;
+  cleanupReason?: string | null;
 };
 
 export type RideAlbumPhoto = Coordinate & {

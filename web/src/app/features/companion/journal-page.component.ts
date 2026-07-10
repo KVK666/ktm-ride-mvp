@@ -8,7 +8,7 @@ import { Ride } from '../../core/models';
 import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
 import { RouteArtComponent } from '../../shared/route-art.component';
 
-type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
+type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed' | 'cleanup';
 
 @Component({
   selector: 'app-journal-page',
@@ -77,7 +77,11 @@ type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
               }}
             </h3>
             <span>{{
-              ride.aiSummary || ride.summaryText || ride.highlightReason || ride.endLabel
+              ride.cleanupReason ||
+                ride.aiSummary ||
+                ride.summaryText ||
+                ride.highlightReason ||
+                ride.endLabel
             }}</span>
             <div class="tile-metrics">
               <b>{{ km(ride.distanceM) }}</b>
@@ -107,12 +111,16 @@ export class JournalPageComponent implements OnInit {
     { key: 'longest', label: 'Longest' },
     { key: 'fastest', label: 'Fastest' },
     { key: 'unreviewed', label: 'Unreviewed' },
+    { key: 'cleanup', label: 'Cleanup' },
   ];
 
   readonly displayed = computed(() => {
     const rides = [...this.rides()];
     if (this.filter() === 'unreviewed') {
       return rides.filter((ride) => !ride.reviewedAt);
+    }
+    if (this.filter() === 'cleanup') {
+      return rides.filter((ride) => ride.cleanupCandidate);
     }
     if (this.filter() === 'longest') {
       return rides.sort((a, b) => Number(b.distanceM || 0) - Number(a.distanceM || 0));

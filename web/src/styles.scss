@@ -5,24 +5,30 @@
 @import '@fontsource/manrope/800.css';
 
 :root {
-  --background: #080A0C;
+  --background: #080a0c;
   --surface: #111419;
-  --surface-high: #181C22;
-  --elevated: #20262E;
-  --accent: #C8FF5A;
-  --accent-soft: #E2FFA7;
+  --surface-high: #181c22;
+  --elevated: #20262e;
+  --accent: #c8ff5a;
+  --accent-soft: #e2ffa7;
   --on-accent: #101606;
-  --text: #F5F2EA;
-  --text-soft: #DAD8D1;
-  --muted: #979DA6;
+  --text: #f5f2ea;
+  --text-soft: #dad8d1;
+  --muted: #979da6;
   --border: #232830;
-  --border-strong: #343B46;
-  --danger: #FF626B;
-  --success: #55D6A5;
-  --blue: #67A7FF;
-  --yellow: #FFC857;
+  --border-strong: #343b46;
+  --danger: #ff626b;
+  --success: #55d6a5;
+  --blue: #67a7ff;
+  --yellow: #ffc857;
   color-scheme: dark;
-  font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Manrope',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   background: var(--background);
   color: var(--text);
 }
@@ -88,8 +94,7 @@ select {
   display: grid;
   grid-template-columns: minmax(236px, 260px) minmax(0, 1fr);
   background:
-    radial-gradient(circle at 72% 0%, rgba(200, 255, 90, 0.08), transparent 30%),
-    var(--background);
+    radial-gradient(circle at 72% 0%, rgba(200, 255, 90, 0.08), transparent 30%), var(--background);
 }
 
 .mobile-shell-bar,
@@ -253,8 +258,12 @@ select {
   gap: 16px;
   margin-bottom: 26px;
   padding: 6px 0 12px;
-  background:
-    linear-gradient(180deg, rgba(8, 10, 12, 0.98), rgba(8, 10, 12, 0.9) 72%, rgba(8, 10, 12, 0));
+  background: linear-gradient(
+    180deg,
+    rgba(8, 10, 12, 0.98),
+    rgba(8, 10, 12, 0.9) 72%,
+    rgba(8, 10, 12, 0)
+  );
   backdrop-filter: blur(14px);
 }
 
@@ -521,6 +530,40 @@ select {
   text-align: left;
   font-weight: 900;
   cursor: pointer;
+}
+
+.cleanup-notice {
+  margin: 8px 0 22px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 36%, transparent);
+  border-radius: 20px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+
+.cleanup-notice div {
+  display: grid;
+  gap: 4px;
+}
+
+.cleanup-notice strong {
+  color: var(--text);
+}
+
+.cleanup-notice p,
+.cleanup-notice span {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.cleanup-notice span {
+  color: var(--danger);
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .primary-action,
@@ -990,8 +1033,7 @@ select {
   gap: 18px;
   align-content: center;
   background:
-    linear-gradient(135deg, rgba(200, 255, 90, 0.12), rgba(103, 167, 255, 0.08)),
-    var(--surface);
+    linear-gradient(135deg, rgba(200, 255, 90, 0.12), rgba(103, 167, 255, 0.08)), var(--surface);
   border: 1px solid var(--border);
 }
 

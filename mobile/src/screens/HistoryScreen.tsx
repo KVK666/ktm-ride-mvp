@@ -11,14 +11,15 @@ import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
 import { Ride } from "../types";
 
-type Filter = "all" | "month" | "longest" | "fastest" | "unreviewed";
+type Filter = "all" | "month" | "longest" | "fastest" | "unreviewed" | "cleanup";
 
 const filters: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "month", label: "This month" },
   { key: "longest", label: "Longest" },
   { key: "fastest", label: "Fastest" },
-  { key: "unreviewed", label: "Unreviewed" }
+  { key: "unreviewed", label: "Unreviewed" },
+  { key: "cleanup", label: "Cleanup" }
 ];
 const JOURNAL_FILTER_KEY = "duke_ride_journal_filter_v1";
 
@@ -86,6 +87,9 @@ export function HistoryScreen() {
     if (filter === "unreviewed") {
       return next.filter((ride) => !ride.reviewedAt);
     }
+    if (filter === "cleanup") {
+      return next.filter((ride) => ride.cleanupCandidate);
+    }
     if (filter === "longest") {
       return next.sort((a, b) => Number(b.distanceM || 0) - Number(a.distanceM || 0));
     }
@@ -149,13 +153,13 @@ export function HistoryScreen() {
         </ScrollView>
         {error ? <Pressable onPress={load} style={[styles.error, { backgroundColor: `${colors.danger}16` }]}><Ionicons name="cloud-offline" color={colors.danger} size={21} /><View style={styles.flex}><Text style={[styles.errorTitle, { color: colors.text }]}>Couldn’t open the journal</Text><Text style={[styles.errorCopy, { color: colors.muted }]}>{error} · Tap to retry</Text></View></Pressable> : null}
         <Animated.View style={[styles.list, { opacity: fade }]}>
-          {displayedRides.map((ride, index) => <JournalCard key={ride.id} featured={index === 0 && filter !== "unreviewed"} ride={ride} onPress={() => navigation.navigate("RideDetail", { rideId: ride.id, reviewMode: !ride.reviewedAt })} />)}
+          {displayedRides.map((ride, index) => <JournalCard key={ride.id} featured={index === 0 && filter !== "unreviewed" && filter !== "cleanup"} ride={ride} onPress={() => navigation.navigate("RideDetail", { rideId: ride.id, reviewMode: !ride.reviewedAt })} />)}
         </Animated.View>
         {loading && !displayedRides.length ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={[styles.loadingText, { color: colors.muted }]}>Finding your roads</Text></View> : null}
         {!loading && !error && !displayedRides.length ? (
           <PremiumEmptyState
-            title={filter === "unreviewed" ? "Everything is reviewed" : "No journeys in this chapter"}
-            body={searchQuery.trim() ? "Try another search, or clear it to return to all rides." : filter === "unreviewed" ? "Nice. Your ride stories are caught up." : "Choose another filter, or record your next ride to begin one."}
+            title={filter === "unreviewed" ? "Everything is reviewed" : filter === "cleanup" ? "No cleanup needed" : "No journeys in this chapter"}
+            body={searchQuery.trim() ? "Try another search, or clear it to return to all rides." : filter === "unreviewed" ? "Nice. Your ride stories are caught up." : filter === "cleanup" ? "No near-zero recordings are waiting for a keep-or-delete decision." : "Choose another filter, or record your next ride to begin one."}
             actionLabel="Start a ride"
             onAction={() => navigation.navigate("Ride")}
           />

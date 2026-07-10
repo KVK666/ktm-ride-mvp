@@ -23,6 +23,7 @@ public class JournalIntelligenceService {
   public Map<String, Object> decorateRide(Map<String, Object> ride, Map<String, Object> context) {
     if (ride == null) return null;
     Map<String, Object> intelligence = buildRideIntelligence(ride, List.of(), context);
+    Map<String, Object> cleanup = cleanupAssessment(ride);
     Map<String, Object> decorated = new LinkedHashMap<>(ride);
     decorated.put("badges", intelligence.get("badges"));
     decorated.put("smartTitle", intelligence.get("suggestedTitle"));
@@ -32,6 +33,8 @@ public class JournalIntelligenceService {
     decorated.put("timeOfDayLabel", timeOfDayMood(ride.get("startedAt")).get("label"));
     decorated.put("reviewPrompt", ride.get("reviewedAt") == null ? buildReviewPrompt(ride, intelligence) : null);
     decorated.put("albumHint", buildAlbumHint(ride, intelligence));
+    decorated.put("cleanupCandidate", cleanup.get("candidate"));
+    decorated.put("cleanupReason", cleanup.get("reason"));
     return decorated;
   }
 
@@ -120,6 +123,30 @@ public class JournalIntelligenceService {
     result.put("midpoint", midpoint);
     result.put("comparisons", comparisons);
     result.put("chapters", buildChapters(safeRide, points, midpoint, fastestSegment));
+    Map<String, Object> cleanup = cleanupAssessment(safeRide);
+    result.put("cleanupCandidate", cleanup.get("candidate"));
+    result.put("cleanupReason", cleanup.get("reason"));
+    return result;
+  }
+
+  private Map<String, Object> cleanupAssessment(Map<String, Object> ride) {
+    double distanceM = number(ride == null ? null : ride.get("distanceM"));
+    double durationS = number(ride == null ? null : ride.get("durationS"));
+    boolean unreviewed = ride == null || ride.get("reviewedAt") == null;
+    boolean candidate = unreviewed
+        && ((distanceM <= 100 && durationS <= 180) || (distanceM <= 250 && durationS <= 60));
+
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("candidate", candidate);
+    if (!candidate) {
+      result.put("reason", null);
+    } else if (distanceM <= 25) {
+      result.put("reason", "Almost no movement was recorded. Check whether this was an accidental start.");
+    } else if (durationS <= 60) {
+      result.put("reason", "This recording ended in about a minute. Keep it if it was intentional, or remove it from Ride controls.");
+    } else {
+      result.put("reason", "This short recording may be a parking move or GPS test. Review it before keeping it in the journal.");
+    }
     return result;
   }
 

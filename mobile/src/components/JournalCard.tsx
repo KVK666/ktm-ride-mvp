@@ -25,8 +25,8 @@ export function JournalCard({ ride, onPress, featured = false }: { ride: Ride; o
             <Text style={[styles.meta, { color: colors.muted }]}>{shortDate(ride.startedAt)} · {duration(ride.durationS)}</Text>
           </View>
           {!ride.reviewedAt ? (
-            <View style={[styles.reviewBadge, { backgroundColor: `${colors.accent}18` }]}>
-              <Text style={[styles.reviewBadgeText, { color: colors.accent }]}>REVIEW</Text>
+            <View style={[styles.reviewBadge, { backgroundColor: `${ride.cleanupCandidate ? colors.danger : colors.accent}18` }]}>
+              <Text style={[styles.reviewBadgeText, { color: ride.cleanupCandidate ? colors.danger : colors.accent }]}>{ride.cleanupCandidate ? "CHECK" : "REVIEW"}</Text>
             </View>
           ) : <Ionicons name="arrow-forward" color={colors.muted} size={20} />}
         </View>
@@ -34,9 +34,9 @@ export function JournalCard({ ride, onPress, featured = false }: { ride: Ride; o
           <Text style={[styles.distance, { color: colors.text }]}>{km(ride.distanceM)}</Text>
           <Text style={[styles.route, { color: colors.muted }]} numberOfLines={1}>{ride.startLabel} → {ride.endLabel}</Text>
         </View>
-        {ride.summaryText || ride.highlightReason || badges.length ? (
+        {ride.cleanupReason || ride.summaryText || ride.highlightReason || badges.length ? (
           <View style={styles.storyBlock}>
-            {ride.aiSummary || ride.summaryText || ride.highlightReason ? <Text numberOfLines={2} style={[styles.summary, { color: colors.textSoft }]}>{ride.aiSummary || ride.summaryText || ride.highlightReason}</Text> : null}
+            {ride.cleanupReason || ride.aiSummary || ride.summaryText || ride.highlightReason ? <Text numberOfLines={2} style={[styles.summary, { color: colors.textSoft }]}>{ride.cleanupReason || ride.aiSummary || ride.summaryText || ride.highlightReason}</Text> : null}
             {badges.length ? <View style={styles.badges}>{badges.map((badge, index) => <RideBadge key={`${badge}-${index}`} label={badge} tone={index === 0 ? "accent" : "blue"} />)}</View> : null}
           </View>
         ) : null}
