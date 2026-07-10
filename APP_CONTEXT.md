@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-08
+Last updated: 2026-07-11
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -267,10 +267,12 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-06-29: Documented Gmail SMTP/App Password configuration for Render password reset email and added non-secret Gmail defaults to `render.yaml`; `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` remain Render-managed secrets.
 - 2026-06-29: Added non-secret password-reset config status to `/health` and safer Render log messages for accepted SMTP sends, SMTP failures, and unknown-account reset requests.
 - 2026-07-01: Added a Java/Spring Boot backend in `backend-java/` as a contract-preserving port of the previous API. Java defaults to port `4001`, keeps the existing PostgreSQL schema/JWT/API contracts, uses thin controllers with a standard response wrapper, keeps business flow in services, uses repository interfaces plus `NamedParameterJdbcTemplate` implementations with separate read-only/read-write datasources, stores SQL and `.pojo` mapping keys in `db-queries.properties`, and includes service tests plus Render Docker deployment notes.
+- 2026-07-11: Completed a cross-stack reliability and accessibility review. Java JWT filtering now limits `401` handling to token verification so downstream API failures keep their real status and logging path, and JWT verification rejects signed tokens without expiry or identity claims. Web and mobile authentication and Journal controls now expose required/password-manager metadata, active filter state, explicit field labels and button roles, and stable spoken labels while primary actions are loading. Empty Ride and Navigate maps now show an honest GPS/destination placeholder instead of misleadingly centering on Bengaluru.
 
 ## Testing Checklist
 
 - Login with a real account.
+- Verify web and mobile sign-in/register controls with a screen reader or accessibility inspector, including loading, error, and password-reset states.
 - Request password reset from mobile and web; confirm the email link opens `/#/reset-password`, rejects bad/expired tokens, updates the password, and requires signing in with the new password.
 - Register a new rider and confirm empty form fields.
 - Confirm dashboard says `Hi, <name>`.

@@ -107,6 +107,7 @@ export function HistoryScreen() {
           <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Ionicons name="search" color={colors.muted} size={18} />
             <TextInput
+              accessibilityLabel="Search rides"
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder="Search title, notes, places"
@@ -134,7 +135,13 @@ export function HistoryScreen() {
           {filters.map((item) => {
             const selected = filter === item.key;
             return (
-              <Pressable key={item.key} onPress={() => chooseFilter(item.key)} style={[styles.filter, { backgroundColor: selected ? colors.text : colors.surface }]}>
+              <Pressable
+                key={item.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => chooseFilter(item.key)}
+                style={[styles.filter, { backgroundColor: selected ? colors.text : colors.surface }]}
+              >
                 <Text style={[styles.filterText, { color: selected ? colors.background : colors.muted }]}>{item.label}</Text>
               </Pressable>
             );

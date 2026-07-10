@@ -123,7 +123,7 @@ export function NavigateScreen() {
     }
   }
 
-  const initial = current || { latitude: 12.9716, longitude: 77.5946 };
+  const mapInitial = current || route?.coordinates[0] || null;
 
   return (
     <Screen>
@@ -136,6 +136,7 @@ export function NavigateScreen() {
         </View>
         <View style={styles.searchRow}>
           <TextInput
+            accessibilityLabel="Destination"
             value={destination}
             onChangeText={setDestination}
             placeholder="Where are you riding?"
@@ -147,20 +148,27 @@ export function NavigateScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.mapShell}>
-          <NavigationMap
-            mapRef={mapRef}
-            initial={initial}
-            route={route}
-            colors={colors}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open navigation map full screen"
-            onPress={() => setMapFullScreen(true)}
-            style={styles.expandButton}
-          >
-            <Ionicons name="expand" size={22} color={colors.text} />
-          </Pressable>
+          {mapInitial ? (
+            <>
+              <NavigationMap mapRef={mapRef} initial={mapInitial} route={route} colors={colors} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open navigation map full screen"
+                onPress={() => setMapFullScreen(true)}
+                style={styles.expandButton}
+              >
+                <Ionicons name="expand" size={22} color={colors.text} />
+              </Pressable>
+            </>
+          ) : (
+            <View style={styles.mapPlaceholder}>
+              <View style={styles.mapPlaceholderIcon}>
+                <Ionicons name="navigate-outline" size={25} color={colors.accent} />
+              </View>
+              <Text style={styles.mapPlaceholderTitle}>Your route starts here</Text>
+              <Text style={styles.mapPlaceholderCopy}>Enter a destination to center the map on your current location.</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.navPanel}>
@@ -193,13 +201,13 @@ export function NavigateScreen() {
         ))}
       </ScrollView>
       <Modal
-        visible={mapFullScreen}
+        visible={mapFullScreen && Boolean(mapInitial)}
         animationType="slide"
         onRequestClose={() => setMapFullScreen(false)}
       >
         <View style={styles.fullScreen}>
           <NavigationMap
-            initial={initial}
+            initial={mapInitial || { latitude: 0, longitude: 0 }}
             route={route}
             fullScreen
             colors={colors}
@@ -338,6 +346,35 @@ const createStyles = (colors: ThemeColors) => ({
     borderRadius: 28,
     overflow: "hidden",
     backgroundColor: colors.surface
+  },
+  mapPlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32
+  },
+  mapPlaceholderIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+    backgroundColor: colors.surfaceHigh
+  },
+  mapPlaceholderTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontFamily: typography.extraBold,
+    textAlign: "center"
+  },
+  mapPlaceholderCopy: {
+    marginTop: 7,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: typography.regular,
+    textAlign: "center"
   },
   expandButton: {
     position: "absolute",

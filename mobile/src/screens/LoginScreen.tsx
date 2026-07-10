@@ -124,16 +124,16 @@ export function LoginScreen() {
 
             {forgotOpen ? (
               <Field label="Email">
-                <TextInput autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" placeholder="you@example.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
+                <TextInput accessibilityLabel="Email" autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" placeholder="you@example.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
               </Field>
             ) : accountStep ? (
               <>
                 <Field label="Email">
-                  <TextInput autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" placeholder="you@example.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
+                  <TextInput accessibilityLabel="Email" autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address" placeholder="you@example.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
                 </Field>
                 <Field label="Password">
                   <View style={[styles.passwordShell, { backgroundColor: colors.surfaceHigh }]}>
-                    <TextInput secureTextEntry={!passwordVisible} autoCapitalize="none" autoCorrect={false} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="Enter password" placeholderTextColor={colors.muted} value={password} onChangeText={setPassword} style={[styles.passwordInput, { color: colors.text }]} />
+                    <TextInput accessibilityLabel="Password" secureTextEntry={!passwordVisible} autoCapitalize="none" autoCorrect={false} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="Enter password" placeholderTextColor={colors.muted} value={password} onChangeText={setPassword} style={[styles.passwordInput, { color: colors.text }]} />
                     <Pressable accessibilityLabel={passwordVisible ? "Hide password" : "Show password"} onPress={() => setPasswordVisible((value) => !value)} style={styles.visibility}>
                       <Ionicons name={passwordVisible ? "eye-off" : "eye"} size={20} color={colors.muted} />
                     </Pressable>
@@ -143,10 +143,10 @@ export function LoginScreen() {
             ) : (
               <>
                 <Field label="Name">
-                  <TextInput autoComplete="name" placeholder="Your name" placeholderTextColor={colors.muted} value={name} onChangeText={setName} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
+                  <TextInput accessibilityLabel="Name" autoComplete="name" placeholder="Your name" placeholderTextColor={colors.muted} value={name} onChangeText={setName} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
                 </Field>
                 <Field label="Motorcycle - Optional">
-                  <TextInput placeholder="e.g. CB350, MT-15, Classic 350" placeholderTextColor={colors.muted} value={bikeModel} onChangeText={setBikeModel} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
+                  <TextInput accessibilityLabel="Motorcycle, optional" placeholder="e.g. CB350, MT-15, Classic 350" placeholderTextColor={colors.muted} value={bikeModel} onChangeText={setBikeModel} style={[styles.input, { backgroundColor: colors.surfaceHigh, color: colors.text }]} />
                 </Field>
               </>
             )}
@@ -155,22 +155,22 @@ export function LoginScreen() {
             {message ? <Text style={[styles.success, { color: colors.accentSoft }]}>{message}</Text> : null}
             <PrimaryButton block label={forgotOpen ? "Send reset link" : mode === "login" ? "Open my journal" : registerStep === 1 ? "Continue" : "Create my journal"} icon={forgotOpen ? "mail" : mode === "login" || registerStep === 1 ? "arrow-forward" : "sparkles"} loading={loading} onPress={forgotOpen ? requestPasswordReset : submit} />
             {forgotOpen ? (
-              <Pressable onPress={() => { setForgotOpen(false); setError(""); setMessage(""); }} style={styles.switchButton}>
+              <Pressable accessibilityRole="button" onPress={() => { setForgotOpen(false); setError(""); setMessage(""); }} style={styles.switchButton}>
                 <Text style={[styles.switcher, { color: colors.accentSoft }]}>Back to sign in</Text>
               </Pressable>
             ) : null}
             {!forgotOpen && mode === "login" ? (
-              <Pressable onPress={openForgotPassword} style={styles.switchButton}>
+              <Pressable accessibilityRole="button" onPress={openForgotPassword} style={styles.switchButton}>
                 <Text style={[styles.switcher, { color: colors.accentSoft }]}>Forgot password?</Text>
               </Pressable>
             ) : null}
             {!forgotOpen && mode === "register" && registerStep === 2 ? (
-              <Pressable onPress={() => setRegisterStep(1)} style={styles.switchButton}>
+              <Pressable accessibilityRole="button" onPress={() => setRegisterStep(1)} style={styles.switchButton}>
                 <Text style={[styles.switcher, { color: colors.accentSoft }]}>Back to account details</Text>
               </Pressable>
             ) : null}
             {!forgotOpen ? (
-              <Pressable onPress={switchMode} style={styles.switchButton}>
+              <Pressable accessibilityRole="button" onPress={switchMode} style={styles.switchButton}>
                 <Text style={[styles.switcher, { color: colors.accentSoft }]}>{mode === "login" ? "New to RidePulse? Create a journal" : "Already have a journal? Sign in"}</Text>
               </Pressable>
             ) : null}

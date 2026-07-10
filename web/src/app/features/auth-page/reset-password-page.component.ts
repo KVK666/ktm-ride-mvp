@@ -26,19 +26,32 @@ import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
         <form [formGroup]="form" (ngSubmit)="submit()">
           <label>
             New password
-            <input formControlName="password" type="password" autocomplete="new-password" placeholder="8+ characters" />
+            <input
+              formControlName="password"
+              type="password"
+              autocomplete="new-password"
+              placeholder="8+ characters"
+              minlength="8"
+              required
+            />
           </label>
           <label>
             Confirm password
-            <input formControlName="confirmPassword" type="password" autocomplete="new-password" placeholder="Repeat password" />
+            <input
+              formControlName="confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Repeat password"
+              required
+            />
           </label>
 
           @if (error()) {
-            <p class="error">{{ error() }}</p>
+            <p class="error" role="alert">{{ error() }}</p>
           }
 
           @if (message()) {
-            <p class="success">{{ message() }}</p>
+            <p class="success" role="status">{{ message() }}</p>
           }
 
           <button class="submit" type="submit" [disabled]="loading() || !!message()">
@@ -56,7 +69,7 @@ import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
       </section>
     </main>
   `,
-  styleUrl: './auth-page.component.scss'
+  styleUrl: './auth-page.component.scss',
 })
 export class ResetPasswordPageComponent {
   private readonly fb = inject(FormBuilder);
@@ -70,7 +83,7 @@ export class ResetPasswordPageComponent {
 
   readonly form = this.fb.nonNullable.group({
     password: ['', [Validators.required, Validators.minLength(8)]],
-    confirmPassword: ['', [Validators.required]]
+    confirmPassword: ['', [Validators.required]],
   });
 
   async submit() {

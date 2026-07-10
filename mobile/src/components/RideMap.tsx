@@ -48,7 +48,7 @@ export function RideMap({
     [photoMarkers]
   );
   const mapCurrent = current ? normalizeCoordinate(current) : null;
-  const initial = mapCurrent || mapCoordinates[0] || { latitude: 12.9716, longitude: 77.5946 };
+  const initial = mapCurrent || mapCoordinates[0];
 
   useEffect(() => {
     if (renderCoordinates.length < 2) {
@@ -64,6 +64,18 @@ export function RideMap({
 
     return () => clearTimeout(timer);
   }, [renderCoordinates]);
+
+  if (!initial) {
+    return (
+      <View style={[styles.shell, styles.emptyMap, { backgroundColor: colors.surface, borderColor: colors.border }, style]}>
+        <View style={[styles.emptyMapIcon, { backgroundColor: colors.surfaceHigh }]}>
+          <Ionicons name="locate-outline" size={24} color={colors.accent} />
+        </View>
+        <Text style={[styles.emptyMapTitle, { color: colors.text }]}>Map centers when GPS is ready</Text>
+        <Text style={[styles.emptyMapCopy, { color: colors.muted }]}>Start recording to lock onto your current road.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.shell, { backgroundColor: colors.surface, borderColor: colors.border }, style]}>
@@ -189,6 +201,30 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     borderWidth: 1
+  },
+  emptyMap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28
+  },
+  emptyMapIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14
+  },
+  emptyMapTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  emptyMapCopy: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center"
   },
   expandButton: {
     position: "absolute",

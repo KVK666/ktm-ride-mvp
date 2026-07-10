@@ -61,10 +61,15 @@ public class JwtService {
           Base64.getUrlDecoder().decode(parts[1]),
           new TypeReference<Map<String, Object>>() {});
       Object exp = claims.get("exp");
-      if (exp instanceof Number number && Instant.now().getEpochSecond() >= number.longValue()) {
+      if (!(exp instanceof Number number) || Instant.now().getEpochSecond() >= number.longValue()) {
         throw new IllegalArgumentException("Expired JWT");
       }
-      return new AuthUser(String.valueOf(claims.get("id")), String.valueOf(claims.get("email")));
+      String id = claims.get("id") instanceof String value ? value.trim() : "";
+      String email = claims.get("email") instanceof String value ? value.trim() : "";
+      if (id.isBlank() || email.isBlank()) {
+        throw new IllegalArgumentException("Missing JWT identity");
+      }
+      return new AuthUser(id, email);
     } catch (Exception error) {
       throw new ApiException(HttpStatus.UNAUTHORIZED, ProgramCodes.UNAUTHORIZED, Messages.INVALID_TOKEN);
     }

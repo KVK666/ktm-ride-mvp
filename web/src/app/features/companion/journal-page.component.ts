@@ -23,14 +23,26 @@ type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
 
     <div class="filter-bar">
       @for (item of filters; track item.key) {
-        <button type="button" [class.active]="filter() === item.key" (click)="choose(item.key)">{{ item.label }}</button>
+        <button
+          type="button"
+          [class.active]="filter() === item.key"
+          [attr.aria-pressed]="filter() === item.key"
+          (click)="choose(item.key)"
+        >
+          {{ item.label }}
+        </button>
       }
     </div>
 
     <section class="search-panel journal-search-panel">
       <label class="search-field">
         <lucide-icon name="search" size="17" />
-        <input [(ngModel)]="searchQuery" (keyup.enter)="load()" placeholder="Search title, notes, places" />
+        <input
+          [(ngModel)]="searchQuery"
+          (keyup.enter)="load()"
+          aria-label="Search rides"
+          placeholder="Search title, notes, places"
+        />
       </label>
       <div class="button-row">
         <button type="button" class="primary-action" (click)="load()">
@@ -44,7 +56,9 @@ type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
     </section>
 
     @if (error()) {
-      <button class="notice danger" type="button" (click)="load()">{{ error() }} Tap to retry.</button>
+      <button class="notice danger" type="button" (click)="load()">
+        {{ error() }} Tap to retry.
+      </button>
     }
 
     @if (loading()) {
@@ -53,10 +67,18 @@ type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
       <div class="journal-grid">
         @for (ride of displayed(); track ride.id) {
           <a class="journal-tile" [routerLink]="['/app/journal', ride.id]">
-            <div class="tile-art"><app-route-art [points]="ride.routePreview || ride.points" /></div>
+            <div class="tile-art">
+              <app-route-art [points]="ride.routePreview || ride.points" />
+            </div>
             <p>{{ dateLabel(ride.startedAt) }}</p>
-            <h3>{{ ride.title || ride.aiTitle || ride.smartTitle || dateLabel(ride.startedAt) + ' ride' }}</h3>
-            <span>{{ ride.aiSummary || ride.summaryText || ride.highlightReason || ride.endLabel }}</span>
+            <h3>
+              {{
+                ride.title || ride.aiTitle || ride.smartTitle || dateLabel(ride.startedAt) + ' ride'
+              }}
+            </h3>
+            <span>{{
+              ride.aiSummary || ride.summaryText || ride.highlightReason || ride.endLabel
+            }}</span>
             <div class="tile-metrics">
               <b>{{ km(ride.distanceM) }}</b>
               <b>{{ kmh(ride.topSpeedKmh) }}</b>
@@ -67,7 +89,7 @@ type Filter = 'all' | 'month' | 'longest' | 'fastest' | 'unreviewed';
         }
       </div>
     }
-  `
+  `,
 })
 export class JournalPageComponent implements OnInit {
   private readonly api = inject(ApiService);
@@ -84,7 +106,7 @@ export class JournalPageComponent implements OnInit {
     { key: 'month', label: 'This month' },
     { key: 'longest', label: 'Longest' },
     { key: 'fastest', label: 'Fastest' },
-    { key: 'unreviewed', label: 'Unreviewed' }
+    { key: 'unreviewed', label: 'Unreviewed' },
   ];
 
   readonly displayed = computed(() => {
@@ -118,7 +140,9 @@ export class JournalPageComponent implements OnInit {
     try {
       const period = this.filter() === 'month' ? 'month' : 'all';
       const query = this.searchQuery.trim();
-      const response = await this.api.request<{ rides: Ride[] }>(`/rides?period=${period}${query ? `&q=${encodeURIComponent(query)}` : ''}`);
+      const response = await this.api.request<{ rides: Ride[] }>(
+        `/rides?period=${period}${query ? `&q=${encodeURIComponent(query)}` : ''}`,
+      );
       this.rides.set(Array.isArray(response.rides) ? response.rides : []);
     } catch (error: unknown) {
       this.error.set(error instanceof Error ? error.message : 'Unable to load journal.');

@@ -46,12 +46,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
       return;
     }
 
+    AuthUser authUser;
     try {
-      request.setAttribute(AUTH_USER_ATTRIBUTE, jwtService.verify(token));
-      chain.doFilter(request, response);
+      authUser = jwtService.verify(token);
     } catch (Exception ignored) {
       writeUnauthorized(response, Messages.INVALID_TOKEN);
+      return;
     }
+
+    request.setAttribute(AUTH_USER_ATTRIBUTE, authUser);
+    chain.doFilter(request, response);
   }
 
   private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
