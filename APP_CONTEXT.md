@@ -16,6 +16,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Database: PostgreSQL, currently hosted on Neon; AWS RDS cutover is supported with `DB_SCHEMA` when using a custom schema.
 - Backend hosting: Render Starter in Singapore, currently backed by Neon PostgreSQL.
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
+- Current Android app/runtime version: `0.1.1` with Android version code `2`; the runtime bump keeps older `0.1.0` OTA bundles from overriding the embedded Rider Pulse release while preserving installed app data.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT and Render-backed email password reset.
 - Main repo branch: `ride-pulse`.
@@ -69,7 +70,10 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Ride Detail now has a persistent local Ride Album: users can find photos from the ride window, manually add gallery photos, remove album copies without deleting originals, and open a full-screen slideshow/reel.
 - Ride Detail can create a local 9:16 ride story image and share it to Instagram/share sheet without using OpenAI API billing.
 - Ride Detail can generate varied ChatGPT image prompts from exact ride stats, time/place mood, and optional Open-Meteo weather; prompts are copied/shared manually into ChatGPT.
-- Shows analytics summary cards and charts for distance, ride count, duration, and top speed.
+- Adds Rider Pulse analytics on mobile and web: per-user monthly distance targets, calendar-month progress and projection, contextual coaching, rolling 30-day distance/ride/active-day summaries, ride-day streaks, previous-period trend, longest and average ride benchmarks, favourite weekday/time, review completion, cleanup attention, and the existing daily/monthly/yearly charts.
+- Rider Pulse calendar and habit metrics use the device/browser IANA timezone while rolling 30-day comparisons remain instant-based. Invalid or missing timezone input falls back safely to UTC.
+- Monthly targets persist per signed-in rider on the current phone/browser with a 10-5,000 km validation range; no goal value is sent to another rider account.
+- Mobile Analytics, You, and Profile now reserve the measured floating-tab height plus safe clearance, keeping the final Profile card and Logout action visible and tappable above the bottom panel.
 - Generates basic reports and can export reports as PDF.
 - Adds a V2 Smart Journal layer on top of existing ride data: `/api/journal` returns latest ride, monthly recap, highlights, recent rides, and review count; `/api/rides/:id/intelligence` returns suggested title, summary text, badges, fastest/route chapter data, and safe fallbacks for malformed or missing GPS points.
 - Adds a V5 Home layer through `/api/home`, a compact Render endpoint that keeps `/api/journal` compatible while adding Home-specific memory seeds and pending review suggestions.
@@ -114,7 +118,8 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `mobile/src/services/rideStoryShare.ts`: Android Instagram/share-sheet handoff for generated story images.
 - `mobile/plugins/withInstagramPackageQuery.js`: Expo config plugin that exposes Instagram to Android package queries for reliable share targeting.
 - `mobile/plugins/withActivityRecognitionAndroid.js`: Expo config plugin that preserves Android activity-recognition permission, native receiver/service, Gradle dependency, and React package registration across prebuild.
-- `mobile/src/screens/AnalyticsScreen.tsx`: analytics summaries and charts.
+- `mobile/src/screens/AnalyticsScreen.tsx`: Rider Pulse goal, coaching, habit/performance insights, resilient states, and analytics charts.
+- `mobile/src/services/riderGoal.ts`: validated per-user local monthly distance goal persistence.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, backend display photo, diagnostics, and auto tracking toggle.
 - `mobile/eas.json`: EAS build/update channels. Production builds and OTA updates use the `production` channel.
 - `mobile/app.config.js`: Expo config including Android identity, plugins, EAS project ID, runtime version, and OTA update URL.
@@ -128,6 +133,8 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `backend-java/src/main/java/com/ridepulse/api/service/PasswordResetService.java`: hashed one-time reset token creation, SMTP reset email delivery, and password update validation.
 - `backend-java/src/main/java/com/ridepulse/api/service/JournalIntelligenceService.java`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
 - `backend-java/src/main/java/com/ridepulse/api/service/RideAiIntelligenceService.java`: backend-only AI/fallback ride naming, classification, insight, best moment, trip automation with user-owned trip safety checks, and non-secret provider observability through Render logs plus `/health`.
+- `backend-java/src/main/java/com/ridepulse/api/service/AnalyticsService.java`: owner-scoped Rider Pulse aggregation, rolling windows, rider-local calendar/habit metrics, and safe empty/malformed handling.
+- `web/src/app/features/companion/analytics-page.component.ts`: responsive Rider Pulse goal, coaching, insight groups, resilient history charts, and accessible controls.
 - `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
 - `mobile/src/services/onboarding.ts`: walkthrough completion storage.
 - `mobile/src/services/profilePhoto.ts`: per-user profile photo picker, local cache, backend upload/download/delete sync.
@@ -270,6 +277,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-07-01: Added a Java/Spring Boot backend in `backend-java/` as a contract-preserving port of the previous API. Java defaults to port `4001`, keeps the existing PostgreSQL schema/JWT/API contracts, uses thin controllers with a standard response wrapper, keeps business flow in services, uses repository interfaces plus `NamedParameterJdbcTemplate` implementations with separate read-only/read-write datasources, stores SQL and `.pojo` mapping keys in `db-queries.properties`, and includes service tests plus Render Docker deployment notes.
 - 2026-07-11: Completed a cross-stack reliability and accessibility review. Java JWT filtering now limits `401` handling to token verification so downstream API failures keep their real status and logging path, and JWT verification rejects signed tokens without expiry or identity claims. Web and mobile authentication and Journal controls now expose required/password-manager metadata, active filter state, explicit field labels and button roles, and stable spoken labels while primary actions are loading. Empty Ride and Navigate maps now show an honest GPS/destination placeholder instead of misleadingly centering on Bengaluru.
 - 2026-07-11: Added a non-destructive ride Cleanup queue across Java, Android, and web. The backend flags only unreviewed near-zero movement recordings, both Journal surfaces expose a Cleanup filter and reason, and Ride Detail tells riders how to keep or explicitly delete the recording.
+- 2026-07-11: Shipped Rider Pulse across Java, Android, and web. The new authenticated `/api/analytics/insights` contract supplies 17 owner-scoped summary signals without route points or PII, including rider-local calendar distance/projection, streak and habit timing via a validated IANA timezone. Mobile and web now add a per-user monthly goal, progress/projection, coaching, 30-day momentum, ride benchmarks, habits, review health, cleanup attention, resilient states, responsive/accessibility polish, and retained history charts. Java bootstrap adds a `rides(user_id, started_at)` index. Mobile Analytics/You/Profile reserve a measured minimum floating-tab clearance so Profile and Logout are no longer hidden by the bottom panel. Android version/runtime `0.1.1` (version code `2`) makes this embedded release authoritative over cached `0.1.0` OTA updates without clearing rider data.
 
 ## Testing Checklist
 
@@ -315,8 +323,14 @@ https://ktm-ride-mvp-java.onrender.com/health
 - Ride Detail `Share story image` creates a 9:16 PNG and opens Instagram Stories when `EXPO_PUBLIC_INSTAGRAM_APP_ID` is configured, otherwise falls back cleanly.
 - Ride Detail `AI story prompt` shows varied prompts, can regenerate styles, copy/share prompt text, and open ChatGPT.
 - Analytics test:
-  - Confirm Daily/Monthly/Yearly tabs load.
-  - Confirm summary cards and charts use the latest ride buckets.
+  - Confirm Rider Pulse loads the calendar-month goal, projection, coaching, 30-day momentum, ride character, habits, review completion, and cleanup count.
+  - Edit the monthly target, restart/reload, and confirm it persists only for the signed-in rider on that phone/browser.
+  - Confirm Daily/Monthly/Yearly tabs load and rapid period changes leave the latest selected period visible.
+  - Confirm summary cards and accessible charts use the latest ride buckets.
+  - Temporarily block `/api/analytics/insights`; confirm its retry/error state does not hide or corrupt ride history.
+- Mobile bottom-panel test:
+  - Open You and confirm the final Profile card can scroll fully above the floating tabs.
+  - Open Profile, scroll to the end, and confirm Logout is fully visible and tappable above the floating tabs and Android navigation inset.
 
 ## Safety And Reliability Notes
 

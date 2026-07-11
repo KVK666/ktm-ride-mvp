@@ -140,6 +140,26 @@ export type DashboardStats = {
   longestRideDistanceM?: number;
 };
 
+export type RiderPulseInsights = {
+  generatedAt: string;
+  ridesLast30Days: number;
+  distanceLast30DaysM: number;
+  distancePrevious30DaysM: number;
+  distanceCurrentMonthM: number;
+  distanceTrendPercent: number | null;
+  activeDaysLast30Days: number;
+  currentRideDayStreak: number;
+  longestRideM: number;
+  averageRideDistanceM: number;
+  averageRideDurationS: number;
+  averageTopSpeedKmh: number;
+  favoriteWeekday: string | null;
+  favoriteTimeOfDay: string | null;
+  reviewCompletionPercent: number;
+  cleanupCandidateCount: number;
+  projectedMonthDistanceM: number;
+};
+
 export type RideChapter = {
   id: string;
   title: string;

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -22,6 +23,8 @@ const destinations = [
 export function MoreScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
+  const bottomTabBarHeight = useBottomTabBarHeight();
+  const floatingTabClearance = Math.max(bottomTabBarHeight, 96) + 56;
   const { user } = useAuth();
   const displayName = user?.name?.trim() || "Rider";
   const [journal, setJournal] = useState<JournalResponse | null>(null);
@@ -45,12 +48,15 @@ export function MoreScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingBottom: floatingTabClearance }]}
+      >
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>YOUR RIDEPULSE</Text>
           <Text style={[styles.title, { color: colors.text }]}>You</Text>
         </View>
-        <Pressable onPress={() => navigation.navigate("Profile")} style={[styles.identity, { backgroundColor: colors.surfaceHigh }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open profile and settings" onPress={() => navigation.navigate("Profile")} style={[styles.identity, { backgroundColor: colors.surfaceHigh }]}>
           <ProfileAvatar user={user} size={58} radius={21} />
           <View style={styles.flex}><Text style={[styles.name, { color: colors.text }]}>{displayName}</Text><Text style={[styles.bike, { color: colors.muted }]}>{user?.bikeModel || "Motorcycle"}</Text></View>
           <Ionicons name="chevron-forward" size={20} color={colors.muted} />
@@ -70,7 +76,7 @@ export function MoreScreen() {
         </View>
         <View style={styles.menu}>
           {destinations.map((item) => (
-            <Pressable key={item.route} onPress={() => navigation.navigate(item.route)} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open ${item.title}`} key={item.route} onPress={() => navigation.navigate(item.route)} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
               <View style={styles.cardTop}><View style={[styles.icon, { backgroundColor: `${colors.accent}15` }]}><Ionicons name={item.icon} size={23} color={colors.accent} /></View><Ionicons name="arrow-up-outline" size={19} color={colors.muted} style={styles.arrow} /></View>
               <Text style={[styles.cardEyebrow, { color: colors.muted }]}>{item.eyebrow}</Text>
               <Text style={[styles.cardTitle, { color: colors.text }]}>{item.title}</Text>
@@ -78,7 +84,7 @@ export function MoreScreen() {
             </Pressable>
           ))}
         </View>
-        <Pressable onPress={() => setWalkthroughOpen(true)} style={({ pressed }) => [styles.walkthrough, { backgroundColor: colors.elevated }, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Replay walkthrough" onPress={() => setWalkthroughOpen(true)} style={({ pressed }) => [styles.walkthrough, { backgroundColor: colors.elevated }, pressed && styles.pressed]}>
           <View style={[styles.icon, { backgroundColor: `${colors.blue}18` }]}><Ionicons name="sparkles" size={23} color={colors.blue} /></View>
           <View style={styles.flex}>
             <Text style={[styles.cardEyebrow, { color: colors.muted, marginTop: 0 }]}>GUIDE</Text>
@@ -97,7 +103,7 @@ export function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 118, gap: 20 }, header: { gap: 3, paddingTop: 2 }, eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 }, title: { fontFamily: typography.extraBold, fontSize: 36 },
+  content: { padding: 20, gap: 20 }, header: { gap: 3, paddingTop: 2 }, eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 }, title: { fontFamily: typography.extraBold, fontSize: 36 },
   identity: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 26 }, flex: { flex: 1 }, name: { fontFamily: typography.extraBold, fontSize: 18 }, bike: { fontFamily: typography.medium, marginTop: 3, fontSize: 12 },
   smartStats: { borderRadius: 26, padding: 17, gap: 12 },
   smartStatsHeader: { gap: 2 },

@@ -13,7 +13,7 @@ module.exports = {
   expo: {
     name: "RidePulse",
     slug: "duke-ride",
-    version: "0.1.0",
+    version: "0.1.1",
     orientation: "portrait",
     userInterfaceStyle: "dark",
     scheme: "dukeride",
@@ -47,6 +47,7 @@ module.exports = {
     },
     android: {
       package: "com.example.dukeride",
+      versionCode: 2,
       adaptiveIcon: {
         foregroundImage: "./assets/ridepulse-logo.png",
         backgroundColor: "#080A0C"

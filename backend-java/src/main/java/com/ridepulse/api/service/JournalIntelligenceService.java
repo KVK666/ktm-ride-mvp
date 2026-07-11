@@ -132,9 +132,10 @@ public class JournalIntelligenceService {
   private Map<String, Object> cleanupAssessment(Map<String, Object> ride) {
     double distanceM = number(ride == null ? null : ride.get("distanceM"));
     double durationS = number(ride == null ? null : ride.get("durationS"));
-    boolean unreviewed = ride == null || ride.get("reviewedAt") == null;
-    boolean candidate = unreviewed
-        && ((distanceM <= 100 && durationS <= 180) || (distanceM <= 250 && durationS <= 60));
+    boolean candidate = RideCleanupPolicy.isCandidate(
+        ride == null ? null : ride.get("distanceM"),
+        ride == null ? null : ride.get("durationS"),
+        ride == null ? null : ride.get("reviewedAt"));
 
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("candidate", candidate);

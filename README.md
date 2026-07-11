@@ -43,7 +43,7 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Backend-owned AI Ride Intelligence for human ride titles, summaries, ride-kind detection, key insights, best moments, and trip automation suggestions, with deterministic fallback and long-ride trip suggestions when AI is unavailable.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
-- Basic charts for distance, ride duration trends, and top speed comparison.
+- Rider Pulse analytics on mobile and web with a per-rider monthly distance goal, calendar-month progress, projection and coaching, rolling 30-day comparison, active days, ride-day streak, longest/average ride benchmarks, favourite weekday/time, review completion, cleanup attention, and the existing daily/monthly/yearly charts.
 - JSON report endpoint and in-app PDF export.
 - Location/activity permission, background location prompt, battery optimization warning copy, and internet/API error messages.
 - Brand-neutral RidePulse launcher name, icon, Graphite and OLED Black themes, and compact mobile UI controls.
@@ -240,10 +240,13 @@ To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMEN
 - `POST /api/trips/:id/rides`
 - `DELETE /api/trips/:id/rides/:rideId`
 - `GET /api/analytics/distance?bucket=daily|monthly|yearly`
+- `GET /api/analytics/insights?timezone=Asia/Kolkata`
 - `GET /api/analytics/speed/:rideId`
 - `GET /api/reports?period=day|month|year&date=2026-05-11`
 
 Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `rideKind`, `rideKindConfidence`, `rideKindReason`, `keyInsight`, `bestMoment`, `tripSuggestion`, `aiStatus`, and `aiGeneratedAt`. Existing route labels remain available as `startLabel` and `endLabel` for maps and route facts; AI titles, summaries, story prompts, and trip suggestions should avoid treating map labels as the main ride meaning.
+
+`GET /api/analytics/insights` returns authenticated, owner-scoped summary analytics under `data.insights`; it never loads route points or labels. The optional IANA `timezone` query (for example `Asia/Kolkata`) makes calendar-month distance/projection, ride-day streak, favourite weekday, and favourite time rider-local; missing or invalid values safely fall back to UTC. The response includes `generatedAt`, rolling/current/previous distance, ride and active-day counts, streak, longest/average benchmarks, habit labels, review completion, cleanup count, and month projection. Startup schema bootstrap creates the supporting `rides(user_id, started_at)` index automatically, so no manual SQL step is required.
 
 ## Safety Notes
 

@@ -28,6 +28,13 @@ public class AnalyticsController {
     return ResponseUtil.ok(analyticsService.distance(authSupport.user(request).id(), bucket));
   }
 
+  @GetMapping("/insights")
+  ApiResponse<Map<String, Object>> insights(
+      HttpServletRequest request,
+      @RequestParam(defaultValue = "UTC") String timezone) {
+    return ResponseUtil.ok(analyticsService.insights(authSupport.user(request).id(), timezone));
+  }
+
   @GetMapping("/speed/{rideId}")
   ApiResponse<Map<String, Object>> speed(HttpServletRequest request, @PathVariable String rideId) {
     return ResponseUtil.ok(analyticsService.speed(authSupport.user(request).id(), rideId));

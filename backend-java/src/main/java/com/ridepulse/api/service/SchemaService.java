@@ -54,6 +54,7 @@ public class SchemaService {
         QueryKeys.SCHEMA_RIDE_PHOTO_RIDE_INDEX,
         QueryKeys.SCHEMA_RIDE_PHOTO_USER_INDEX,
         QueryKeys.SCHEMA_TRIPS_USER_INDEX,
-        QueryKeys.SCHEMA_TRIP_RIDES_RIDE_INDEX);
+        QueryKeys.SCHEMA_TRIP_RIDES_RIDE_INDEX,
+        QueryKeys.SCHEMA_RIDES_USER_STARTED_INDEX);
   }
 }

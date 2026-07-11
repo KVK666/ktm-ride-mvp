@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -59,6 +60,8 @@ function ProfileRow({ icon, label, value }: ProfileRowProps) {
 export function ProfileScreen() {
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const bottomTabBarHeight = useBottomTabBarHeight();
+  const floatingTabClearance = Math.max(bottomTabBarHeight, 96) + 56;
   const { user, logout, updateUser } = useAuth();
   const autoTracking = useAutoTracking();
   const [diagnostics, setDiagnostics] = useState<DiagnosticEvent[]>([]);
@@ -198,7 +201,10 @@ export function ProfileScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: floatingTabClearance }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.hero}>
           <Pressable
             accessibilityRole="button"
@@ -440,7 +446,6 @@ function escapeHtml(value: string) {
 const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 20,
-    paddingBottom: 38,
     gap: 18
   },
   hero: {

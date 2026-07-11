@@ -42,4 +42,20 @@ public class JdbcAnalyticsRepository implements AnalyticsRepository {
   public List<Map<String, Object>> speed(String rideId) {
     return readOnlyJdbc.query(sql.get(QueryKeys.ANALYTICS_SPEED), new MapSqlParameterSource("rideId", rideId), (rs, rowNum) -> Rows.speedPoint(rs));
   }
+
+  @Override
+  public List<Map<String, Object>> insightRides(String userId) {
+    return readOnlyJdbc.query(
+        sql.get(QueryKeys.ANALYTICS_INSIGHT_RIDES),
+        new MapSqlParameterSource("userId", userId),
+        (rs, rowNum) -> {
+          Map<String, Object> ride = new LinkedHashMap<>();
+          ride.put("distanceM", Rows.numeric(rs.getObject("distance_m")));
+          ride.put("durationS", Rows.numeric(rs.getObject("duration_s")));
+          ride.put("topSpeedKmh", Rows.numeric(rs.getObject("top_speed_kmh")));
+          ride.put("reviewedAt", Rows.instantString(rs.getObject("reviewed_at")));
+          ride.put("startedAt", Rows.instantString(rs.getObject("started_at")));
+          return ride;
+        });
+  }
 }

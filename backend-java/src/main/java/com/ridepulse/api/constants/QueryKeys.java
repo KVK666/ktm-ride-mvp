@@ -45,6 +45,7 @@ public final class QueryKeys {
   public static final String JOURNAL_MONTH = "journal.month";
   public static final String ANALYTICS_DISTANCE = "analytics.distance";
   public static final String ANALYTICS_SPEED = "analytics.speed";
+  public static final String ANALYTICS_INSIGHT_RIDES = "analytics.insight-rides";
   public static final String REPORTS_SUMMARY = "reports.summary";
   public static final String REPORTS_ROUTES = "reports.routes";
   public static final String PROFILE_PHOTO = "profile.photo";
@@ -86,6 +87,7 @@ public final class QueryKeys {
   public static final String SCHEMA_RIDE_PHOTO_USER_INDEX = "schema.ride-photo-user-index";
   public static final String SCHEMA_TRIPS_USER_INDEX = "schema.trips-user-index";
   public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
+  public static final String SCHEMA_RIDES_USER_STARTED_INDEX = "schema.rides-user-started-index";
 
   private QueryKeys() {}
 }

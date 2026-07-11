@@ -7,4 +7,6 @@ public interface AnalyticsRepository {
   List<Map<String, Object>> distance(String userId, String grain);
 
   List<Map<String, Object>> speed(String rideId);
+
+  List<Map<String, Object>> insightRides(String userId);
 }
