@@ -254,6 +254,8 @@ This app is designed so the destination can be set before riding and ride tracki
 
 Android auto tracking uses activity recognition to stay armed without immediately starting high-accuracy GPS. RidePulse starts the foreground GPS service only after vehicle-like movement is detected, then confirms the ride using the normal speed and distance rules. If motion detection is unavailable, the app falls back to lower-power location watching and says so in the Ride/Profile status.
 
+Motion callbacks are delivered through exactly one foreground or headless path, serialized, and deduplicated before they can change tracking state. For a background activity-recognition event, the native receiver preserves Android's permitted foreground-service launch window until the headless handler registers the GPS task. An active GPS probe is kept running across later vehicle signals instead of being restarted. Profile includes a tracking-readiness check for location permissions, phone location, and motion-service health; diagnostic cards can be expanded and copied without exporting the full report.
+
 ## Online Deployment
 
 Use [DEPLOYMENT.md](DEPLOYMENT.md) for backend deployment notes. The current preferred production shape is the Render API plus a Render Static Site for the Angular web companion.

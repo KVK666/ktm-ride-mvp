@@ -45,6 +45,13 @@ export async function stopActivityRecognition() {
   await nativeModule.stopActivityRecognition();
 }
 
+export async function finishBackgroundActivityHandling() {
+  if (Platform.OS !== "android" || !nativeModule?.finishBackgroundActivityHandling) {
+    return;
+  }
+  await nativeModule.finishBackgroundActivityHandling();
+}
+
 export function addActivityRecognitionListener(listener: (activity: MotionActivity) => void) {
   if (!emitter) {
     return { remove: () => {} };

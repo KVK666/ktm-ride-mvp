@@ -43,8 +43,13 @@ const AUTO_STOP_DURATION_MS = 5 * 60 * 1000;
 const MIN_AUTO_RIDE_DURATION_MS = 2 * 60 * 1000;
 const MIN_AUTO_RIDE_DISTANCE_M = 500;
 const MAX_AUTO_POINTS = 6000;
-const AUTO_TRACKING_SERVICE_VERSION = "3";
+const AUTO_TRACKING_SERVICE_VERSION = "4";
 const AUTO_TRACKING_SERVICE_VERSION_KEY = "duke_ride_auto_tracking_service_version";
+const DUPLICATE_MOTION_EVENT_WINDOW_MS = 5 * 1000;
+
+let motionActivityQueue: Promise<void> = Promise.resolve();
+let lastMotionEventKey = "";
+let lastMotionEventHandledAt = 0;
 
 type AutoRideState =
   | {
@@ -81,6 +86,12 @@ export type AutoTrackingStatus = {
   pendingCount: number;
   autoRideActive: boolean;
   hint?: string;
+};
+
+export type AutoTrackingReadiness = {
+  level: "ready" | "attention" | "off";
+  title: string;
+  detail: string;
 };
 
 export async function getAutoTrackingEnabled() {
@@ -232,7 +243,22 @@ export function subscribeToMotionActivities(onHandled?: () => void) {
 }
 
 export async function handleMotionActivity(rawActivity: MotionActivity) {
+  motionActivityQueue = motionActivityQueue
+    .catch(() => undefined)
+    .then(() => processMotionActivity(rawActivity));
+  return motionActivityQueue;
+}
+
+async function processMotionActivity(rawActivity: MotionActivity) {
   const activity = normalizeMotionActivity(rawActivity);
+  const eventKey = `${activity.type}:${activity.confidence}:${activity.detectedAt}`;
+  const handledAt = Date.now();
+  if (eventKey === lastMotionEventKey && handledAt - lastMotionEventHandledAt <= DUPLICATE_MOTION_EVENT_WINDOW_MS) {
+    return;
+  }
+  lastMotionEventKey = eventKey;
+  lastMotionEventHandledAt = handledAt;
+
   const enabled = await getAutoTrackingEnabled();
   const manualActive = (await AsyncStorage.getItem(MANUAL_TRACKING_ACTIVE_KEY)) === "true";
   if (!enabled || manualActive) {
@@ -266,6 +292,61 @@ export async function handleMotionActivity(rawActivity: MotionActivity) {
 
   state = { ...state, lastActivity: activity };
   await writeAutoRideState(state);
+}
+
+export async function checkAutoTrackingReadiness(): Promise<AutoTrackingReadiness> {
+  const enabled = await getAutoTrackingEnabled();
+  if (!enabled) {
+    return {
+      level: "off",
+      title: "Auto tracking is off",
+      detail: "Enable it when you want RidePulse to wait for vehicle movement."
+    };
+  }
+
+  const [foreground, background, locationServices, activityStatus, state] = await Promise.all([
+    Location.getForegroundPermissionsAsync(),
+    Location.getBackgroundPermissionsAsync(),
+    Location.hasServicesEnabledAsync().catch(() => false),
+    getActivityRecognitionStatus().catch(() => null),
+    readAutoRideState()
+  ]);
+
+  if (foreground.status !== "granted" || background.status !== "granted") {
+    return {
+      level: "attention",
+      title: "Location access needs attention",
+      detail: "Allow precise location all the time so a detected ride can continue with the screen locked."
+    };
+  }
+  if (!locationServices) {
+    return {
+      level: "attention",
+      title: "Phone location is off",
+      detail: "Turn on phone location before riding so RidePulse can confirm and record the route."
+    };
+  }
+  if (state.status === "armed" && state.fallbackGps) {
+    return {
+      level: "attention",
+      title: "Using location fallback",
+      detail: state.fallbackReason || "Motion detection is unavailable, so battery use may be higher."
+    };
+  }
+  if (!activityStatus?.available || !activityStatus.permissionGranted || !activityStatus.running) {
+    return {
+      level: "attention",
+      title: "Motion detection needs attention",
+      detail: "Turn auto tracking off and on once to re-arm battery-saving motion detection."
+    };
+  }
+  return {
+    level: "ready",
+    title: state.status === "probing" ? "Checking detected movement" : "Ready for your next ride",
+    detail: state.status === "probing"
+      ? "GPS is temporarily active while RidePulse confirms motorcycle-like movement."
+      : "Motion detection is armed. GPS stays off until vehicle-like movement is detected."
+  };
 }
 
 async function ensureBackgroundPermissions() {
@@ -374,7 +455,11 @@ async function startGpsProbeFromMotion(activity: MotionActivity, state: AutoRide
         lastPoint: state.status === "armed" ? state.lastPoint : undefined
       };
   await writeAutoRideState(nextState);
-  await startBackgroundLocationUpdates("RidePulse detected movement and is checking for a ride.", true, "probe");
+  await startBackgroundLocationUpdates(
+    "RidePulse detected movement and is checking for a ride.",
+    state.status !== "probing",
+    "probe"
+  );
   await logDiagnostic({
     level: "info",
     area: "auto-tracking",

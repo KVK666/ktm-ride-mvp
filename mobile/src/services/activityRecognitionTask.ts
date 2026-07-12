@@ -1,4 +1,5 @@
 import { AppRegistry } from "react-native";
+import { finishBackgroundActivityHandling } from "./activityRecognition";
 import { handleMotionActivity } from "./autoRideTracking";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 
@@ -12,5 +13,7 @@ AppRegistry.registerHeadlessTask("RidePulseActivityRecognitionTask", () => async
       message: "Motion detection background task failed",
       details: diagnosticDetails(err)
     });
+  } finally {
+    await finishBackgroundActivityHandling().catch(() => undefined);
   }
 });

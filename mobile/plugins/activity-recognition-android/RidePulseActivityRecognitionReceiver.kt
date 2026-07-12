@@ -4,11 +4,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.facebook.react.HeadlessJsTaskService
 import com.facebook.react.bridge.Arguments
 import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.DetectedActivity
+import expo.modules.location.AppForegroundedSingleton
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -28,7 +31,18 @@ class RidePulseActivityRecognitionReceiver : BroadcastReceiver() {
       putString("detectedAt", isoNow())
     }
 
-    RidePulseActivityRecognitionModule.emitActivity(Arguments.fromBundle(payload))
+    val deliveredToForeground = RidePulseActivityRecognitionModule.emitActivity(Arguments.fromBundle(payload))
+    if (deliveredToForeground) {
+      return
+    }
+
+    // Expo Location normally rejects foreground-service registration after the app backgrounds.
+    // Activity-recognition events are an Android foreground-service exemption, so keep that
+    // native launch window visible to Expo until the headless handler registers the GPS task.
+    AppForegroundedSingleton.isForegrounded = true
+    Handler(Looper.getMainLooper()).postDelayed({
+      AppForegroundedSingleton.isForegrounded = false
+    }, BACKGROUND_LAUNCH_WINDOW_MS)
 
     val serviceIntent = Intent(context, RidePulseActivityRecognitionHeadlessService::class.java).apply {
       putExtras(payload)
@@ -59,5 +73,9 @@ class RidePulseActivityRecognitionReceiver : BroadcastReceiver() {
     return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
       timeZone = TimeZone.getTimeZone("UTC")
     }.format(Date())
+  }
+
+  companion object {
+    private const val BACKGROUND_LAUNCH_WINDOW_MS = 30_000L
   }
 }

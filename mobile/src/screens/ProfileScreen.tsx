@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
+import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
@@ -12,6 +13,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { useAutoTracking } from "../hooks/useAutoTracking";
+import { AutoTrackingReadiness, checkAutoTrackingReadiness } from "../services/autoRideTracking";
 import {
   clearDiagnostics,
   DiagnosticEvent,
@@ -66,6 +68,7 @@ export function ProfileScreen() {
   const autoTracking = useAutoTracking();
   const [diagnostics, setDiagnostics] = useState<DiagnosticEvent[]>([]);
   const [diagnosticsMessage, setDiagnosticsMessage] = useState("");
+  const [expandedDiagnosticId, setExpandedDiagnosticId] = useState<string | null>(null);
   const [exportingDiagnostics, setExportingDiagnostics] = useState(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [profilePhotoMessage, setProfilePhotoMessage] = useState("");
@@ -73,6 +76,8 @@ export function ProfileScreen() {
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
   const [updateMessage, setUpdateMessage] = useState("");
+  const [trackingReadiness, setTrackingReadiness] = useState<AutoTrackingReadiness | null>(null);
+  const [checkingTracking, setCheckingTracking] = useState(false);
   const displayName = user?.name?.trim() || "Rider";
   const bikeModel = user?.bikeModel || "Motorcycle";
   const riderId = user?.id ? user.id.slice(0, 8).toUpperCase() : "Not available";
@@ -162,6 +167,27 @@ export function ProfileScreen() {
     await clearDiagnostics();
     setDiagnostics([]);
     setDiagnosticsMessage("Diagnostics cleared");
+  }
+
+  async function copyDiagnostic(event: DiagnosticEvent) {
+    await Clipboard.setStringAsync(formatDiagnostics([event]));
+    setDiagnosticsMessage("Diagnostic details copied");
+  }
+
+  async function runTrackingCheck() {
+    setCheckingTracking(true);
+    try {
+      setTrackingReadiness(await checkAutoTrackingReadiness());
+      await autoTracking.refresh();
+    } catch (err: any) {
+      setTrackingReadiness({
+        level: "attention",
+        title: "Tracking check failed",
+        detail: err.message || "RidePulse could not verify tracking services."
+      });
+    } finally {
+      setCheckingTracking(false);
+    }
   }
 
   async function checkForAppUpdate() {
@@ -334,12 +360,30 @@ export function ProfileScreen() {
           </View>
           {diagnostics.length ? (
             diagnostics.slice(0, 5).map((event) => (
-              <View key={event.id} style={styles.diagnosticEvent}>
+              <Pressable
+                key={event.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${event.message}. ${event.details ? "View diagnostic details" : "No additional details"}`}
+                onPress={() => setExpandedDiagnosticId((current) => current === event.id ? null : event.id)}
+                style={({ pressed }) => [styles.diagnosticEvent, pressed && styles.pressed]}
+              >
                 <Text style={styles.diagnosticMeta}>
                   {event.level.toUpperCase()} / {event.area} / {new Date(event.createdAt).toLocaleString()}
                 </Text>
                 <Text style={styles.diagnosticMessage}>{event.message}</Text>
-              </View>
+                {event.details ? (
+                  expandedDiagnosticId === event.id ? (
+                    <View style={styles.diagnosticDetailsBox}>
+                      <Text selectable style={styles.diagnosticDetails}>{event.details}</Text>
+                      <Pressable accessibilityRole="button" onPress={() => copyDiagnostic(event)}>
+                        <Text style={styles.diagnosticCopy}>Copy details</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Text style={styles.diagnosticHint}>Tap to view the error details</Text>
+                  )
+                ) : null}
+              </Pressable>
             ))
           ) : (
             <Text style={styles.cardCopy}>No diagnostics recorded.</Text>
@@ -378,6 +422,20 @@ export function ProfileScreen() {
             </View>
           ) : null}
           {autoTracking.syncMessage ? <Text style={styles.success}>{autoTracking.syncMessage}</Text> : null}
+          {trackingReadiness ? (
+            <View style={styles.readinessBox}>
+              <Text style={trackingReadiness.level === "ready" ? styles.success : trackingReadiness.level === "attention" ? styles.error : styles.cardCopy}>
+                {trackingReadiness.title}
+              </Text>
+              <Text style={styles.cardCopy}>{trackingReadiness.detail}</Text>
+            </View>
+          ) : null}
+          <PrimaryButton
+            label="Check tracking readiness"
+            icon="shield-checkmark"
+            loading={checkingTracking}
+            onPress={runTrackingCheck}
+          />
           {autoTracking.error ? <Text style={styles.error}>{autoTracking.error}</Text> : null}
         </View>
 
@@ -635,6 +693,37 @@ const createStyles = (colors: ThemeColors) => ({
   diagnosticMessage: {
     color: colors.text,
     fontWeight: "700"
+  },
+  diagnosticHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontFamily: typography.regular
+  },
+  diagnosticDetailsBox: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginTop: 6,
+    paddingTop: 8,
+    gap: 8
+  },
+  diagnosticDetails: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: typography.regular
+  },
+  diagnosticCopy: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  readinessBox: {
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 4
   },
   success: {
     color: colors.success,

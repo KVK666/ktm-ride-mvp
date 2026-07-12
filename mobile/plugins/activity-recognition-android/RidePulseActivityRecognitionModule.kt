@@ -13,10 +13,12 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
+import com.facebook.react.common.LifecycleState
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.ActivityRecognition
+import expo.modules.location.AppForegroundedSingleton
 import java.lang.ref.WeakReference
 
 class RidePulseActivityRecognitionModule(
@@ -73,6 +75,12 @@ class RidePulseActivityRecognitionModule(
   }
 
   @ReactMethod
+  fun finishBackgroundActivityHandling(promise: Promise) {
+    AppForegroundedSingleton.isForegrounded = false
+    promise.resolve(null)
+  }
+
+  @ReactMethod
   fun addListener(eventName: String) {
     // Required by NativeEventEmitter.
   }
@@ -99,13 +107,15 @@ class RidePulseActivityRecognitionModule(
       return PendingIntent.getBroadcast(context, 4207, intent, flags)
     }
 
-    fun emitActivity(event: WritableMap) {
+    fun emitActivity(event: WritableMap): Boolean {
       val context = reactContextRef?.get()
-      if (context?.hasActiveReactInstance() == true) {
+      if (context?.hasActiveReactInstance() == true && context.lifecycleState == LifecycleState.RESUMED) {
         context
           .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
           .emit(EVENT_NAME, event)
+        return true
       }
+      return false
     }
 
     fun hasActivityRecognitionPermission(context: Context): Boolean {
