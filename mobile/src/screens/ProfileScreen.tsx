@@ -226,7 +226,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset={false}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: floatingTabClearance }]}
         showsVerticalScrollIndicator={false}

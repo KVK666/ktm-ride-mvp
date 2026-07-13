@@ -177,7 +177,7 @@ export function AnalyticsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset={false}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

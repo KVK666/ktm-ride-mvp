@@ -60,6 +60,7 @@ export function RideDetailScreen() {
   const [duplicateRides, setDuplicateRides] = useState<Ride[]>([]);
   const [titleDraft, setTitleDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
+  const [reviewExpanded, setReviewExpanded] = useState(Boolean(route.params.reviewMode));
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [deletingDuplicateId, setDeletingDuplicateId] = useState<string | null>(null);
@@ -117,7 +118,8 @@ export function RideDetailScreen() {
       setAiRefreshCount(0);
       setTitleDraft(nextRide.title || "");
       setNotesDraft(nextRide.notes || "");
-      setReviewMessage(route.params.reviewMode ? "Review this ride before your next trip." : "");
+      setReviewExpanded(Boolean(route.params.reviewMode));
+      setReviewMessage("");
       try {
         const [duplicates, smart] = await Promise.all([
           api<{ duplicates: Ride[] }>(`/rides/${route.params.rideId}/duplicates`),
@@ -652,7 +654,7 @@ export function RideDetailScreen() {
 
   if (loading) {
     return (
-      <Screen style={styles.center}>
+      <Screen includeTopInset={false} style={styles.center}>
         <ActivityIndicator color={colors.orange} />
       </Screen>
     );
@@ -660,14 +662,14 @@ export function RideDetailScreen() {
 
   if (!ride) {
     return (
-      <Screen style={styles.empty}>
+      <Screen includeTopInset={false} style={styles.empty}>
         <Text style={styles.error}>{error || "Ride detail unavailable"}</Text>
       </Screen>
     );
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset={false}>
       <ScrollView contentContainerStyle={styles.content}>
         <AIInsightHero ride={ride} intelligence={intelligence} title={displayTitle} />
 
@@ -694,92 +696,87 @@ export function RideDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.card}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>Share & organise</Text>
-              <Text style={styles.sectionMeta}>
-                Share this memory or add it to a trip album.
-              </Text>
-            </View>
-          </View>
-          <View style={styles.storyActions}>
-            <PrimaryButton
-              label="Share story"
-              icon="logo-instagram"
-              compact
-              loading={storySharing}
-              onPress={handleShareStoryImage}
-            />
-            <PrimaryButton
-              label="AI prompt"
-              icon="sparkles"
-              compact
-              onPress={openPromptModal}
-            />
-            <PrimaryButton label="Add to trip" icon="albums" compact onPress={openTripModal} />
-          </View>
-          {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
+        {ride.points?.length ? (
+          <RideMap
+            coordinates={ride.points}
+            title={`${ride.startLabel} to ${ride.endLabel}`}
+            photoMarkers={photosWithLocation}
+            onPhotoMarkerPress={openPhotoMarker}
+          />
+        ) : null}
+
+        <View style={styles.quickActions}>
+          <QuickAction label="Share" icon="share-social" loading={storySharing} onPress={handleShareStoryImage} />
+          <QuickAction label="Ask AI" icon="sparkles" onPress={openPromptModal} />
+          <QuickAction label="Trip" icon="albums" onPress={openTripModal} />
         </View>
+        {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
 
         <View style={[styles.card, needsReview && styles.reviewCard]}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>Ride Review</Text>
-              <Text style={styles.sectionMeta}>
-                {needsReview ? "Name this ride, add notes, then mark it reviewed." : "This ride has been reviewed."}
-              </Text>
+            <View style={styles.reviewHeading}>
+              <Ionicons
+                name={needsReview ? "ellipse" : "checkmark-circle"}
+                color={needsReview ? colors.accent : colors.blue}
+                size={needsReview ? 9 : 20}
+              />
+              <Text style={styles.sectionTitle}>Review</Text>
             </View>
-            <View style={[styles.reviewBadge, needsReview ? styles.reviewBadgeOpen : styles.reviewBadgeDone]}>
-              <Text style={styles.reviewBadgeText}>{needsReview ? "OPEN" : "DONE"}</Text>
-            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={reviewExpanded ? "Close ride review" : "Edit ride review"}
+              onPress={() => setReviewExpanded((expanded) => !expanded)}
+              style={({ pressed }) => [styles.editReviewButton, pressed && styles.pressedPhoto]}
+            >
+              <Ionicons name={reviewExpanded ? "chevron-up" : "create-outline"} color={colors.accent} size={17} />
+              <Text style={styles.editReviewText}>{reviewExpanded ? "Close" : "Edit"}</Text>
+            </Pressable>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Ride name</Text>
-            <TextInput
-              value={titleDraft}
-              onChangeText={setTitleDraft}
-              placeholder="Sunday breakfast ride"
-              placeholderTextColor={colors.muted}
-              maxLength={120}
-              style={styles.input}
-            />
-          </View>
+          {reviewExpanded ? (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Name</Text>
+                <TextInput
+                  value={titleDraft}
+                  onChangeText={setTitleDraft}
+                  placeholder="Sunday breakfast ride"
+                  placeholderTextColor={colors.muted}
+                  maxLength={120}
+                  style={styles.input}
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Notes</Text>
-            <TextInput
-              value={notesDraft}
-              onChangeText={setNotesDraft}
-              placeholder="Road condition, stops, fuel, anything worth remembering"
-              placeholderTextColor={colors.muted}
-              multiline
-              maxLength={2000}
-              style={[styles.input, styles.notesInput]}
-              textAlignVertical="top"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Notes</Text>
+                <TextInput
+                  value={notesDraft}
+                  onChangeText={setNotesDraft}
+                  placeholder="Anything worth remembering"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  maxLength={2000}
+                  style={[styles.input, styles.notesInput]}
+                  textAlignVertical="top"
+                />
+              </View>
 
-          {reviewMessage ? <Text style={styles.reviewMessage}>{reviewMessage}</Text> : null}
+              {reviewMessage ? <Text style={styles.reviewMessage}>{reviewMessage}</Text> : null}
 
-          <View style={styles.reviewActions}>
-            <PrimaryButton
-              label="Save"
-              icon="save"
-              compact
-              loading={reviewSaving}
-              onPress={() => saveReview(false)}
-            />
-            <PrimaryButton
-              label={needsReview ? "Reviewed" : "Done"}
-              icon="checkmark-circle"
-              compact
-              disabled={!needsReview}
-              loading={reviewSaving}
-              onPress={() => saveReview(true)}
-            />
-          </View>
+              <View style={styles.reviewActions}>
+                <PrimaryButton label="Save" icon="save" compact loading={reviewSaving} onPress={() => saveReview(false)} />
+                {needsReview ? (
+                  <PrimaryButton
+                    label="Mark reviewed"
+                    icon="checkmark-circle"
+                    compact
+                    loading={reviewSaving}
+                    onPress={() => saveReview(true)}
+                  />
+                ) : null}
+              </View>
+            </>
+          ) : null}
 
           {duplicateRides.length ? <View style={styles.duplicateBlock}>
             <Text style={styles.duplicateTitle}>Suspected duplicates</Text>
@@ -808,48 +805,22 @@ export function RideDetailScreen() {
           </View> : null}
         </View>
 
-        {ride.points?.length ? (
-          <RideMap
-            coordinates={ride.points}
-            title={`${ride.startLabel} to ${ride.endLabel}`}
-            photoMarkers={photosWithLocation}
-            onPhotoMarkerPress={openPhotoMarker}
-          />
-        ) : (
-          <View style={styles.emptyMap}>
-            <Ionicons name="map" color={colors.muted} size={26} />
-            <Text style={styles.emptyMapText}>Route points unavailable</Text>
-          </View>
-        )}
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Route summary</Text>
-          <RouteRow icon="radio-button-on" label="From" value={ride.startLabel} />
-          <RouteRow icon="flag" label="To" value={ride.endLabel} />
-          <RouteRow icon="calendar" label="Date" value={`${shortDate(ride.startedAt)} at ${time(ride.startedAt)}`} />
-        </View>
-
         <View style={styles.albumCard}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>Ride Album</Text>
-              <Text style={styles.sectionMeta}>
-                Local photos for this ride. They stay on this phone and can become a slideshow memory.
-              </Text>
-            </View>
+            <Text style={styles.sectionTitle}>Album</Text>
             {photos.length ? <Text style={styles.albumCount}>{photos.length}</Text> : null}
           </View>
           {album?.coverUri ? <Image source={{ uri: album.coverUri }} style={styles.albumCover} /> : null}
           <View style={styles.storyActions}>
             <PrimaryButton
-              label="Find ride photos"
+              label="Find photos"
               icon="images"
               compact
               loading={importingPhotos}
               onPress={handleImportRidePhotos}
             />
             <PrimaryButton
-              label="Add manually"
+              label="Add"
               icon="add-circle"
               compact
               loading={manualImportingPhotos}
@@ -904,21 +875,15 @@ export function RideDetailScreen() {
           ) : null}
         </View>
 
-        <View style={styles.dangerCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>Ride controls</Text>
-              <Text style={styles.sectionMeta}>Delete this ride if it was a test, duplicate, or something you don’t want in the journal.</Text>
-            </View>
-          </View>
+        <View style={styles.deleteRow}>
           <Pressable
             accessibilityRole="button"
             disabled={deletingRide}
             onPress={confirmDeleteRide}
             style={({ pressed }) => [styles.deleteRideButton, pressed && styles.pressedPhoto, deletingRide && styles.disabledButton]}
           >
-            <Ionicons name="trash" color={colors.text} size={18} />
-            <Text style={styles.deleteRideText}>{deletingRide ? "Deleting..." : "Delete this ride"}</Text>
+            <Ionicons name="trash" color={colors.danger} size={18} />
+            <Text style={styles.deleteRideText}>{deletingRide ? "Deleting..." : "Delete ride"}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -1074,39 +1039,34 @@ function AIInsightHero({ ride, intelligence, title }: { ride: Ride; intelligence
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const status = intelligence?.classification?.status || ride.aiStatus || "fallback";
-  const bestMetric = bestMetricText(ride, intelligence);
   const thinking = status === "pending";
-  const summary = intelligence?.summaryText || ride.aiSummary || ride.summaryText;
-  const insight = intelligence?.keyInsight || ride.keyInsight;
 
   return (
     <View style={styles.aiHero}>
+      <View pointerEvents="none" style={styles.aiHeroGlow} />
       <View style={styles.aiHeroTop}>
         <View style={styles.aiIcon}>
-          <Ionicons name={thinking ? "sparkles" : "analytics"} color={colors.onAccent} size={22} />
+          <Ionicons name={thinking ? "sparkles" : "navigate"} color={colors.onAccent} size={22} />
         </View>
         <View style={styles.aiHeroText}>
-          <Text style={styles.aiKicker}>{thinking ? "STORY UPDATING" : "RIDE STORY"}</Text>
           <Text numberOfLines={2} style={styles.aiTitle}>{title}</Text>
-          <Text style={styles.aiDate}>{shortDate(ride.startedAt)} · {time(ride.startedAt)}{ride.endedAt ? `–${time(ride.endedAt)}` : ""}</Text>
+          <View style={styles.aiDateRow}>
+            <Ionicons name="time-outline" color={colors.muted} size={14} />
+            <Text style={styles.aiDate}>{shortDate(ride.startedAt)} · {time(ride.startedAt)}{ride.endedAt ? `–${time(ride.endedAt)}` : ""}</Text>
+          </View>
         </View>
       </View>
 
-      <Text style={styles.aiInsight}>
-        {thinking
-          ? "Your ride is saved. RidePulse is finishing its story now."
-          : summary || "A saved journey ready for your notes, photos, and memories."}
-      </Text>
+      <View style={styles.aiRouteLine}>
+        <Ionicons name="radio-button-on" color={colors.accent} size={15} />
+        <Text numberOfLines={1} style={styles.aiRouteText}>{ride.startLabel}</Text>
+        <Ionicons name="arrow-forward" color={colors.muted} size={14} />
+        <Text numberOfLines={1} style={styles.aiRouteText}>{ride.endLabel}</Text>
+      </View>
 
-      {!thinking && (insight || bestMetric) ? <View style={styles.aiFactGrid}>
-        <View style={styles.aiFact}>
-          <Text style={styles.aiFactLabel}>Why it stands out</Text>
-          <Text numberOfLines={3} style={styles.aiFactValue}>{insight || "A route worth remembering."}</Text>
-        </View>
-        <View style={styles.aiFact}>
-          <Text style={styles.aiFactLabel}>Best moment</Text>
-          <Text numberOfLines={3} style={styles.aiFactValue}>{bestMetric}</Text>
-        </View>
+      {thinking ? <View style={styles.aiThinkingRow}>
+        <ActivityIndicator color={colors.accent} size="small" />
+        <Text style={styles.aiThinkingText}>Naming this ride…</Text>
       </View> : null}
     </View>
   );
@@ -1392,28 +1352,37 @@ function StoryPromptModal({
   );
 }
 
-function RouteRow({
+function QuickAction({
   icon,
   label,
-  value
+  loading = false,
+  onPress
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  value: string;
+  loading?: boolean;
+  onPress: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={styles.routeRow}>
-      <View style={styles.routeIcon}>
-        <Ionicons name={icon} color={colors.orange} size={18} />
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ busy: loading }}
+      disabled={loading}
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => {});
+        onPress();
+      }}
+      style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed, loading && styles.disabledButton]}
+    >
+      <View style={styles.quickActionIcon}>
+        {loading ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons name={icon} color={colors.accent} size={21} />}
       </View>
-      <View style={styles.routeText}>
-        <Text style={styles.routeLabel}>{label}</Text>
-        <Text style={styles.routeValue}>{value}</Text>
-      </View>
-    </View>
+      <Text style={styles.quickActionText}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -1491,17 +1460,28 @@ const createStyles = (colors: ThemeColors) => ({
     justifyContent: "center"
   },
   content: {
-    padding: 20,
+    padding: 18,
     paddingBottom: 38,
-    gap: 18
+    gap: 14
   },
   aiHero: {
-    backgroundColor: colors.elevated,
+    position: "relative" as const,
+    overflow: "hidden" as const,
+    backgroundColor: colors.surface,
     borderRadius: 28,
-    padding: 18,
-    gap: 14,
+    padding: 20,
+    gap: 16,
     borderWidth: 1,
     borderColor: colors.border
+  },
+  aiHeroGlow: {
+    position: "absolute" as const,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    right: -72,
+    top: -92,
+    backgroundColor: `${colors.accent}16`
   },
   aiHeroTop: {
     flexDirection: "row",
@@ -1520,24 +1500,22 @@ const createStyles = (colors: ThemeColors) => ({
     flex: 1,
     minWidth: 0
   },
-  aiKicker: {
-    color: colors.accent,
-    fontFamily: typography.bold,
-    fontSize: 10,
-    letterSpacing: 1.2
-  },
   aiTitle: {
     color: colors.text,
     fontFamily: typography.extraBold,
-    fontSize: 24,
-    lineHeight: 30,
-    marginTop: 3
+    fontSize: 26,
+    lineHeight: 32
+  },
+  aiDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 5
   },
   aiDate: {
     color: colors.muted,
     fontFamily: typography.medium,
-    fontSize: 11,
-    marginTop: 4
+    fontSize: 12
   },
   aiTypeRow: {
     flexDirection: "row",
@@ -1561,35 +1539,31 @@ const createStyles = (colors: ThemeColors) => ({
     fontFamily: typography.medium,
     fontSize: 12
   },
-  aiInsight: {
-    color: colors.text,
-    fontFamily: typography.medium,
-    fontSize: 14,
-    lineHeight: 21
-  },
-  aiFactGrid: {
+  aiRouteLine: {
     flexDirection: "row",
-    gap: 10
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    backgroundColor: colors.elevated
   },
-  aiFact: {
+  aiRouteText: {
     flex: 1,
-    minHeight: 82,
-    borderRadius: 18,
-    padding: 12,
-    backgroundColor: colors.surface
-  },
-  aiFactLabel: {
-    color: colors.muted,
+    minWidth: 0,
+    color: colors.textSoft,
     fontFamily: typography.bold,
-    fontSize: 10,
-    letterSpacing: 0.7
+    fontSize: 12
   },
-  aiFactValue: {
-    color: colors.text,
-    fontFamily: typography.extraBold,
-    fontSize: 15,
-    lineHeight: 20,
-    marginTop: 6
+  aiThinkingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  aiThinkingText: {
+    color: colors.accent,
+    fontFamily: typography.bold,
+    fontSize: 12
   },
   hero: {
     gap: 4
@@ -1704,6 +1678,38 @@ const createStyles = (colors: ThemeColors) => ({
   },
   metricStrip: { flexDirection: "row", alignItems: "center", gap: 12, padding: 17, borderRadius: 24, backgroundColor: colors.surface },
   metricDivider: { width: 1, height: 42, backgroundColor: colors.border },
+  quickActions: {
+    flexDirection: "row",
+    gap: 10
+  },
+  quickAction: {
+    flex: 1,
+    minHeight: 84,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8
+  },
+  quickActionPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.86
+  },
+  quickActionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    backgroundColor: `${colors.accent}15`,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  quickActionText: {
+    color: colors.text,
+    fontFamily: typography.bold,
+    fontSize: 12
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 24,
@@ -1726,50 +1732,49 @@ const createStyles = (colors: ThemeColors) => ({
     height: 210,
     borderRadius: 24
   },
-  dangerCard: {
-    backgroundColor: `${colors.danger}14`,
-    borderRadius: 24,
-    padding: 17,
-    gap: 12
+  deleteRow: {
+    alignItems: "center",
+    paddingVertical: 6
   },
   deleteRideButton: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
     minHeight: 44,
     borderRadius: 15,
     paddingHorizontal: 14,
-    backgroundColor: colors.danger,
+    borderWidth: 1,
+    borderColor: `${colors.danger}55`,
+    backgroundColor: `${colors.danger}12`,
     flexDirection: "row",
     alignItems: "center",
     gap: 8
   },
   deleteRideText: {
-    color: colors.text,
+    color: colors.danger,
     fontFamily: typography.bold,
     fontSize: 13
   },
   reviewCard: {
-    borderColor: colors.accent
+    borderWidth: 1,
+    borderColor: `${colors.accent}55`
   },
-  reviewBadge: {
-    minWidth: 52,
-    height: 28,
-    borderRadius: 8,
+  reviewHeading: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 10
+    gap: 9
   },
-  reviewBadgeOpen: {
-    backgroundColor: colors.accent
+  editReviewButton: {
+    minHeight: 36,
+    borderRadius: 13,
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: `${colors.accent}12`
   },
-  reviewBadgeDone: {
-    backgroundColor: colors.surfaceHigh,
-    borderColor: colors.border,
-    borderWidth: 1
-  },
-  reviewBadgeText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "900"
+  editReviewText: {
+    color: colors.accent,
+    fontFamily: typography.bold,
+    fontSize: 12
   },
   inputGroup: {
     gap: 6
@@ -1869,6 +1874,8 @@ const createStyles = (colors: ThemeColors) => ({
   },
   sectionHeader: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 10
   },
   sectionHeaderText: {

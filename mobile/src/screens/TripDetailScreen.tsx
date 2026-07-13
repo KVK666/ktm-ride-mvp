@@ -95,14 +95,14 @@ export function TripDetailScreen() {
 
   if (loading && !trip) {
     return (
-      <Screen style={styles.center}>
+      <Screen includeTopInset={false} style={styles.center}>
         <ActivityIndicator color={colors.accent} />
       </Screen>
     );
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}

@@ -69,7 +69,7 @@ export function TripsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}

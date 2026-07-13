@@ -129,7 +129,7 @@ export function SavedPlacesScreen() {
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset={false}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.kicker}>SMART ROUTINES</Text>

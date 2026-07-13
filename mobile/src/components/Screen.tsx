@@ -5,7 +5,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../theme/ThemeContext";
 import { motion } from "../theme/colors";
 
-export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export function Screen({
+  children,
+  style,
+  includeTopInset = true
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  includeTopInset?: boolean;
+}) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -27,8 +35,15 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
 
   return (
     <SafeAreaView
-      edges={["top", "bottom"]}
-      style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 8) }, style]}
+      edges={includeTopInset ? ["top", "bottom"] : ["bottom"]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: includeTopInset ? Math.max(insets.top, 8) : 0
+        },
+        style
+      ]}
     >
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <View pointerEvents="none" style={styles.backdrop}>
