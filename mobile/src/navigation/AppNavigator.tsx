@@ -10,6 +10,7 @@ import { NavigateScreen } from "../screens/NavigateScreen";
 import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
+import { SavedPlacesScreen } from "../screens/SavedPlacesScreen";
 import { RideDetailScreen } from "../screens/RideDetailScreen";
 import { RideScreen } from "../screens/RideScreen";
 import { TripDetailScreen } from "../screens/TripDetailScreen";
@@ -45,6 +46,7 @@ function MoreNavigator() {
       <MoreStack.Screen name="MoreHome" component={MoreScreen} options={{ headerShown: false }} />
       <MoreStack.Screen name="Analytics" component={AnalyticsScreen} />
       <MoreStack.Screen name="Reports" component={ReportsScreen} />
+      <MoreStack.Screen name="SavedPlaces" component={SavedPlacesScreen} options={{ title: "Saved places" }} />
       <MoreStack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile & settings" }} />
     </MoreStack.Navigator>
   );

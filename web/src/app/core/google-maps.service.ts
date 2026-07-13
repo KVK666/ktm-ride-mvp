@@ -96,14 +96,14 @@ export class GoogleMapsService {
     return this.loadPromise;
   }
 
-  async route(origin: Coordinate, destinationText: string): Promise<RouteDetails> {
+  async route(origin: Coordinate, destination: string | Coordinate): Promise<RouteDetails> {
     await this.load();
     const directions = new google.maps.DirectionsService();
     const result = await new Promise<any>((resolve, reject) => {
       directions.route(
         {
           origin: toLatLngLiteral(origin),
-          destination: destinationText,
+          destination: typeof destination === 'string' ? destination : toLatLngLiteral(destination),
           travelMode: google.maps.TravelMode.DRIVING
         },
         (response: any, status: string) => {

@@ -62,6 +62,13 @@ import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
         <p>Preview Google routes before you move.</p>
       </a>
 
+      <a class="profile-card secondary nav-card" routerLink="/app/places">
+        <lucide-icon name="map-pin" size="28" />
+        <p class="kicker">SMART ROUTINES</p>
+        <h3>Saved places</h3>
+        <p>Teach RidePulse your Home, Office, and regular stops.</p>
+      </a>
+
       <article class="profile-card secondary">
         <lucide-icon name="shield-check" size="28" />
         <h3>Mobile-only controls</h3>

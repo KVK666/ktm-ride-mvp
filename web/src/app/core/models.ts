@@ -82,6 +82,17 @@ export type Trip = {
   updatedAt: string;
 };
 
+export type SavedPlace = {
+  id: string;
+  label: string;
+  kind: 'home' | 'office' | 'other' | string;
+  latitude: number;
+  longitude: number;
+  radiusM: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type DashboardStats = {
   todayDistanceM: number;
   monthDistanceM: number;

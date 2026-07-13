@@ -41,6 +41,8 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
 - Ride Detail story sharing with a local Instagram Story image and dynamic ChatGPT image prompts based on ride details, place mood, time, and optional weather.
 - Backend-owned AI Ride Intelligence for human ride titles, summaries, ride-kind detection, key insights, best moments, and trip automation suggestions, with deterministic fallback and long-ride trip suggestions when AI is unavailable.
+- Account-synced Saved Places for Home, Office, and custom stops, with adjustable GPS matching radii, route-planner shortcuts, and intelligent routine names such as `Commute · Home to Office`.
+- Focused mobile/web Ride Detail UX centred on story, key stats, map, notes, photos, and trip/share actions instead of model confidence/status and redundant technical sections.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
 - Rider Pulse analytics on mobile and web with a per-rider monthly distance goal, calendar-month progress, projection and coaching, rolling 30-day comparison, active days, ride-day streak, longest/average ride benchmarks, favourite weekday/time, review completion, cleanup attention, and the existing daily/monthly/yearly charts.
@@ -211,6 +213,7 @@ The Java backend creates and uses the RidePulse PostgreSQL schema, including:
 - `rides`: summary stats and start/end coordinates.
 - `ride_points`: normalized GPS points for route rendering and speed-over-time analysis.
 - `ride_album_photos`: backend-synced ride album copies for web/mobile companion display.
+- `saved_places`: owner-scoped Home, Office, and custom endpoint coordinates plus a GPS-drift matching radius.
 
 To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMENT.md#1a-migrate-existing-neon-data-to-aws). The migration script reads connection strings from environment variables and does not commit database secrets.
 
@@ -239,6 +242,10 @@ To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMEN
 - `DELETE /api/trips/:id`
 - `POST /api/trips/:id/rides`
 - `DELETE /api/trips/:id/rides/:rideId`
+- `GET /api/places`
+- `POST /api/places`
+- `PATCH /api/places/:id`
+- `DELETE /api/places/:id`
 - `GET /api/analytics/distance?bucket=daily|monthly|yearly`
 - `GET /api/analytics/insights?timezone=Asia/Kolkata`
 - `GET /api/analytics/speed/:rideId`

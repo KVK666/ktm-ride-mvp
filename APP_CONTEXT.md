@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-11
+Last updated: 2026-07-14
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -44,6 +44,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Shows an Android app icon based on `mobile/assets/ridepulse-logo.png`, aligned with the in-app lime/black RidePulse identity.
 - Uses Google Maps in navigation, ride, and history views.
 - Lets users search a destination and view route/directions in the Navigate tab.
+- Lets riders save owner-private Home, Office, and custom locations from mobile or web with an adjustable 50-1,000 metre matching radius. Saved places appear as one-tap destinations in both route planners.
 - Shows a safety warning before navigation.
 - Lets users manually start and stop ride tracking.
 - Manual ride tracking is crash-resilient: active ride start time and GPS points are continuously persisted locally and recovered after app restart.
@@ -60,9 +61,9 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Journal ride search is server-backed on mobile and web, matching ride title, notes, start label, and end label while preserving existing period filters.
 - Journal includes a conservative Cleanup queue on mobile and web for unreviewed recordings with near-zero movement. RidePulse explains why each ride was flagged; riders explicitly keep it by marking it reviewed or remove it through the existing confirmed delete control. No ride is auto-deleted.
 - Adds manual Trip Albums: riders can create trip folders, add existing rides, remove rides from a trip without deleting the ride, and browse trip detail on Android and the Angular companion.
-- Adds backend-owned AI ride intelligence with deterministic fallback: saved rides can receive human-readable AI titles, summaries, ride kind/confidence/reason, key insight, best moment, and trip automation suggestions without blocking ride save.
-- Opens a dedicated Ride Detail screen from History with full route map, ride stats, route summary, and speed-over-time chart.
-- Ride Detail now opens with an AI Insight Hero instead of decorative route artwork, showing ride kind, confidence, key insight, best signal, and trip assist state while keeping exact start/end labels in Route Summary for maps.
+- Adds backend-owned AI ride intelligence with deterministic fallback: saved rides can receive human-readable AI titles, summaries, ride classification, key insight, best moment, and trip automation suggestions without blocking ride save. Saved endpoint matches now recognise routines such as Home to Office and enforce useful names such as `Commute · Home to Office` without guessing the rider's timezone.
+- Opens a focused Ride Detail screen from History with the useful ride story, key stats, route map/summary, notes/review, sharing/trip actions, album, and confirmed cleanup controls.
+- Ride Detail no longer exposes internal-looking ride confidence, AI status/date, GPS sample counts, empty duplicate state, route replay, generated chapter list, or the extra speed chart in the primary mobile/web flow. Those removals keep the page centred on the rider's memory rather than model diagnostics.
 - Ride Detail has a Ride Review section for ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail has a confirmed delete option for the selected ride, intended for test rides, unwanted rides, or duplicates that should be fully removed with their route points.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
@@ -115,6 +116,7 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `mobile/src/services/manualRideSession.ts`: crash-resilient local manual ride session storage, recovery, and map point compaction.
 - `mobile/src/screens/RideDetailScreen.tsx`: dedicated ride detail view opened from History, with ride review and duplicate cleanup.
 - `mobile/src/screens/TripsScreen.tsx` and `mobile/src/screens/TripDetailScreen.tsx`: manual Trip Albums list/detail UI.
+- `mobile/src/screens/SavedPlacesScreen.tsx`: Home, Office, and custom-place capture, radius selection, update, and removal UI.
 - `mobile/src/components/RideStoryCard.tsx`: local 9:16 ride story image layout rendered for capture/share.
 - `mobile/src/services/rideStoryPrompt.ts`: dynamic ChatGPT image prompt variants and optional Open-Meteo weather mood lookup.
 - `mobile/src/services/rideStoryShare.ts`: Android Instagram/share-sheet handoff for generated story images.
@@ -135,6 +137,8 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `backend-java/src/main/java/com/ridepulse/api/service/PasswordResetService.java`: hashed one-time reset token creation, SMTP reset email delivery, and password update validation.
 - `backend-java/src/main/java/com/ridepulse/api/service/JournalIntelligenceService.java`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
 - `backend-java/src/main/java/com/ridepulse/api/service/RideAiIntelligenceService.java`: backend-only AI/fallback ride naming, classification, insight, best moment, trip automation with user-owned trip safety checks, and non-secret provider observability through Render logs plus `/health`.
+- `backend-java/src/main/java/com/ridepulse/api/service/SavedPlaceService.java`: validation and owner-scoped CRUD for routine locations; matching is consumed only by authenticated ride intelligence.
+- `web/src/app/features/companion/saved-places-page.component.ts`: responsive Saved Places management for the Angular companion.
 - `backend-java/src/main/java/com/ridepulse/api/service/AnalyticsService.java`: owner-scoped Rider Pulse aggregation, rolling windows, rider-local calendar/habit metrics, and safe empty/malformed handling.
 - `web/src/app/features/companion/analytics-page.component.ts`: responsive Rider Pulse goal, coaching, insight groups, resilient history charts, and accessible controls.
 - `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
@@ -282,6 +286,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-07-11: Completed a cross-stack reliability and accessibility review. Java JWT filtering now limits `401` handling to token verification so downstream API failures keep their real status and logging path, and JWT verification rejects signed tokens without expiry or identity claims. Web and mobile authentication and Journal controls now expose required/password-manager metadata, active filter state, explicit field labels and button roles, and stable spoken labels while primary actions are loading. Empty Ride and Navigate maps now show an honest GPS/destination placeholder instead of misleadingly centering on Bengaluru.
 - 2026-07-11: Added a non-destructive ride Cleanup queue across Java, Android, and web. The backend flags only unreviewed near-zero movement recordings, both Journal surfaces expose a Cleanup filter and reason, and Ride Detail tells riders how to keep or explicitly delete the recording.
 - 2026-07-11: Shipped Rider Pulse across Java, Android, and web. The new authenticated `/api/analytics/insights` contract supplies 17 owner-scoped summary signals without route points or PII, including rider-local calendar distance/projection, streak and habit timing via a validated IANA timezone. Mobile and web now add a per-user monthly goal, progress/projection, coaching, 30-day momentum, ride benchmarks, habits, review health, cleanup attention, resilient states, responsive/accessibility polish, and retained history charts. Java bootstrap adds a `rides(user_id, started_at)` index. Mobile Analytics/You/Profile reserve a measured minimum floating-tab clearance so Profile and Logout are no longer hidden by the bottom panel. Android version/runtime `0.1.1` (version code `2`) makes this embedded release authoritative over cached `0.1.0` OTA updates without clearing rider data.
+- 2026-07-14: Added Saved Places across Java, Android, and web. Riders can privately save Home, Office, and custom current locations with a configurable match radius, maintain them from either client, and use them as route-planner shortcuts. New and dynamically loaded Ride Detail intelligence matches route endpoints without exposing the full trace to the AI provider, recognises Home/Office commutes, and produces human routine names. Ride Detail was simplified on both clients by removing confidence/status/model-like metadata and redundant replay/chapter/speed sections from the primary page.
 
 ## Testing Checklist
 
@@ -293,6 +298,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - Confirm Profile shows account details and can add/change/remove the backend-synced display photo.
 - Confirm the same display photo appears on Home, You, and Profile after logout/login and app restart.
 - Confirm Ride Detail can save title/notes and mark reviewed.
+- Confirm Ride Detail shows the story, key stats, map, review, album, and actions without ride confidence, AI status/date, GPS point counts, route replay, chapters, or a duplicate empty state.
 - Confirm Ride Detail can delete the selected ride only after confirmation and returns to Journal.
 - Confirm fresh installs show walkthrough before login, and replay walkthrough works from You.
 - Confirm Ride Detail album can find ride-window photos, manually add photos, remove album copies, and open slideshow.
@@ -318,9 +324,11 @@ https://ktm-ride-mvp-java.onrender.com/health
   - Confirm pending ride uploads.
 - Map test:
   - Navigate tab route appears.
+  - Save Home and Office from both mobile and web, confirm they are account-synced, and confirm their chips route to the stored coordinates rather than geocoding the labels.
+  - Record a ride whose endpoints fall inside the Home and Office radii; confirm Ride Detail names it as a Home-to-Office or Office-to-Home commute.
   - History ride map appears.
   - Tapping a History ride opens Ride Detail.
-  - Ride Detail shows route map, stat cards, route summary, and speed chart.
+  - Ride Detail shows route map, stat cards, and route summary without redundant technical sections.
 - Ride Detail `Import ride photos` requests media permission and lists photos taken during the ride time window.
 - Ride photos with location metadata show camera markers on the ride map.
 - Full-screen map works and does not hide Google current-location controls.

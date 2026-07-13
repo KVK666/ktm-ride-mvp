@@ -3,17 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { ApiService } from '../../core/api.service';
-import { dateLabel, duration, km, kmh, numberValue } from '../../core/format';
+import { dateLabel, duration, km, kmh } from '../../core/format';
 import {
   Ride,
   RideAlbumPhoto,
   RideIntelligence,
-  RidePoint,
-  TripSuggestion,
 } from '../../core/models';
 import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
 import { GoogleRouteMapComponent } from '../../shared/google-route-map.component';
-import { RouteArtComponent } from '../../shared/route-art.component';
 
 @Component({
   selector: 'app-ride-detail-page',
@@ -24,7 +21,6 @@ import { RouteArtComponent } from '../../shared/route-art.component';
     LoadingPulseComponent,
     LucideAngularModule,
     RouterLink,
-    RouteArtComponent,
   ],
   template: `
     <a class="back-link" routerLink="/app/journal">Back to journal</a>
@@ -37,24 +33,18 @@ import { RouteArtComponent } from '../../shared/route-art.component';
             <lucide-icon [name]="aiThinking() ? 'sparkles' : 'activity'" size="24" />
           </div>
           <div>
-            <p class="kicker">{{ aiThinking() ? 'AI THINKING' : 'AI RIDE INTELLIGENCE' }}</p>
+            <p class="kicker">{{ aiThinking() ? 'STORY UPDATING' : 'RIDE STORY' }}</p>
             <h2>{{ displayTitle() }}</h2>
+            <span>{{ dateLabel(current.startedAt) }} · {{ timeLabel(current.startedAt) }}</span>
           </div>
         </div>
-        <div class="badge-row">
-          <span>{{ rideKindLabel() }}</span>
-          <span>{{ confidenceLabel() }}</span>
-          @if (current.aiGeneratedAt) {
-            <span>{{ dateLabel(current.aiGeneratedAt) }}</span>
-          }
-        </div>
-        <p>{{ aiInsight() }}</p>
+        <p>{{ intelligence()?.summaryText || current.aiSummary || aiInsight() }}</p>
         <div class="ai-fact-grid">
           <article>
-            <span>Best signal</span><strong>{{ bestMoment() }}</strong>
+            <span>Why it stands out</span><strong>{{ aiInsight() }}</strong>
           </article>
           <article>
-            <span>Trip assist</span><strong>{{ tripAssistLabel() }}</strong>
+            <span>Best moment</span><strong>{{ bestMoment() }}</strong>
           </article>
         </div>
       </section>
@@ -97,7 +87,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
       <section class="content-section map-section">
         <div class="section-head">
           <h2>Google route map</h2>
-          <span>{{ routePoints().length }} GPS points</span>
+          <span>{{ dateLabel(current.startedAt) }}</span>
         </div>
         <app-google-route-map
           [points]="routePoints()"
@@ -106,7 +96,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
         />
       </section>
 
-      <section class="content-section split-section">
+      <section class="content-section">
         <article class="review-panel">
           <div class="section-head">
             <h2>Ride review</h2>
@@ -144,7 +134,8 @@ import { RouteArtComponent } from '../../shared/route-art.component';
           </div>
         </article>
 
-        <article class="review-panel">
+        @if (duplicates().length) {
+        <article class="review-panel duplicate-panel">
           <div class="section-head">
             <h2>Suspected duplicates</h2>
             <span>{{ duplicates().length }}</span>
@@ -164,22 +155,13 @@ import { RouteArtComponent } from '../../shared/route-art.component';
                   <lucide-icon name="trash-2" size="17" />
                 </button>
               </article>
-            } @empty {
-              <article class="empty-card">No exact duplicate rides found for this route.</article>
             }
           </div>
         </article>
+        }
       </section>
 
-      <section class="content-section split-section">
-        <article class="route-replay">
-          <div class="section-head">
-            <h2>Route pulse</h2>
-            <span>Replay</span>
-          </div>
-          <app-route-art [points]="routePoints()" />
-          <p>A compact visual playback of the GPS trace. Exact turn guidance is not inferred.</p>
-        </article>
+      <section class="content-section">
         <article class="review-panel">
           <div class="section-head">
             <h2>Route summary</h2>
@@ -200,45 +182,6 @@ import { RouteArtComponent } from '../../shared/route-art.component';
             </div>
           </div>
         </article>
-      </section>
-
-      <section class="content-section">
-        <div class="section-head">
-          <h2>Speed over time</h2>
-          <span>{{ speedPoints().length }} samples</span>
-        </div>
-        <div class="bars speed-bars">
-          @for (point of speedPoints(); track point.recordedAt) {
-            <div
-              class="bar-wrap"
-              [title]="timeLabel(point.recordedAt) + ' / ' + kmh(point.speedKmh)"
-            >
-              <span class="bar" [style.height.%]="speedHeight(point.speedKmh)"></span>
-            </div>
-          } @empty {
-            <article class="empty-card">Speed samples unavailable.</article>
-          }
-        </div>
-      </section>
-
-      <section class="content-section">
-        <div class="section-head">
-          <h2>Chapters</h2>
-          <span>{{
-            intelligence()?.highlightReason || current.highlightReason || 'Smart journal'
-          }}</span>
-        </div>
-        <div class="chapter-list">
-          @for (chapter of intelligence()?.chapters || []; track chapter.id) {
-            <article class="chapter-card">
-              <strong>{{ chapter.title }}</strong>
-              <p>{{ chapter.body }}</p>
-              <span>{{ timeLabel(chapter.timestamp || undefined) }}</span>
-            </article>
-          } @empty {
-            <article class="empty-card">No generated chapters for this ride yet.</article>
-          }
-        </div>
       </section>
 
       <section class="content-section album-section">
@@ -290,10 +233,10 @@ import { RouteArtComponent } from '../../shared/route-art.component';
       <section class="content-section split-section">
         <article class="review-panel">
           <div class="section-head">
-            <h2>Ride story</h2>
-            <span>Share tools</span>
+            <h2>Share this ride</h2>
+            <span>Story tools</span>
           </div>
-          <p>{{ storyPrompt() }}</p>
+          <p>Create a visual memory from this ride without exposing private account data.</p>
           <div class="button-row">
             <button type="button" class="primary-action" (click)="copyStoryPrompt()">
               <lucide-icon name="copy" size="17" /> Copy prompt
@@ -383,12 +326,6 @@ export class RideDetailPageComponent implements OnDestroy, OnInit {
   readonly routePoints = computed(() =>
     this.ride()?.points?.length ? this.ride()?.points || [] : this.ride()?.routePreview || [],
   );
-  readonly speedPoints = computed(() =>
-    (this.ride()?.points || []).filter((point) => numberValue(point.speedKmh) > 0),
-  );
-  readonly maxSpeed = computed(() =>
-    Math.max(...this.speedPoints().map((point) => numberValue(point.speedKmh)), 1),
-  );
   readonly displayTitle = computed(() => {
     const ride = this.ride();
     return (
@@ -407,15 +344,6 @@ export class RideDetailPageComponent implements OnDestroy, OnInit {
   readonly aiThinking = computed(
     () => (this.intelligence()?.classification?.status || this.ride()?.aiStatus) === 'pending',
   );
-  readonly rideKindLabel = computed(
-    () => this.intelligence()?.classification?.label || this.kindLabel(this.ride()?.rideKind),
-  );
-  readonly confidenceLabel = computed(() => {
-    const confidence = numberValue(
-      this.intelligence()?.classification?.confidence ?? this.ride()?.rideKindConfidence,
-    );
-    return confidence > 0 ? `${Math.round(confidence * 100)}% confidence` : 'Learning';
-  });
   readonly aiInsight = computed(() => {
     if (this.aiThinking()) {
       return 'RidePulse saved the ride first and is building a smarter name, summary, and trip decision now.';
@@ -436,19 +364,6 @@ export class RideDetailPageComponent implements OnDestroy, OnInit {
       this.ride()?.bestMoment ||
       `${kmh(this.ride()?.topSpeedKmh)} top speed`,
   );
-  readonly tripAssistLabel = computed(() => {
-    const suggestion = this.tripSuggestion(
-      this.intelligence()?.tripAutomation || this.ride()?.tripSuggestion,
-    );
-    if (!suggestion) return 'No trip action yet';
-    if (suggestion.action === 'auto_created')
-      return suggestion.title ? `Created ${suggestion.title}` : 'Created a trip';
-    if (suggestion.action === 'auto_added')
-      return suggestion.title ? `Added to ${suggestion.title}` : 'Added to a trip';
-    if (['suggest', 'auto_add', 'auto_create'].includes(suggestion.action))
-      return suggestion.title ? `Suggests ${suggestion.title}` : 'Trip suggestion ready';
-    return 'No confident trip match';
-  });
   readonly storyPrompt = computed(() => {
     const ride = this.ride();
     if (!ride) {
@@ -642,10 +557,6 @@ export class RideDetailPageComponent implements OnDestroy, OnInit {
     return `data:${photo.mimeType};base64,${photo.imageBase64}`;
   }
 
-  speedHeight(value: unknown) {
-    return Math.max(6, (numberValue(value) / this.maxSpeed()) * 100);
-  }
-
   timeLabel(value?: string) {
     const date = value ? new Date(value) : null;
     return date && Number.isFinite(date.getTime())
@@ -705,37 +616,6 @@ export class RideDetailPageComponent implements OnDestroy, OnInit {
       return '';
     }
     return label.length > 72 ? label.slice(0, 72) : label;
-  }
-
-  private kindLabel(kind?: string | null) {
-    switch (kind) {
-      case 'commute':
-        return 'Commute';
-      case 'short_spin':
-        return 'Short spin';
-      case 'city_errand':
-        return 'City errand';
-      case 'long_trip':
-        return 'Long trip';
-      case 'fast_ride':
-        return 'Fast ride';
-      case 'night_ride':
-        return 'Night ride';
-      default:
-        return 'Scenic ride';
-    }
-  }
-
-  private tripSuggestion(value: TripSuggestion | string | null | undefined): TripSuggestion | null {
-    if (!value) return null;
-    if (typeof value === 'string') {
-      try {
-        return this.tripSuggestion(JSON.parse(value));
-      } catch {
-        return null;
-      }
-    }
-    return value;
   }
 
   private rideId() {

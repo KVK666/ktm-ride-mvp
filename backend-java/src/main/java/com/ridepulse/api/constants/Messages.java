@@ -39,6 +39,12 @@ public final class Messages {
   public static final String RESET_PASSWORD_TOO_SHORT = "Password must be at least 8 characters.";
   public static final String RESET_PASSWORD_UPDATED = "Password updated. Please sign in with your new password.";
   public static final String VALID_EMAIL_REQUIRED = "Enter a valid email address.";
+  public static final String SAVED_PLACE_NOT_FOUND = "Saved place not found";
+  public static final String SAVED_PLACE_LABEL_REQUIRED = "Saved place name must be between 1 and 60 characters";
+  public static final String SAVED_PLACE_COORDINATES_INVALID = "Saved place needs valid latitude and longitude";
+  public static final String SAVED_PLACE_RADIUS_INVALID = "Saved place radius must be between 50 and 1,000 metres";
+  public static final String SAVED_PLACE_DUPLICATE = "A saved place with this name already exists";
+  public static final String SAVED_PLACE_LIMIT = "You can save up to 20 places";
 
   private Messages() {}
 }

@@ -39,6 +39,7 @@ public class SchemaService {
         QueryKeys.SCHEMA_RIDE_ALBUM_TABLE,
         QueryKeys.SCHEMA_TRIPS_TABLE,
         QueryKeys.SCHEMA_TRIP_RIDES_TABLE,
+        QueryKeys.SCHEMA_SAVED_PLACES_TABLE,
         QueryKeys.SCHEMA_RIDE_AI_TITLE,
         QueryKeys.SCHEMA_RIDE_AI_SUMMARY,
         QueryKeys.SCHEMA_RIDE_KIND,
@@ -55,6 +56,7 @@ public class SchemaService {
         QueryKeys.SCHEMA_RIDE_PHOTO_USER_INDEX,
         QueryKeys.SCHEMA_TRIPS_USER_INDEX,
         QueryKeys.SCHEMA_TRIP_RIDES_RIDE_INDEX,
+        QueryKeys.SCHEMA_SAVED_PLACES_USER_LABEL_INDEX,
         QueryKeys.SCHEMA_RIDES_USER_STARTED_INDEX);
   }
 }

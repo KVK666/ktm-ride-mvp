@@ -2,17 +2,22 @@ package com.ridepulse.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ridepulse.api.repository.RideRepository;
+import com.ridepulse.api.repository.SavedPlaceRepository;
 import com.ridepulse.api.repository.TripRepository;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class RideAiIntelligenceServiceTest {
+  private final SavedPlaceRepository savedPlaceRepository = mock(SavedPlaceRepository.class);
   private final RideAiIntelligenceService service = new RideAiIntelligenceService(
       mock(RideRepository.class),
       mock(TripRepository.class),
+      savedPlaceRepository,
       new ObjectMapper(),
       "",
       "gpt-4o-mini",
@@ -58,10 +63,36 @@ class RideAiIntelligenceServiceTest {
   }
 
   @Test
+  void savedHomeAndOfficeCreateAUsefulCommuteTitle() {
+    when(savedPlaceRepository.list("owner-1")).thenReturn(List.of(
+        Map.of("label", "Home", "kind", "home", "latitude", 12.9716, "longitude", 77.5946, "radiusM", 200),
+        Map.of("label", "Office", "kind", "office", "latitude", 12.9352, "longitude", 77.6245, "radiusM", 200)));
+    Map<String, Object> ride = Map.of(
+        "id", "ride-1",
+        "startLatitude", 12.9717,
+        "startLongitude", 77.5947,
+        "endLatitude", 12.9353,
+        "endLongitude", 77.6246,
+        "distanceM", 8500,
+        "durationS", 1500,
+        "topSpeedKmh", 52,
+        "avgSpeedKmh", 24,
+        "startedAt", "2026-07-14T03:30:00Z");
+
+    Map<String, Object> decorated = service.decorateIntelligence("owner-1", Map.of(), ride);
+
+    assertThat(decorated.get("suggestedTitle")).asString()
+        .contains("commute")
+        .contains("Home to Office");
+    assertThat(decorated.get("classification")).asString().contains("commute");
+  }
+
+  @Test
   void configStatusReportsNonSecretProviderSettings() {
     RideAiIntelligenceService configured = new RideAiIntelligenceService(
         mock(RideRepository.class),
         mock(TripRepository.class),
+        mock(SavedPlaceRepository.class),
         new ObjectMapper(),
         "sk-test-secret",
         "gpt-test",

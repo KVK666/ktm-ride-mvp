@@ -56,7 +56,7 @@ public class RideService {
     Map<String, Object> context = Map.of(
         "monthDistanceM", Rows.numeric(statsRow.get("month_distance_m")),
         "longestRideDistanceM", Rows.numeric(statsRow.get("longest_ride_distance_m")));
-    return Map.of("intelligence", rideAiIntelligenceService.decorateIntelligence(
+    return Map.of("intelligence", rideAiIntelligenceService.decorateIntelligence(userId,
         journalIntelligenceService.buildRideIntelligence(ride, rideRepository.intelligencePoints(rideId), context),
         ride));
   }

@@ -9,6 +9,7 @@ import { JournalPageComponent } from './features/companion/journal-page.componen
 import { NavigatePageComponent } from './features/companion/navigate-page.component';
 import { ProfilePageComponent } from './features/companion/profile-page.component';
 import { ReportsPageComponent } from './features/companion/reports-page.component';
+import { SavedPlacesPageComponent } from './features/companion/saved-places-page.component';
 import { RideDetailPageComponent } from './features/companion/ride-detail-page.component';
 import { TripDetailPageComponent } from './features/companion/trip-detail-page.component';
 import { TripsPageComponent } from './features/companion/trips-page.component';
@@ -33,6 +34,7 @@ export const routes: Routes = [
       { path: 'navigate', component: NavigatePageComponent, title: 'RidePulse navigate' },
       { path: 'analytics', component: AnalyticsPageComponent, title: 'Ride analytics' },
       { path: 'reports', component: ReportsPageComponent, title: 'Ride reports' },
+      { path: 'places', component: SavedPlacesPageComponent, title: 'RidePulse saved places' },
       { path: 'you', component: YouPageComponent, title: 'RidePulse you' },
       { path: 'profile', component: ProfilePageComponent, title: 'RidePulse profile' }
     ]

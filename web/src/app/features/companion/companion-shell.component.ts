@@ -101,6 +101,7 @@ export class CompanionShellComponent implements OnInit {
     { path: '/app/journal', label: 'Journal', icon: 'history' },
     { path: '/app/trips', label: 'Trips', icon: 'folder-open' },
     { path: '/app/navigate', label: 'Navigate', icon: 'navigation' },
+    { path: '/app/places', label: 'Places', icon: 'map-pin' },
     { path: '/app/analytics', label: 'Analytics', icon: 'chart-column-increasing' },
     { path: '/app/reports', label: 'Reports', icon: 'file-text' },
     { path: '/app/you', label: 'You', icon: 'activity' },

@@ -1,8 +1,9 @@
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { GoogleMapsService } from '../../core/google-maps.service';
-import { Coordinate, RouteDetails } from '../../core/models';
+import { Coordinate, RouteDetails, SavedPlace } from '../../core/models';
+import { ApiService } from '../../core/api.service';
 import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
 import { GoogleRouteMapComponent } from '../../shared/google-route-map.component';
 import { kmh } from '../../core/format';
@@ -18,10 +19,21 @@ import { kmh } from '../../core/format';
       <p>A clear route preview for the road ahead. This is foreground planning only, not web ride recording.</p>
     </section>
 
+    @if (savedPlaces().length) {
+      <div class="filter-bar" role="group" aria-label="Saved destinations">
+        @for (place of savedPlaces(); track place.id) {
+          <button type="button" [class.active]="selectedPlace()?.id === place.id" (click)="choosePlace(place)">
+            <lucide-icon [name]="place.kind === 'home' ? 'house' : place.kind === 'office' ? 'building-2' : 'map-pin'" size="15" />
+            {{ place.label }}
+          </button>
+        }
+      </div>
+    }
+
     <section class="search-panel">
       <label>
         Destination
-        <input [(ngModel)]="destination" placeholder="Where are you riding?" (keydown.enter)="requestRoute()" />
+        <input [(ngModel)]="destination" (ngModelChange)="selectedPlace.set(null)" placeholder="Where are you riding?" (keydown.enter)="requestRoute()" />
       </label>
       <button type="button" class="primary-action" [disabled]="loading()" (click)="requestRoute()">
         <lucide-icon name="navigation" size="18" /> Go
@@ -62,9 +74,12 @@ import { kmh } from '../../core/format';
     </section>
   `
 })
-export class NavigatePageComponent implements OnDestroy {
+export class NavigatePageComponent implements OnDestroy, OnInit {
   private readonly maps = inject(GoogleMapsService);
+  private readonly api = inject(ApiService);
   destination = '';
+  readonly savedPlaces = signal<SavedPlace[]>([]);
+  readonly selectedPlace = signal<SavedPlace | null>(null);
   readonly route = signal<RouteDetails | null>(null);
   readonly current = signal<Coordinate | null>(null);
   readonly speed = signal(0);
@@ -93,6 +108,18 @@ export class NavigatePageComponent implements OnDestroy {
     return Math.round((nearestIndex / Math.max(1, coordinates.length - 1)) * 100);
   });
 
+  ngOnInit() {
+    void this.api.optional<{ places?: SavedPlace[] }>('/places').then((response) => {
+      this.savedPlaces.set(Array.isArray(response?.places) ? response.places : []);
+    });
+  }
+
+  choosePlace(place: SavedPlace) {
+    this.selectedPlace.set(place);
+    this.destination = place.label;
+    this.error.set('');
+  }
+
   ngOnDestroy() {
     if (this.watchId != null) {
       navigator.geolocation.clearWatch(this.watchId);
@@ -120,7 +147,11 @@ export class NavigatePageComponent implements OnDestroy {
       const origin = await this.currentPosition();
       this.current.set(origin);
       this.watchLocation();
-      this.route.set(await this.maps.route(origin, this.destination.trim()));
+      const selected = this.selectedPlace();
+      const destination = selected && this.destination.trim() === selected.label
+        ? { latitude: selected.latitude, longitude: selected.longitude }
+        : this.destination.trim();
+      this.route.set(await this.maps.route(origin, destination));
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Navigation unavailable. Check location permission and Maps configuration.');
     } finally {

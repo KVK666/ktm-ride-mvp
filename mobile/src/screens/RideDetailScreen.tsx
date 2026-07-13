@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Linking,
   Modal,
@@ -18,14 +17,10 @@ import {
   View
 } from "react-native";
 import ImageViewing from "react-native-image-viewing";
-import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { captureRef } from "react-native-view-shot";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Metric } from "../components/Metric";
-import { ChapterTimeline } from "../components/ChapterTimeline";
-import { RideBadge } from "../components/RideBadge";
-import { RouteReplay } from "../components/RouteReplay";
 import { RideSlideshowModal } from "../components/RideSlideshowModal";
 import { RideMap } from "../components/RideMap";
 import { Screen } from "../components/Screen";
@@ -54,8 +49,6 @@ type RideDetailParams = {
     reviewMode?: boolean;
   };
 };
-
-const chartWidth = Dimensions.get("window").width - 40;
 
 export function RideDetailScreen() {
   const { colors } = useTheme();
@@ -232,7 +225,6 @@ export function RideDetailScreen() {
     };
   }, [promptModalOpen, promptWeatherRideId, ride]);
 
-  const speedChart = useMemo(() => buildSpeedChart(ride?.points || []), [ride?.points]);
   const needsReview = !ride?.reviewedAt;
   const photosWithLocation = useMemo(() => photos.filter((photo) => photo.hasLocation), [photos]);
   const viewerImages = useMemo(() => photos.map((photo) => ({ uri: photo.uri })), [photos]);
@@ -678,12 +670,13 @@ export function RideDetailScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
         <AIInsightHero ride={ride} intelligence={intelligence} title={displayTitle} />
-        <View style={styles.hero}>
-          <Text style={styles.kicker}>JOURNEY</Text>
-          <Text style={styles.title}>{displayTitle}</Text>
-          <Text style={styles.subtitle}>
-            {time(ride.startedAt)} to {ride.endedAt ? time(ride.endedAt) : "--"}
-          </Text>
+
+        <View style={styles.metricStrip}>
+          <Metric label="DISTANCE" value={km(ride.distanceM)} accent />
+          <View style={styles.metricDivider} />
+          <Metric label="DURATION" value={duration(ride.durationS)} />
+          <View style={styles.metricDivider} />
+          <Metric label="TOP SPEED" value={kmh(ride.topSpeedKmh)} />
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -701,32 +694,12 @@ export function RideDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.smartCard}>
-          <Text style={styles.kicker}>SMART JOURNAL</Text>
-          <Text style={styles.smartTitle}>{intelligence?.summaryText || ride.aiSummary || ride.summaryText || "RidePulse built a story layer from this ride's saved route."}</Text>
-          {intelligence?.highlightReason || ride.highlightReason ? <Text style={styles.sectionMeta}>{intelligence?.highlightReason || ride.highlightReason}</Text> : null}
-          {ride.albumHint ? <Text style={styles.albumHint}>{ride.albumHint}</Text> : null}
-          {intelligence?.badges?.length || ride.badges?.length ? (
-            <View style={styles.badgeRow}>
-              {(intelligence?.badges || ride.badges || []).slice(0, 4).map((badge, index) => (
-                <RideBadge key={`${badge}-${index}`} label={badge} tone={index === 0 ? "accent" : "blue"} />
-              ))}
-            </View>
-          ) : null}
-          {intelligence?.suggestedTitle && !titleDraft.trim() ? (
-            <Pressable onPress={() => setTitleDraft(intelligence.suggestedTitle)} style={styles.suggestButton}>
-              <Ionicons name="create" color={colors.onAccent} size={16} />
-              <Text style={styles.suggestButtonText}>Use suggested title</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>Ride story</Text>
+              <Text style={styles.sectionTitle}>Share & organise</Text>
               <Text style={styles.sectionMeta}>
-                Share a local story image, or copy a varied ChatGPT prompt for a custom AI image.
+                Share this memory or add it to a trip album.
               </Text>
             </View>
           </View>
@@ -744,20 +717,9 @@ export function RideDetailScreen() {
               compact
               onPress={openPromptModal}
             />
+            <PrimaryButton label="Add to trip" icon="albums" compact onPress={openTripModal} />
           </View>
           {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>Trip album</Text>
-              <Text style={styles.sectionMeta}>
-                Add this ride to a manual trip album, or create a new trip around it.
-              </Text>
-            </View>
-          </View>
-          <PrimaryButton label="Add to trip" icon="albums" compact onPress={openTripModal} />
         </View>
 
         <View style={[styles.card, needsReview && styles.reviewCard]}>
@@ -819,10 +781,9 @@ export function RideDetailScreen() {
             />
           </View>
 
-          <View style={styles.duplicateBlock}>
+          {duplicateRides.length ? <View style={styles.duplicateBlock}>
             <Text style={styles.duplicateTitle}>Suspected duplicates</Text>
-            {duplicateRides.length ? (
-              duplicateRides.map((duplicate) => (
+            {duplicateRides.map((duplicate) => (
                 <View key={duplicate.id} style={styles.duplicateCard}>
                   <View style={styles.duplicateText}>
                     <Text numberOfLines={2} style={styles.duplicateName}>{rideTitle(duplicate)}</Text>
@@ -843,11 +804,8 @@ export function RideDetailScreen() {
                     <Ionicons name="trash" color={colors.text} size={18} />
                   </Pressable>
                 </View>
-              ))
-            ) : (
-              <Text style={styles.sectionMeta}>No exact duplicate rides found for this route.</Text>
-            )}
-          </View>
+              ))}
+          </View> : null}
         </View>
 
         {ride.points?.length ? (
@@ -864,24 +822,11 @@ export function RideDetailScreen() {
           </View>
         )}
 
-        <RouteReplay coordinates={ride.points?.length ? ride.points : ride.routePreview} title="Route pulse" />
-
-        <ChapterTimeline chapters={intelligence?.chapters || []} />
-
-        <View style={styles.metricStrip}>
-          <Metric label="DISTANCE" value={km(ride.distanceM)} accent />
-          <View style={styles.metricDivider} />
-          <Metric label="DURATION" value={duration(ride.durationS)} />
-          <View style={styles.metricDivider} />
-          <Metric label="TOP SPEED" value={kmh(ride.topSpeedKmh)} />
-        </View>
-
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Route summary</Text>
           <RouteRow icon="radio-button-on" label="From" value={ride.startLabel} />
           <RouteRow icon="flag" label="To" value={ride.endLabel} />
           <RouteRow icon="calendar" label="Date" value={`${shortDate(ride.startedAt)} at ${time(ride.startedAt)}`} />
-          <RouteRow icon="pulse" label="GPS points" value={`${ride.points?.length || 0}`} />
         </View>
 
         <View style={styles.albumCard}>
@@ -957,11 +902,6 @@ export function RideDetailScreen() {
               </Text>
             </View>
           ) : null}
-        </View>
-
-        <View style={styles.chartBlock}>
-          <Text style={styles.sectionTitle}>Speed over time</Text>
-          <SpeedTrend data={speedChart.data} labels={speedChart.labels} width={chartWidth} colors={colors} />
         </View>
 
         <View style={styles.dangerCard}>
@@ -1133,15 +1073,11 @@ export function RideDetailScreen() {
 function AIInsightHero({ ride, intelligence, title }: { ride: Ride; intelligence: RideIntelligence | null; title: string }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const classification = intelligence?.classification;
-  const kindLabel = classification?.label || rideKindLabel(ride.rideKind) || "Smart ride";
-  const confidence = finiteNumber(classification?.confidence ?? ride.rideKindConfidence ?? 0);
-  const confidenceLabel = confidence > 0 ? `${Math.round(confidence * 100)}% confidence` : "Learning from this ride";
-  const status = classification?.status || ride.aiStatus || "fallback";
-  const tripSuggestion = intelligence?.tripAutomation || parseTripSuggestion(ride.tripSuggestion);
-  const tripText = tripSuggestionText(tripSuggestion);
+  const status = intelligence?.classification?.status || ride.aiStatus || "fallback";
   const bestMetric = bestMetricText(ride, intelligence);
   const thinking = status === "pending";
+  const summary = intelligence?.summaryText || ride.aiSummary || ride.summaryText;
+  const insight = intelligence?.keyInsight || ride.keyInsight;
 
   return (
     <View style={styles.aiHero}>
@@ -1150,34 +1086,28 @@ function AIInsightHero({ ride, intelligence, title }: { ride: Ride; intelligence
           <Ionicons name={thinking ? "sparkles" : "analytics"} color={colors.onAccent} size={22} />
         </View>
         <View style={styles.aiHeroText}>
-          <Text style={styles.aiKicker}>{thinking ? "AI THINKING" : "AI RIDE INTELLIGENCE"}</Text>
+          <Text style={styles.aiKicker}>{thinking ? "STORY UPDATING" : "RIDE STORY"}</Text>
           <Text numberOfLines={2} style={styles.aiTitle}>{title}</Text>
+          <Text style={styles.aiDate}>{shortDate(ride.startedAt)} · {time(ride.startedAt)}{ride.endedAt ? `–${time(ride.endedAt)}` : ""}</Text>
         </View>
-      </View>
-
-      <View style={styles.aiTypeRow}>
-        <View style={styles.aiTypePill}>
-          <Text style={styles.aiTypeText}>{kindLabel}</Text>
-        </View>
-        <Text style={styles.aiConfidence}>{confidenceLabel}</Text>
       </View>
 
       <Text style={styles.aiInsight}>
         {thinking
-          ? "RidePulse saved the ride first and is now building the smarter name, summary, and trip decision."
-          : intelligence?.keyInsight || ride.keyInsight || classification?.reason || ride.rideKindReason || "RidePulse built this from distance, speed, and timing signals."}
+          ? "Your ride is saved. RidePulse is finishing its story now."
+          : summary || "A saved journey ready for your notes, photos, and memories."}
       </Text>
 
-      <View style={styles.aiFactGrid}>
+      {!thinking && (insight || bestMetric) ? <View style={styles.aiFactGrid}>
         <View style={styles.aiFact}>
-          <Text style={styles.aiFactLabel}>Best signal</Text>
-          <Text numberOfLines={2} style={styles.aiFactValue}>{bestMetric}</Text>
+          <Text style={styles.aiFactLabel}>Why it stands out</Text>
+          <Text numberOfLines={3} style={styles.aiFactValue}>{insight || "A route worth remembering."}</Text>
         </View>
         <View style={styles.aiFact}>
-          <Text style={styles.aiFactLabel}>Trip assist</Text>
-          <Text numberOfLines={2} style={styles.aiFactValue}>{tripText}</Text>
+          <Text style={styles.aiFactLabel}>Best moment</Text>
+          <Text numberOfLines={3} style={styles.aiFactValue}>{bestMetric}</Text>
         </View>
-      </View>
+      </View> : null}
     </View>
   );
 }
@@ -1487,45 +1417,6 @@ function RouteRow({
   );
 }
 
-function SpeedTrend({ data, labels, width, colors }: { data: number[]; labels: string[]; width: number; colors: ThemeColors }) {
-  const styles = useThemedStyles(createStyles);
-  const safeData = data.length ? data.map(finiteNumber) : [0];
-  const height = 190;
-  const padding = 18;
-  const max = Math.max(...safeData, 1);
-  const points = safeData.map((value, index) => ({
-    x: padding + (index / Math.max(1, safeData.length - 1)) * (width - padding * 2),
-    y: height - padding - (value / max) * (height - padding * 2)
-  }));
-  return (
-    <View accessibilityLabel={`Speed trend, maximum ${Math.round(max)} kilometres per hour`}>
-      <Svg width={width} height={height}>
-        {[0.25, 0.5, 0.75].map((position) => <Line key={position} x1={padding} x2={width - padding} y1={height * position} y2={height * position} stroke={colors.border} strokeDasharray="3 8" />)}
-        <Polyline points={points.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke={colors.accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-        {points.map((point, index) => <Circle key={index} cx={point.x} cy={point.y} r="4" fill={colors.surface} stroke={colors.accent} strokeWidth="3" />)}
-      </Svg>
-      <View style={styles.speedLabels}>{labels.map((label, index) => <Text key={`${label}-${index}`} style={styles.speedLabel}>{label}</Text>)}</View>
-    </View>
-  );
-}
-
-function buildSpeedChart(points: RidePoint[]) {
-  const speeds = points.map((point) => Math.max(0, Math.round(finiteNumber(point.speedKmh))));
-  if (!speeds.length) {
-    return { labels: ["--"], data: [0] };
-  }
-
-  const sampleCount = Math.min(6, speeds.length);
-  const step = Math.max(1, Math.floor(speeds.length / sampleCount));
-  const sampled = points.filter((_, index) => index % step === 0).slice(0, sampleCount);
-  const labels = sampled.map((point) => time(point.recordedAt));
-  const data = sampled.map((point) => Math.max(0, Math.round(finiteNumber(point.speedKmh))));
-  return {
-    labels: labels.length ? labels : ["--"],
-    data: data.length ? data : [0]
-  };
-}
-
 function normalizeRide(ride: any): Ride {
   return {
     ...ride,
@@ -1641,6 +1532,12 @@ const createStyles = (colors: ThemeColors) => ({
     fontSize: 24,
     lineHeight: 30,
     marginTop: 3
+  },
+  aiDate: {
+    color: colors.muted,
+    fontFamily: typography.medium,
+    fontSize: 11,
+    marginTop: 4
   },
   aiTypeRow: {
     flexDirection: "row",

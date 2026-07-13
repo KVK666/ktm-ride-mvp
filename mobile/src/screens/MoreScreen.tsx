@@ -17,6 +17,7 @@ import { km } from "../utils/format";
 const destinations = [
   { route: "Analytics", icon: "analytics" as const, eyebrow: "PERFORMANCE", title: "Insights", description: "Patterns hiding inside every kilometre" },
   { route: "Reports", icon: "document-text" as const, eyebrow: "EXPORT", title: "Ride reports", description: "Clean summaries ready to save or share" },
+  { route: "SavedPlaces", icon: "location" as const, eyebrow: "SMART ROUTINES", title: "Saved places", description: "Teach RidePulse your Home, Office and regular stops" },
   { route: "Profile", icon: "settings" as const, eyebrow: "RIDER", title: "Profile & settings", description: "Motorcycle, appearance, tracking and diagnostics" }
 ];
 

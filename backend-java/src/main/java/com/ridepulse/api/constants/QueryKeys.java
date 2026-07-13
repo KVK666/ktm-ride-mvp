@@ -52,6 +52,13 @@ public final class QueryKeys {
   public static final String PROFILE_UPDATE_PHOTO = "profile.update-photo";
   public static final String PROFILE_DELETE_PHOTO = "profile.delete-photo";
 
+  public static final String SAVED_PLACE_LIST = "saved-place.list";
+  public static final String SAVED_PLACE_BY_ID = "saved-place.by-id";
+  public static final String SAVED_PLACE_COUNT = "saved-place.count";
+  public static final String SAVED_PLACE_INSERT = "saved-place.insert";
+  public static final String SAVED_PLACE_UPDATE = "saved-place.update";
+  public static final String SAVED_PLACE_DELETE = "saved-place.delete";
+
   public static final String TRIP_LIST = "trip.list";
   public static final String TRIP_BY_ID = "trip.by-id";
   public static final String TRIP_RIDES = "trip.rides";
@@ -88,6 +95,8 @@ public final class QueryKeys {
   public static final String SCHEMA_TRIPS_USER_INDEX = "schema.trips-user-index";
   public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
   public static final String SCHEMA_RIDES_USER_STARTED_INDEX = "schema.rides-user-started-index";
+  public static final String SCHEMA_SAVED_PLACES_TABLE = "schema.saved-places-table";
+  public static final String SCHEMA_SAVED_PLACES_USER_LABEL_INDEX = "schema.saved-places-user-label-index";
 
   private QueryKeys() {}
 }

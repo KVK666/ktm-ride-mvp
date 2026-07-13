@@ -4,18 +4,21 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { fetchRoute, geocodeDestination, RouteDetails } from "../api/googleMaps";
+import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SafetyModal } from "../components/SafetyModal";
 import { Screen } from "../components/Screen";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
-import { Coordinate } from "../types";
+import { Coordinate, SavedPlace } from "../types";
 
 export function NavigateScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const mapRef = useRef<MapView | null>(null);
   const [destination, setDestination] = useState("");
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<SavedPlace | null>(null);
   const [current, setCurrent] = useState<Coordinate | null>(null);
   const [route, setRoute] = useState<RouteDetails | null>(null);
   const [speed, setSpeed] = useState(0);
@@ -27,6 +30,9 @@ export function NavigateScreen() {
   const subscription = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
+    api<{ places: SavedPlace[] }>("/places")
+      .then((response) => setSavedPlaces(Array.isArray(response.places) ? response.places : []))
+      .catch(() => setSavedPlaces([]));
     return () => {
       subscription.current?.remove();
     };
@@ -113,7 +119,9 @@ export function NavigateScreen() {
         }
       );
 
-      const destinationPoint = await geocodeDestination(destination);
+      const destinationPoint = selectedPlace && destination === selectedPlace.label
+        ? { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude }
+        : await geocodeDestination(destination);
       const nextRoute = await fetchRoute(origin, destinationPoint);
       setRoute(nextRoute);
     } catch (err: any) {
@@ -138,13 +146,27 @@ export function NavigateScreen() {
           <TextInput
             accessibilityLabel="Destination"
             value={destination}
-            onChangeText={setDestination}
+            onChangeText={(value) => { setDestination(value); setSelectedPlace(null); }}
             placeholder="Where are you riding?"
             placeholderTextColor={colors.muted}
             style={styles.input}
           />
           <PrimaryButton label="Go" icon="navigate" loading={loading} onPress={requestRoute} />
         </View>
+        {savedPlaces.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.placeChips}>
+            {savedPlaces.map((place) => (
+              <Pressable
+                key={place.id}
+                onPress={() => { setSelectedPlace(place); setDestination(place.label); setError(""); }}
+                style={[styles.placeChip, selectedPlace?.id === place.id && styles.placeChipActive]}
+              >
+                <Ionicons name={place.kind === "home" ? "home" : place.kind === "office" ? "business" : "location"} color={selectedPlace?.id === place.id ? colors.onAccent : colors.text} size={16} />
+                <Text style={[styles.placeChipText, selectedPlace?.id === place.id && styles.placeChipTextActive]}>{place.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.mapShell}>
@@ -330,6 +352,11 @@ const createStyles = (colors: ThemeColors) => ({
     backgroundColor: colors.surface,
     elevation: 5
   },
+  placeChips: { gap: 8, paddingRight: 20 },
+  placeChip: { minHeight: 40, borderRadius: 14, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: colors.surface },
+  placeChipActive: { backgroundColor: colors.accent },
+  placeChipText: { color: colors.text, fontFamily: typography.bold, fontSize: 12 },
+  placeChipTextActive: { color: colors.onAccent },
   input: {
     flex: 1,
     backgroundColor: colors.surfaceHigh,
