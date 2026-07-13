@@ -32,7 +32,7 @@ public class SavedPlacesController {
 
   @GetMapping
   ApiResponse<Map<String, Object>> list(HttpServletRequest request) {
-    return ResponseUtil.ok(savedPlaceService.list(authSupport.user(request).id()));
+    return ResponseUtil.ok(savedPlaceService.list(authSupport.userId(request)));
   }
 
   @PostMapping
@@ -40,7 +40,7 @@ public class SavedPlacesController {
       HttpServletRequest request,
       @RequestBody(required = false) Map<String, Object> body) {
     return ResponseEntity.status(HttpStatus.CREATED).body(ResponseUtil.created(savedPlaceService.create(
-        authSupport.user(request).id(), ValidationUtil.requestBody(body, Messages.SAVED_PLACE_COORDINATES_INVALID))));
+        authSupport.userId(request), ValidationUtil.requestBody(body, Messages.SAVED_PLACE_COORDINATES_INVALID))));
   }
 
   @PatchMapping("/{id}")
@@ -49,7 +49,7 @@ public class SavedPlacesController {
       @PathVariable String id,
       @RequestBody(required = false) Map<String, Object> body) {
     return ResponseUtil.ok(savedPlaceService.update(
-        authSupport.user(request).id(),
+        authSupport.userId(request),
         ValidationUtil.requiredPath(id, Messages.SAVED_PLACE_NOT_FOUND),
         ValidationUtil.requestBody(body, Messages.SAVED_PLACE_COORDINATES_INVALID)));
   }
@@ -57,7 +57,7 @@ public class SavedPlacesController {
   @DeleteMapping("/{id}")
   ApiResponse<Void> delete(HttpServletRequest request, @PathVariable String id) {
     savedPlaceService.delete(
-        authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.SAVED_PLACE_NOT_FOUND));
+        authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.SAVED_PLACE_NOT_FOUND));
     return ResponseUtil.deleted();
   }
 }

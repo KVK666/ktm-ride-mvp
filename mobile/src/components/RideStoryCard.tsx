@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { Coordinate, Ride } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
+import { normalizeFiniteCoordinates, sampleEvenly } from "../utils/coordinates";
 
 export const RIDE_STORY_WIDTH = 360;
 export const RIDE_STORY_HEIGHT = 640;
@@ -119,26 +120,7 @@ function storyCoordinates(ride: Ride) {
     { latitude: ride.startLatitude, longitude: ride.startLongitude },
     { latitude: ride.endLatitude, longitude: ride.endLongitude }
   ];
-  return sampleCoordinates(normalizeCoordinates(points), 90);
-}
-
-function normalizeCoordinates(coordinates: Coordinate[]) {
-  return coordinates.filter((coordinate) =>
-    Number.isFinite(Number(coordinate.latitude)) && Number.isFinite(Number(coordinate.longitude))
-  );
-}
-
-function sampleCoordinates<T>(coordinates: T[], maxPoints: number) {
-  if (coordinates.length <= maxPoints) {
-    return coordinates;
-  }
-
-  const sampled: T[] = [];
-  const step = (coordinates.length - 1) / (maxPoints - 1);
-  for (let index = 0; index < maxPoints; index += 1) {
-    sampled.push(coordinates[Math.round(index * step)]);
-  }
-  return sampled;
+  return sampleEvenly(normalizeFiniteCoordinates(points), 90);
 }
 
 function buildRoutePath(coordinates: Coordinate[], width: number, height: number) {

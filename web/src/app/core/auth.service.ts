@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
+import { requestApiJson } from './http-client';
 import { User } from './models';
 
 type AuthResponse = {
@@ -95,86 +96,13 @@ export class AuthService {
   }
 
   private async rawRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-    try {
-      return await this.rawRequestFrom<T>(environment.apiBaseUrl, path, options);
-    } catch (error: unknown) {
-      if ((error as { name?: string })?.name === 'AbortError') {
-        throw new Error('Request timed out. Check the backend connection.');
-      }
-      if (error instanceof TypeError) {
-        throw new Error('Network request failed. Check your internet connection.');
-      }
-      throw error;
-    }
-  }
-
-  private async rawRequestFrom<T>(baseUrl: string, path: string, options: RequestInit = {}): Promise<T> {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 10000);
-    let response: Response;
-
-    try {
-      response = await fetch(`${baseUrl}${path}`, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.token() ? { Authorization: `Bearer ${this.token()}` } : {}),
-          ...(options.headers || {})
-        }
-      });
-    } finally {
-      window.clearTimeout(timeout);
-    }
-
-    const text = await response.text();
-    const parsed = this.parseJson(text);
-    if (!response.ok) {
-      throw new Error(this.errorMessage(parsed));
-    }
-    if (!parsed || typeof parsed !== 'object') {
-      throw new Error('Unexpected response from the server.');
-    }
-    return this.unwrapResponse(parsed) as T;
-  }
-
-  private parseJson(text: string) {
-    if (!text) {
-      return {};
-    }
-    try {
-      return JSON.parse(text);
-    } catch {
-      return { error: text.slice(0, 180) || 'Unexpected response from the server.' };
-    }
-  }
-
-  private errorMessage(parsed: unknown) {
-    if (this.isStandardApiResponse(parsed)) {
-      return String((parsed as { message?: unknown; error?: unknown }).message || (parsed as { error?: unknown }).error || 'Authentication failed.');
-    }
-    if (parsed && typeof parsed === 'object' && 'error' in parsed) {
-      return String((parsed as { error?: unknown }).error || 'Authentication failed.');
-    }
-    return 'Authentication failed.';
-  }
-
-  private unwrapResponse(parsed: unknown) {
-    if (this.isStandardApiResponse(parsed)) {
-      return (parsed as { data?: unknown }).data ?? {};
-    }
-    return parsed;
-  }
-
-  private isStandardApiResponse(parsed: unknown) {
-    return Boolean(
-      parsed &&
-      typeof parsed === 'object' &&
-      'status' in parsed &&
-      'programCode' in parsed &&
-      'message' in parsed &&
-      'data' in parsed
-    );
+    return requestApiJson<T>({
+      baseUrl: environment.apiBaseUrl,
+      path,
+      options,
+      token: this.token(),
+      fallbackErrorMessage: 'Authentication failed.',
+    });
   }
 
   private readUser(): User | null {

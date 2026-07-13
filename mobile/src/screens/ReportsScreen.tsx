@@ -7,7 +7,8 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
-import { duration, km, kmh, shortDate } from "../utils/format";
+import { duration, escapeHtml, km, kmh, shortDate } from "../utils/format";
+import { finiteNumberOrZero } from "../utils/normalize";
 
 type Period = "day" | "month" | "year";
 type Report = {
@@ -175,39 +176,27 @@ function normalizeReport(report: any, fallbackPeriod: Period): Report {
       : fallbackPeriod,
     generatedAt: typeof report?.generatedAt === "string" ? report.generatedAt : new Date().toISOString(),
     summary: {
-      rideCount: finiteNumber(summary.rideCount),
-      distanceM: finiteNumber(summary.distanceM),
-      durationS: finiteNumber(summary.durationS),
-      averageSpeedKmh: finiteNumber(summary.averageSpeedKmh),
-      topSpeedKmh: finiteNumber(summary.topSpeedKmh)
+      rideCount: finiteNumberOrZero(summary.rideCount),
+      distanceM: finiteNumberOrZero(summary.distanceM),
+      durationS: finiteNumberOrZero(summary.durationS),
+      averageSpeedKmh: finiteNumberOrZero(summary.averageSpeedKmh),
+      topSpeedKmh: finiteNumberOrZero(summary.topSpeedKmh)
     },
     routes: Array.isArray(report?.routes)
       ? report.routes.map((route: any) => ({
           from: safeText(route?.from) || "Start point",
           to: safeText(route?.to) || "End point",
-          distanceM: finiteNumber(route?.distanceM),
-          durationS: finiteNumber(route?.durationS),
-          topSpeedKmh: finiteNumber(route?.topSpeedKmh),
+          distanceM: finiteNumberOrZero(route?.distanceM),
+          durationS: finiteNumberOrZero(route?.durationS),
+          topSpeedKmh: finiteNumberOrZero(route?.topSpeedKmh),
           startedAt: safeText(route?.startedAt)
         }))
       : []
   };
 }
 
-function finiteNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
 function safeText(value: unknown) {
   return typeof value === "string" ? value : "";
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 const createStyles = (colors: ThemeColors) => ({

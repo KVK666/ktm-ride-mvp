@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.ridepulse.api.auth.AuthSupport;
-import com.ridepulse.api.auth.AuthUser;
 import com.ridepulse.api.dto.ApiResponse;
 import com.ridepulse.api.http.ApiException;
 import com.ridepulse.api.service.AnalyticsService;
@@ -23,7 +22,7 @@ class AnalyticsControllerTest {
     AnalyticsService analyticsService = mock(AnalyticsService.class);
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/analytics/insights");
     Map<String, Object> expected = Map.of("insights", Map.of("ridesLast30Days", 2));
-    when(authSupport.user(request)).thenReturn(new AuthUser("owner-1", "owner@example.com"));
+    when(authSupport.userId(request)).thenReturn("owner-1");
     when(analyticsService.insights("owner-1", "Asia/Kolkata")).thenReturn(expected);
     AnalyticsController controller = new AnalyticsController(authSupport, analyticsService);
 

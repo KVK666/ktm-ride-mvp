@@ -1,6 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../api/client";
 import { RidePoint } from "../types";
+import { normalizeFiniteCoordinate } from "../utils/coordinates";
+import { fetchWithTimeout } from "../utils/network";
+import { optionalFiniteNumber } from "../utils/normalize";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import { AUTO_PENDING_RIDES_KEY, MIRRORED_TOKEN_KEY } from "./trackingKeys";
 
@@ -30,20 +33,17 @@ export async function uploadRidePayload(payload: RideUploadPayload, token: strin
     throw new Error("Ride requires at least two valid GPS points");
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), RIDE_UPLOAD_TIMEOUT_MS);
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}/rides`, {
+    response = await fetchWithTimeout(`${API_BASE_URL}/rides`, {
       method: "POST",
-      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
         "Idempotency-Key": ride.clientRideId || ""
       },
       body: JSON.stringify(ride)
-    });
+    }, RIDE_UPLOAD_TIMEOUT_MS);
   } catch (err: any) {
     logDiagnostic({
       level: "error",
@@ -55,8 +55,6 @@ export async function uploadRidePayload(payload: RideUploadPayload, token: strin
       throw new Error("Ride upload timed out");
     }
     throw err;
-  } finally {
-    clearTimeout(timeout);
   }
 
   const text = await response.text();
@@ -291,29 +289,19 @@ function normalizeRidePoints(points: any): RidePoint[] {
 
   return points
     .map((point): RidePoint | null => {
-      const latitude = Number(point?.latitude);
-      const longitude = Number(point?.longitude);
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      const coordinate = normalizeFiniteCoordinate(point);
+      if (!coordinate) {
         return null;
       }
       return {
-        latitude,
-        longitude,
-        altitudeM: optionalNumber(point?.altitudeM),
-        accuracyM: optionalNumber(point?.accuracyM),
-        speedKmh: optionalNumber(point?.speedKmh),
+        ...coordinate,
+        altitudeM: optionalFiniteNumber(point?.altitudeM),
+        accuracyM: optionalFiniteNumber(point?.accuracyM),
+        speedKmh: optionalFiniteNumber(point?.speedKmh),
         recordedAt: safeDateText(point?.recordedAt)
       };
     })
     .filter((point): point is RidePoint => Boolean(point));
-}
-
-function optionalNumber(value: unknown) {
-  if (value == null) {
-    return null;
-  }
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 }
 
 function safeText(value: unknown) {

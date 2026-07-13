@@ -29,6 +29,7 @@ import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
 import { duration, km, kmh } from "../utils/format";
+import { locationToRidePoint } from "../utils/locationPoint";
 
 const MAX_REASONABLE_SPEED_KMH = 250;
 const MAX_SPEED_ACCURACY_M = 35;
@@ -135,7 +136,7 @@ export function RideScreen() {
         timeInterval: 5000
       },
       (location) => {
-        const point = toRidePoint(location);
+        const point = locationToRidePoint(location);
         if (!point) {
           return;
         }
@@ -164,7 +165,7 @@ export function RideScreen() {
       await setManualTrackingActive(true);
 
       const firstLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-      const firstPoint = toRidePoint(firstLocation);
+      const firstPoint = locationToRidePoint(firstLocation);
       if (!firstPoint) {
         throw new Error("Unable to read a valid GPS point");
       }
@@ -201,7 +202,7 @@ export function RideScreen() {
     try {
       try {
         const finalLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const finalPoint = toRidePoint(finalLocation);
+        const finalPoint = locationToRidePoint(finalLocation);
         if (finalPoint) {
           await appendManualRidePoints([finalPoint]);
           setPoints((current) => dedupeRidePoints([...current, finalPoint]));
@@ -418,24 +419,6 @@ export function RideScreen() {
   );
 }
 
-function toRidePoint(location: Location.LocationObject): RidePoint | null {
-  const latitude = Number(location?.coords?.latitude);
-  const longitude = Number(location?.coords?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-
-  const timestamp = Number(location.timestamp);
-  return {
-    latitude,
-    longitude,
-    altitudeM: optionalNumber(location.coords.altitude),
-    accuracyM: optionalNumber(location.coords.accuracy),
-    speedKmh: Math.max(0, optionalNumber(location.coords.speed) || 0) * 3.6,
-    recordedAt: Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString()
-  };
-}
-
 function reliableTopSpeed(points: RidePoint[]) {
   const candidates = points
     .map((point, index) => ({ point, index, speed: validSpeed(point) }))
@@ -513,14 +496,6 @@ function coordinateLabel(point: RidePoint) {
   const latitude = Number.isFinite(point.latitude) ? point.latitude : 0;
   const longitude = Number.isFinite(point.longitude) ? point.longitude : 0;
   return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-}
-
-function optionalNumber(value: unknown) {
-  if (value == null) {
-    return null;
-  }
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 }
 
 function timestampMs(value: string) {

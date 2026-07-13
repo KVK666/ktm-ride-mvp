@@ -1,5 +1,7 @@
 package com.ridepulse.api.service;
 
+import static com.ridepulse.api.service.RideMathService.number;
+
 import com.ridepulse.api.constants.Messages;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -459,10 +461,5 @@ public class JournalIntelligenceService {
 
   private static String string(Object value) {
     return value == null ? "" : String.valueOf(value);
-  }
-
-  private static double number(Object value) {
-    Double safe = RideMathService.optionalNumber(value);
-    return safe == null ? 0 : safe;
   }
 }

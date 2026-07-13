@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { MIRRORED_TOKEN_KEY } from "../services/trackingKeys";
+import { fetchWithTimeout } from "../utils/network";
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.0.2.2:4001/api";
@@ -79,20 +80,17 @@ export async function clearToken() {
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await readToken();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
       ...options,
-      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {})
       }
-    });
+    }, 10000);
   } catch (error: any) {
     logDiagnostic({
       level: "error",
@@ -104,8 +102,6 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       throw new Error("Request timed out. Check backend connection.");
     }
     throw error;
-  } finally {
-    clearTimeout(timeout);
   }
 
   const text = await readResponseText(response);

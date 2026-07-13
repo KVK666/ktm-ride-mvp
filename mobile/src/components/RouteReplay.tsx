@@ -4,6 +4,7 @@ import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from "re
 import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
 import { Coordinate } from "../types";
+import { buildRouteDrawing, normalizeBoundedCoordinates } from "../utils/coordinates";
 
 export function RouteReplay({
   coordinates,
@@ -40,36 +41,14 @@ export function RouteReplay({
 }
 
 function buildDrawing(coordinates: Coordinate[]) {
-  const valid = coordinates.filter(isCoordinate).slice(0, 120);
+  const valid = normalizeBoundedCoordinates(coordinates).slice(0, 120);
   const route = valid.length >= 2 ? valid : [
     { latitude: 0, longitude: 0 },
     { latitude: 0.1, longitude: 0.18 },
     { latitude: -0.04, longitude: 0.34 },
     { latitude: 0.18, longitude: 0.52 }
   ];
-  const lats = route.map((point) => point.latitude);
-  const lons = route.map((point) => point.longitude);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
-  const latSpan = Math.max(maxLat - minLat, 0.00001);
-  const lonSpan = Math.max(maxLon - minLon, 0.00001);
-  const points = route.map((point) => ({
-    x: 24 + ((point.longitude - minLon) / lonSpan) * 272,
-    y: 146 - ((point.latitude - minLat) / latSpan) * 122
-  }));
-  return {
-    path: points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" "),
-    start: points[0],
-    end: points[points.length - 1]
-  };
-}
-
-function isCoordinate(value?: Coordinate | null): value is Coordinate {
-  const latitude = Number(value?.latitude);
-  const longitude = Number(value?.longitude);
-  return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+  return buildRouteDrawing(route, { left: 24, bottom: 146, width: 272, height: 122 });
 }
 
 const styles = StyleSheet.create({

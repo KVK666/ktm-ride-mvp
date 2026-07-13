@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { RidePoint } from "../types";
 import { distanceMeters } from "../utils/distance";
+import { locationToRidePoint } from "../utils/locationPoint";
 import {
   addActivityRecognitionListener,
   getActivityRecognitionStatus,
@@ -191,7 +192,7 @@ export async function handleBackgroundLocations(locations: Location.LocationObje
     }
 
     const points = locations
-      .map(toRidePoint)
+      .map(locationToRidePoint)
       .filter((point): point is RidePoint => Boolean(point));
 
     if (!points.length) {
@@ -808,25 +809,6 @@ function coordinateLabel(point: RidePoint) {
   return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 }
 
-function toRidePoint(location: Location.LocationObject): RidePoint | null {
-  const latitude = Number(location?.coords?.latitude);
-  const longitude = Number(location?.coords?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-
-  const timestamp = Number(location.timestamp);
-  const recordedAt = Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString();
-  return {
-    latitude,
-    longitude,
-    altitudeM: optionalNumber(location.coords.altitude),
-    accuracyM: optionalNumber(location.coords.accuracy),
-    speedKmh: Math.max(0, optionalNumber(location.coords.speed) || 0) * 3.6,
-    recordedAt
-  };
-}
-
 async function readAutoRideState(): Promise<AutoRideState> {
   try {
     const stored = await AsyncStorage.getItem(AUTO_RIDE_STATE_KEY);
@@ -895,14 +877,6 @@ async function getPendingCount() {
 function timestampMs(value: string) {
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
-function optionalNumber(value: unknown) {
-  if (value == null) {
-    return null;
-  }
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 }
 
 function isRidePoint(point: any): point is RidePoint {

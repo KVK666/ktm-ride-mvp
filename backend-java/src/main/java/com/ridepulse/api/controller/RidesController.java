@@ -38,43 +38,43 @@ public class RidesController {
       HttpServletRequest request,
       @RequestParam(defaultValue = "all") String period,
       @RequestParam(defaultValue = "") String q) {
-    return ResponseUtil.ok(rideService.list(authSupport.user(request).id(), period, q));
+    return ResponseUtil.ok(rideService.list(authSupport.userId(request), period, q));
   }
 
   @GetMapping("/{id}/intelligence")
   ApiResponse<Map<String, Object>> intelligence(HttpServletRequest request, @PathVariable String id) {
-    return ResponseUtil.ok(rideService.intelligence(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
+    return ResponseUtil.ok(rideService.intelligence(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
   }
 
   @GetMapping("/{id}/duplicates")
   ApiResponse<Map<String, Object>> duplicates(HttpServletRequest request, @PathVariable String id) {
-    return ResponseUtil.ok(rideService.duplicates(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
+    return ResponseUtil.ok(rideService.duplicates(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
   }
 
   @GetMapping("/{id}/photos")
   ApiResponse<Map<String, Object>> photos(HttpServletRequest request, @PathVariable String id) {
-    return ResponseUtil.ok(rideService.photos(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
+    return ResponseUtil.ok(rideService.photos(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
   }
 
   @PostMapping("/{id}/photos")
   ResponseEntity<ApiResponse<Map<String, Object>>> addPhoto(HttpServletRequest request, @PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(ResponseUtil.created(rideService.addPhoto(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_PHOTO_MISSING_OR_INVALID))));
+    return ResponseEntity.status(HttpStatus.CREATED).body(ResponseUtil.created(rideService.addPhoto(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_PHOTO_MISSING_OR_INVALID))));
   }
 
   @DeleteMapping("/{id}/photos/{photoId}")
   ApiResponse<Void> deletePhoto(HttpServletRequest request, @PathVariable String id, @PathVariable String photoId) {
-    rideService.deletePhoto(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requiredPath(photoId, Messages.RIDE_PHOTO_NOT_FOUND));
+    rideService.deletePhoto(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requiredPath(photoId, Messages.RIDE_PHOTO_NOT_FOUND));
     return ResponseUtil.deleted();
   }
 
   @GetMapping("/{id}")
   ApiResponse<Map<String, Object>> get(HttpServletRequest request, @PathVariable String id) {
-    return ResponseUtil.ok(rideService.get(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
+    return ResponseUtil.ok(rideService.get(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
   }
 
   @PatchMapping("/{id}")
   ApiResponse<Map<String, Object>> patch(HttpServletRequest request, @PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
-    return ResponseUtil.ok(rideService.patch(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_NOT_FOUND)));
+    return ResponseUtil.ok(rideService.patch(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_NOT_FOUND)));
   }
 
   @PostMapping
@@ -82,14 +82,14 @@ public class RidesController {
       HttpServletRequest request,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
       @RequestBody(required = false) Map<String, Object> body) {
-    CreateRideResult result = rideService.create(authSupport.user(request).id(), idempotencyKey, ValidationUtil.requestBody(body, Messages.ROUTE_REQUIRES_POINTS));
+    CreateRideResult result = rideService.create(authSupport.userId(request), idempotencyKey, ValidationUtil.requestBody(body, Messages.ROUTE_REQUIRES_POINTS));
     return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
         .body(result.created() ? ResponseUtil.created(result.body()) : ResponseUtil.ok(result.body()));
   }
 
   @DeleteMapping("/{id}")
   ApiResponse<Void> delete(HttpServletRequest request, @PathVariable String id) {
-    rideService.delete(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND));
+    rideService.delete(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND));
     return ResponseUtil.deleted();
   }
 }

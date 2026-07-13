@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from "
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { Coordinate, RidePhoto } from "../types";
 import { useTheme } from "../theme/ThemeContext";
+import { normalizeBoundedCoordinate, normalizeBoundedCoordinates, sampleEvenly } from "../utils/coordinates";
 
 const darkMapStyle = [
   { elementType: "geometry", stylers: [{ color: "#1d1d1f" }] },
@@ -34,20 +35,20 @@ export function RideMap({
   const { colors } = useTheme();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const mapRef = useRef<MapView | null>(null);
-  const mapCoordinates = useMemo(() => normalizeCoordinates(coordinates), [coordinates]);
-  const renderCoordinates = useMemo(() => sampleCoordinates(mapCoordinates, 1200), [mapCoordinates]);
+  const mapCoordinates = useMemo(() => normalizeBoundedCoordinates(coordinates), [coordinates]);
+  const renderCoordinates = useMemo(() => sampleEvenly(mapCoordinates, 1200), [mapCoordinates]);
   const mapPhotoMarkers = useMemo(
     () =>
       photoMarkers.flatMap((photo) => {
         if (!photo.hasLocation) {
           return [];
         }
-        const coordinate = normalizeCoordinate(photo);
+        const coordinate = normalizeBoundedCoordinate(photo);
         return coordinate ? [{ ...photo, ...coordinate }] : [];
       }),
     [photoMarkers]
   );
-  const mapCurrent = current ? normalizeCoordinate(current) : null;
+  const mapCurrent = current ? normalizeBoundedCoordinate(current) : null;
   const initial = mapCurrent || mapCoordinates[0];
 
   useEffect(() => {
@@ -158,40 +159,6 @@ export function RideMap({
       </Modal>
     </View>
   );
-}
-
-function normalizeCoordinates(coordinates: Coordinate[]) {
-  return coordinates
-    .map(normalizeCoordinate)
-    .filter((coordinate): coordinate is Coordinate => Boolean(coordinate));
-}
-
-function normalizeCoordinate(coordinate?: Coordinate | null) {
-  const latitude = Number(coordinate?.latitude);
-  const longitude = Number(coordinate?.longitude);
-
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
-    return null;
-  }
-
-  return { latitude, longitude };
-}
-
-function sampleCoordinates<T extends Coordinate>(coordinates: T[], maxPoints: number) {
-  if (maxPoints <= 1) {
-    return coordinates.slice(0, 1);
-  }
-
-  if (coordinates.length <= maxPoints) {
-    return coordinates;
-  }
-
-  const sampled: T[] = [];
-  const step = (coordinates.length - 1) / (maxPoints - 1);
-  for (let index = 0; index < maxPoints; index += 1) {
-    sampled.push(coordinates[Math.round(index * step)]);
-  }
-  return sampled;
 }
 
 const styles = StyleSheet.create({

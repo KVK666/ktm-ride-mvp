@@ -34,7 +34,7 @@ public class ProfileController {
 
   @GetMapping("/photo")
   ResponseEntity<?> getPhoto(HttpServletRequest request) {
-    PhotoRow row = profileService.photo(authSupport.user(request).id());
+    PhotoRow row = profileService.photo(authSupport.userId(request));
     byte[] data = row.data();
     String mime = row.mimeType();
     String accept = request.getHeader("Accept");
@@ -54,12 +54,12 @@ public class ProfileController {
 
   @PutMapping("/photo")
   ApiResponse<Map<String, Object>> putPhoto(HttpServletRequest request, @RequestBody(required = false) Map<String, Object> body) {
-    return ResponseUtil.ok(profileService.updatePhoto(authSupport.user(request).id(), ValidationUtil.requestBody(body, "Profile photo data is missing or invalid")));
+    return ResponseUtil.ok(profileService.updatePhoto(authSupport.userId(request), ValidationUtil.requestBody(body, "Profile photo data is missing or invalid")));
   }
 
   @DeleteMapping("/photo")
   ApiResponse<Map<String, Object>> deletePhoto(HttpServletRequest request) {
-    return ResponseUtil.ok(profileService.deletePhoto(authSupport.user(request).id()));
+    return ResponseUtil.ok(profileService.deletePhoto(authSupport.userId(request)));
   }
 
   private long parseLastModified(Object value) {

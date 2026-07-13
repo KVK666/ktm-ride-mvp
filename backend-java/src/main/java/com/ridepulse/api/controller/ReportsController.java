@@ -24,6 +24,6 @@ public class ReportsController {
 
   @GetMapping
   ApiResponse<Map<String, Object>> report(HttpServletRequest request, @RequestParam(defaultValue = "month") String period, @RequestParam(required = false) String date) {
-    return ResponseUtil.ok(reportsService.report(authSupport.user(request).id(), period, date));
+    return ResponseUtil.ok(reportsService.report(authSupport.userId(request), period, date));
   }
 }

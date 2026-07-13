@@ -7,6 +7,8 @@ import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import { importRidePhotos } from "./ridePhotos";
 import { JournalResponse, Ride, RideAlbum, RideAlbumPhoto, RideMemory, RidePhoto } from "../types";
 import { km, shortDate } from "../utils/format";
+import { normalizeBoundedCoordinate } from "../utils/coordinates";
+import { finiteNumberOrZero } from "../utils/normalize";
 
 const ALBUM_KEY_PREFIX = "duke_ride_album:";
 const ALBUM_INDEX_KEY = "duke_ride_album_index_v1";
@@ -329,8 +331,8 @@ function normalizeAlbumPhoto(value: any): RideAlbumPhoto | null {
     backendPhotoId: typeof value?.backendPhotoId === "string" ? value.backendPhotoId : null,
     createdAt: typeof value?.createdAt === "string" ? value.createdAt : new Date().toISOString(),
     importedAt: typeof value?.importedAt === "string" ? value.importedAt : new Date().toISOString(),
-    latitude: finiteNumber(value?.latitude),
-    longitude: finiteNumber(value?.longitude),
+    latitude: finiteNumberOrZero(value?.latitude),
+    longitude: finiteNumberOrZero(value?.longitude),
     hasLocation: Boolean(value?.hasLocation)
   };
 }
@@ -424,15 +426,5 @@ function readExifDate(exif?: Record<string, any> | null) {
 }
 
 function normalizeLocation(value?: { latitude?: unknown; longitude?: unknown } | null) {
-  const latitude = Number(value?.latitude);
-  const longitude = Number(value?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
-    return null;
-  }
-  return { latitude, longitude };
-}
-
-function finiteNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+  return normalizeBoundedCoordinate(value);
 }

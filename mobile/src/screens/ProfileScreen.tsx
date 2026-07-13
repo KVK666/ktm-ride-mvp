@@ -23,6 +23,7 @@ import {
 } from "../services/diagnostics";
 import { deleteBackendProfilePhoto, getProfilePhotoUri, pickAndSaveProfilePhoto, uploadProfilePhoto } from "../services/profilePhoto";
 import { ThemeColors, typography } from "../theme/colors";
+import { escapeHtml } from "../utils/format";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 
 type ProfileRowProps = {
@@ -492,13 +493,6 @@ function buildDiagnosticsHtml(body: string) {
       </body>
     </html>
   `;
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 const createStyles = (colors: ThemeColors) => ({

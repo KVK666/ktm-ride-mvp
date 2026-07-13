@@ -1,4 +1,5 @@
 import * as MediaLibrary from "expo-media-library";
+import { normalizeFiniteCoordinate } from "../utils/coordinates";
 import { PermissionsAndroid, Platform } from "react-native";
 import { Ride, RidePhoto } from "../types";
 
@@ -94,12 +95,7 @@ async function getAssetInfo(asset: MediaLibrary.Asset): Promise<MediaLibrary.Ass
 }
 
 function normalizeLocation(location?: MediaLibrary.Location | null) {
-  const latitude = Number(location?.latitude);
-  const longitude = Number(location?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-  return { latitude, longitude };
+  return normalizeFiniteCoordinate(location);
 }
 
 function safeAssetDate(value: number) {

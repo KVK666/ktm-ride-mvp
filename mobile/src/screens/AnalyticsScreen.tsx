@@ -25,6 +25,7 @@ import {
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { RiderPulseInsights } from "../types";
+import { finiteNumberOrZero } from "../utils/normalize";
 
 type Bucket = "daily" | "monthly" | "yearly";
 
@@ -126,9 +127,9 @@ export function AnalyticsScreen() {
 
   const recentPoints = useMemo(() => points.slice(-6), [points]);
   const labels = recentPoints.map((point) => labelFor(point.bucket, bucket));
-  const distance = recentPoints.map((point) => finiteNumber(point.distanceM / 1000));
-  const durations = recentPoints.map((point) => finiteNumber(point.durationS / 60));
-  const topSpeeds = recentPoints.map((point) => finiteNumber(point.topSpeedKmh));
+  const distance = recentPoints.map((point) => finiteNumberOrZero(point.distanceM / 1000));
+  const durations = recentPoints.map((point) => finiteNumberOrZero(point.durationS / 60));
+  const topSpeeds = recentPoints.map((point) => finiteNumberOrZero(point.topSpeedKmh));
   const monthDistanceKm = (insights?.distanceCurrentMonthM || 0) / 1000;
   const goalPercent = Math.min(100, Math.max(0, (monthDistanceKm / Math.max(goalKm, 1)) * 100));
   const projectedMonthKm = (insights?.projectedMonthDistanceM || 0) / 1000;
@@ -542,7 +543,7 @@ function Chart({
   colors: ThemeColors;
   styles: any;
 }) {
-  const safeData = data.length ? data.map(finiteNumber) : [0];
+  const safeData = data.length ? data.map(finiteNumberOrZero) : [0];
   const safeLabels = labels.length ? labels : [""];
   const height = 190;
   const horizontalPadding = 18;
@@ -691,7 +692,7 @@ function formatGoalInput(value: number) {
 }
 
 function formatNumber(value: number) {
-  const safeValue = finiteNumber(value);
+  const safeValue = finiteNumberOrZero(value);
   if (Math.abs(safeValue) >= 100) return safeValue.toFixed(0);
   return safeValue.toFixed(1);
 }
@@ -714,13 +715,8 @@ function optionalLabel(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function finiteNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
 function nonNegative(value: unknown) {
-  return Math.max(0, finiteNumber(value));
+  return Math.max(0, finiteNumberOrZero(value));
 }
 
 function nonNegativeInteger(value: unknown) {

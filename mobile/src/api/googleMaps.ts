@@ -1,4 +1,7 @@
 import { Coordinate } from "../types";
+import { hasBoundedCoordinateValues } from "../utils/coordinates";
+import { finiteNumberOrZero } from "../utils/normalize";
+import { fetchWithTimeout } from "../utils/network";
 import { decodePolyline, stripHtml } from "../utils/polyline";
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -33,7 +36,7 @@ export async function geocodeDestination(destination: string): Promise<Coordinat
   }
 
   const location = body.results[0].geometry.location;
-  if (!isCoordinate(location.lat, location.lng)) {
+  if (!hasBoundedCoordinateValues({ latitude: location.lat, longitude: location.lng })) {
     throw new Error("Destination returned invalid coordinates");
   }
 
@@ -42,7 +45,7 @@ export async function geocodeDestination(destination: string): Promise<Coordinat
 
 export async function fetchRoute(origin: Coordinate, destination: Coordinate): Promise<RouteDetails> {
   assertMapsConfigured();
-  if (!isCoordinate(origin.latitude, origin.longitude) || !isCoordinate(destination.latitude, destination.longitude)) {
+  if (!hasBoundedCoordinateValues(origin) || !hasBoundedCoordinateValues(destination)) {
     throw new Error("Route requires valid start and destination coordinates");
   }
 
@@ -69,19 +72,19 @@ export async function fetchRoute(origin: Coordinate, destination: Coordinate): P
     coordinates: decodePolyline(String(route.overview_polyline.points)),
     distanceText: String(leg.distance?.text || ""),
     durationText: String(leg.duration?.text || ""),
-    distanceM: safeNumber(leg.distance?.value),
-    durationS: safeNumber(leg.duration?.value),
+    distanceM: finiteNumberOrZero(leg.distance?.value),
+    durationS: finiteNumberOrZero(leg.duration?.value),
     steps: Array.isArray(leg.steps) ? leg.steps.map((step: any) => ({
       instruction: stripHtml(String(step.html_instructions || "")),
       distanceText: String(step.distance?.text || ""),
       durationText: String(step.duration?.text || ""),
       start: {
-        latitude: safeNumber(step.start_location?.lat),
-        longitude: safeNumber(step.start_location?.lng)
+        latitude: finiteNumberOrZero(step.start_location?.lat),
+        longitude: finiteNumberOrZero(step.start_location?.lng)
       },
       end: {
-        latitude: safeNumber(step.end_location?.lat),
-        longitude: safeNumber(step.end_location?.lng)
+        latitude: finiteNumberOrZero(step.end_location?.lat),
+        longitude: finiteNumberOrZero(step.end_location?.lng)
       }
     })) : []
   };
@@ -94,11 +97,8 @@ function assertMapsConfigured() {
 }
 
 async function fetchMapsJson(url: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), MAPS_REQUEST_TIMEOUT_MS);
-
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetchWithTimeout(url, {}, MAPS_REQUEST_TIMEOUT_MS);
     const text = await response.text();
     let body: any = {};
     try {
@@ -117,22 +117,9 @@ async function fetchMapsJson(url: string) {
       throw new Error("Maps request timed out");
     }
     throw error;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
 function mapsError(body: any, fallback: string) {
   return String(body?.error_message || body?.status || fallback);
-}
-
-function safeNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
-function isCoordinate(latitude: unknown, longitude: unknown) {
-  const lat = Number(latitude);
-  const lon = Number(longitude);
-  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
 }

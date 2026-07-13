@@ -16,4 +16,8 @@ public class AuthSupport {
     }
     throw new ApiException(HttpStatus.UNAUTHORIZED, ProgramCodes.UNAUTHORIZED, Messages.MISSING_TOKEN);
   }
+
+  public String userId(HttpServletRequest request) {
+    return user(request).id();
+  }
 }

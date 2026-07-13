@@ -1,5 +1,7 @@
 import { Ride } from "../types";
+import { hasFiniteCoordinateValues } from "../utils/coordinates";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
+import { fetchWithTimeout } from "../utils/network";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 
 export type StoryPromptVariantId =
@@ -149,7 +151,7 @@ export async function fetchRideWeatherMood(ride: Ride): Promise<RideWeatherMood 
   const latitude = Number(ride.startLatitude);
   const longitude = Number(ride.startLongitude);
 
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !ride.startedAt) {
+  if (!hasFiniteCoordinateValues({ latitude, longitude }) || !ride.startedAt) {
     return null;
   }
 
@@ -168,13 +170,12 @@ export async function fetchRideWeatherMood(ride: Ride): Promise<RideWeatherMood 
     timezone: "GMT",
     wind_speed_unit: "kmh"
   });
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), WEATHER_TIMEOUT_MS);
-
   try {
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {
-      signal: controller.signal
-    });
+    const response = await fetchWithTimeout(
+      `https://api.open-meteo.com/v1/forecast?${params.toString()}`,
+      {},
+      WEATHER_TIMEOUT_MS
+    );
     if (!response.ok) {
       return null;
     }
@@ -212,8 +213,6 @@ export async function fetchRideWeatherMood(ride: Ride): Promise<RideWeatherMood 
       details: diagnosticDetails(error)
     });
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

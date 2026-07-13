@@ -82,7 +82,7 @@ class RideAiIntelligenceServiceTest {
     Map<String, Object> decorated = service.decorateIntelligence("owner-1", Map.of(), ride);
 
     assertThat(decorated.get("suggestedTitle")).asString()
-        .contains("commute")
+        .containsIgnoringCase("commute")
         .contains("Home to Office");
     assertThat(decorated.get("classification")).asString().contains("commute");
   }

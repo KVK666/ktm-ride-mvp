@@ -32,40 +32,40 @@ public class TripsController {
 
   @GetMapping
   ApiResponse<Map<String, Object>> list(HttpServletRequest request) {
-    return ResponseUtil.ok(tripService.list(authSupport.user(request).id()));
+    return ResponseUtil.ok(tripService.list(authSupport.userId(request)));
   }
 
   @PostMapping
   ResponseEntity<ApiResponse<Map<String, Object>>> create(HttpServletRequest request, @RequestBody(required = false) Map<String, Object> body) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ResponseUtil.created(tripService.create(authSupport.user(request).id(), ValidationUtil.requestBody(body, Messages.TRIP_TITLE_REQUIRED))));
+        .body(ResponseUtil.created(tripService.create(authSupport.userId(request), ValidationUtil.requestBody(body, Messages.TRIP_TITLE_REQUIRED))));
   }
 
   @GetMapping("/{id}")
   ApiResponse<Map<String, Object>> get(HttpServletRequest request, @PathVariable String id) {
-    return ResponseUtil.ok(tripService.get(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND)));
+    return ResponseUtil.ok(tripService.get(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND)));
   }
 
   @PatchMapping("/{id}")
   ApiResponse<Map<String, Object>> update(HttpServletRequest request, @PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
-    return ResponseUtil.ok(tripService.update(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND), ValidationUtil.requestBody(body, Messages.TRIP_TITLE_REQUIRED)));
+    return ResponseUtil.ok(tripService.update(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND), ValidationUtil.requestBody(body, Messages.TRIP_TITLE_REQUIRED)));
   }
 
   @DeleteMapping("/{id}")
   ApiResponse<Void> delete(HttpServletRequest request, @PathVariable String id) {
-    tripService.delete(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND));
+    tripService.delete(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND));
     return ResponseUtil.deleted();
   }
 
   @PostMapping("/{id}/rides")
   ApiResponse<Map<String, Object>> addRide(HttpServletRequest request, @PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
-    return ResponseUtil.ok(tripService.addRide(authSupport.user(request).id(), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_NOT_FOUND)));
+    return ResponseUtil.ok(tripService.addRide(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_NOT_FOUND)));
   }
 
   @DeleteMapping("/{id}/rides/{rideId}")
   ApiResponse<Map<String, Object>> removeRide(HttpServletRequest request, @PathVariable String id, @PathVariable String rideId) {
     return ResponseUtil.ok(tripService.removeRide(
-        authSupport.user(request).id(),
+        authSupport.userId(request),
         ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND),
         ValidationUtil.requiredPath(rideId, Messages.RIDE_NOT_FOUND)));
   }

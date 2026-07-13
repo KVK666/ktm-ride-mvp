@@ -4,6 +4,7 @@ import { StyleSheet, View, ViewStyle } from "react-native";
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from "react-native-svg";
 import { useTheme } from "../theme/ThemeContext";
 import { Coordinate } from "../types";
+import { buildRouteDrawing, normalizeBoundedCoordinates } from "../utils/coordinates";
 
 type Props = {
   coordinates?: Coordinate[];
@@ -45,9 +46,9 @@ export function RouteArtwork({ coordinates, start, end, height = 210, style }: P
 }
 
 function normalizeRoute(coordinates?: Coordinate[], start?: Coordinate | null, end?: Coordinate | null) {
-  const valid = (coordinates || []).filter(isCoordinate).slice(0, 80);
+  const valid = normalizeBoundedCoordinates(coordinates || []).slice(0, 80);
   if (valid.length >= 2) return valid;
-  const fallback = [start, end].filter(isCoordinate) as Coordinate[];
+  const fallback = normalizeBoundedCoordinates([start, end].filter((coordinate): coordinate is Coordinate => coordinate != null));
   if (fallback.length >= 2) return fallback;
   return [
     { latitude: 0, longitude: 0 },
@@ -58,29 +59,7 @@ function normalizeRoute(coordinates?: Coordinate[], start?: Coordinate | null, e
 }
 
 function routePath(route: Coordinate[]) {
-  const lats = route.map((point) => point.latitude);
-  const lons = route.map((point) => point.longitude);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
-  const latSpan = Math.max(maxLat - minLat, 0.00001);
-  const lonSpan = Math.max(maxLon - minLon, 0.00001);
-  const points = route.map((point) => ({
-    x: 28 + ((point.longitude - minLon) / lonSpan) * 264,
-    y: 152 - ((point.latitude - minLat) / latSpan) * 124
-  }));
-  return {
-    path: points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" "),
-    start: points[0],
-    end: points[points.length - 1]
-  };
-}
-
-function isCoordinate(value?: Coordinate | null): value is Coordinate {
-  const latitude = Number(value?.latitude);
-  const longitude = Number(value?.longitude);
-  return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+  return buildRouteDrawing(route, { left: 28, bottom: 152, width: 264, height: 124 });
 }
 
 const styles = StyleSheet.create({

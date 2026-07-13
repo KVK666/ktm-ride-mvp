@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RidePoint } from "../types";
+import { normalizeFiniteCoordinate } from "../utils/coordinates";
+import { optionalFiniteNumber } from "../utils/normalize";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import {
   BACKGROUND_POINTS_KEY,
@@ -193,9 +195,8 @@ function normalizeRidePoint(point: any): RidePoint | null {
     return null;
   }
 
-  const latitude = Number(point.latitude);
-  const longitude = Number(point.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+  const coordinate = normalizeFiniteCoordinate(point);
+  if (!coordinate) {
     return null;
   }
 
@@ -204,21 +205,12 @@ function normalizeRidePoint(point: any): RidePoint | null {
     : new Date().toISOString();
 
   return {
-    latitude,
-    longitude,
-    altitudeM: optionalNumber(point.altitudeM),
-    accuracyM: optionalNumber(point.accuracyM),
-    speedKmh: optionalNumber(point.speedKmh),
+    ...coordinate,
+    altitudeM: optionalFiniteNumber(point.altitudeM),
+    accuracyM: optionalFiniteNumber(point.accuracyM),
+    speedKmh: optionalFiniteNumber(point.speedKmh),
     recordedAt
   };
-}
-
-function optionalNumber(value: unknown) {
-  if (value == null) {
-    return null;
-  }
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 }
 
 function timestampMs(value: string) {

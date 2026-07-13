@@ -23,6 +23,6 @@ public class JournalController {
 
   @GetMapping
   ApiResponse<Map<String, Object>> journal(HttpServletRequest request) {
-    return ResponseUtil.ok(journalExperienceService.journal(authSupport.user(request).id(), request.getRequestURI().endsWith("/home")));
+    return ResponseUtil.ok(journalExperienceService.journal(authSupport.userId(request), request.getRequestURI().endsWith("/home")));
   }
 }

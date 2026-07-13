@@ -23,6 +23,6 @@ public class DashboardController {
 
   @GetMapping
   ApiResponse<Map<String, Object>> dashboard(HttpServletRequest request) {
-    return ResponseUtil.ok(dashboardService.dashboard(authSupport.user(request).id()));
+    return ResponseUtil.ok(dashboardService.dashboard(authSupport.userId(request)));
   }
 }

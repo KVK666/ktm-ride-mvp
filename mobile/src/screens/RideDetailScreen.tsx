@@ -42,6 +42,8 @@ import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Ride, RideAlbum, RideAlbumPhoto, RideIntelligence, RidePhoto, RidePoint, Trip, TripSuggestion } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
+import { normalizeBoundedCoordinate, normalizeFiniteCoordinate } from "../utils/coordinates";
+import { finiteNumberOrZero, optionalFiniteNumber } from "../utils/normalize";
 
 type RideDetailParams = {
   RideDetail: {
@@ -1084,17 +1086,17 @@ function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
     badges: Array.isArray(value?.badges) ? value.badges.map(String).filter(Boolean).slice(0, 4) : fallback.badges,
     highlightReason: typeof value?.highlightReason === "string" ? value.highlightReason : fallback.highlightReason,
     fastestSegment: value?.fastestSegment && typeof value.fastestSegment === "object" ? {
-      speedKmh: finiteNumber(value.fastestSegment.speedKmh),
-      distanceM: finiteNumber(value.fastestSegment.distanceM),
-      durationS: finiteNumber(value.fastestSegment.durationS),
+      speedKmh: finiteNumberOrZero(value.fastestSegment.speedKmh),
+      distanceM: finiteNumberOrZero(value.fastestSegment.distanceM),
+      durationS: finiteNumberOrZero(value.fastestSegment.durationS),
       startedAt: typeof value.fastestSegment.startedAt === "string" ? value.fastestSegment.startedAt : null,
       endedAt: typeof value.fastestSegment.endedAt === "string" ? value.fastestSegment.endedAt : null,
-      coordinate: normalizeCoordinate(value.fastestSegment.coordinate)
+      coordinate: normalizeBoundedCoordinate(value.fastestSegment.coordinate)
     } : null,
-    midpoint: normalizeCoordinate(value?.midpoint),
+    midpoint: normalizeBoundedCoordinate(value?.midpoint),
     comparisons: value?.comparisons && typeof value.comparisons === "object" ? {
-      distanceVsLongestM: value.comparisons.distanceVsLongestM == null ? null : finiteNumber(value.comparisons.distanceVsLongestM),
-      monthSharePercent: value.comparisons.monthSharePercent == null ? null : finiteNumber(value.comparisons.monthSharePercent)
+      distanceVsLongestM: value.comparisons.distanceVsLongestM == null ? null : finiteNumberOrZero(value.comparisons.distanceVsLongestM),
+      monthSharePercent: value.comparisons.monthSharePercent == null ? null : finiteNumberOrZero(value.comparisons.monthSharePercent)
     } : fallback.comparisons,
     chapters: Array.isArray(value?.chapters)
       ? value.chapters.map(normalizeChapter).filter(Boolean).slice(0, 4) as RideIntelligence["chapters"]
@@ -1102,7 +1104,7 @@ function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
     classification: value?.classification && typeof value.classification === "object" ? {
       rideKind: typeof value.classification.rideKind === "string" ? value.classification.rideKind : ride.rideKind || fallback.classification?.rideKind,
       label: typeof value.classification.label === "string" ? value.classification.label : rideKindLabel(ride.rideKind),
-      confidence: value.classification.confidence == null ? ride.rideKindConfidence || fallback.classification?.confidence : finiteNumber(value.classification.confidence),
+      confidence: value.classification.confidence == null ? ride.rideKindConfidence || fallback.classification?.confidence : finiteNumberOrZero(value.classification.confidence),
       reason: typeof value.classification.reason === "string" ? value.classification.reason : ride.rideKindReason || fallback.classification?.reason,
       status: typeof value.classification.status === "string" ? value.classification.status : ride.aiStatus || fallback.classification?.status
     } : fallback.classification,
@@ -1199,7 +1201,7 @@ function parseTripSuggestion(value: unknown): TripSuggestion | null {
   const suggestion = value as Record<string, unknown>;
   return {
     action: typeof suggestion.action === "string" ? suggestion.action : "none",
-    confidence: optionalNumber(suggestion.confidence),
+    confidence: optionalFiniteNumber(suggestion.confidence),
     title: typeof suggestion.title === "string" ? suggestion.title : null,
     reason: typeof suggestion.reason === "string" ? suggestion.reason : null,
     tripId: typeof suggestion.tripId === "string" ? suggestion.tripId : null
@@ -1207,7 +1209,7 @@ function parseTripSuggestion(value: unknown): TripSuggestion | null {
 }
 
 function normalizeChapter(value: any) {
-  const coordinate = normalizeCoordinate(value?.coordinate);
+  const coordinate = normalizeBoundedCoordinate(value?.coordinate);
   if (!value || typeof value !== "object" || !coordinate) {
     return null;
   }
@@ -1218,15 +1220,6 @@ function normalizeChapter(value: any) {
     timestamp: typeof value.timestamp === "string" ? value.timestamp : null,
     coordinate
   };
-}
-
-function normalizeCoordinate(value: any) {
-  const latitude = Number(value?.latitude);
-  const longitude = Number(value?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
-    return null;
-  }
-  return { latitude, longitude };
 }
 
 function PhotoViewerFooter({ photo, index, total }: { photo?: RidePhoto; index: number; total: number }) {
@@ -1392,15 +1385,15 @@ function normalizeRide(ride: any): Ride {
     id: String(ride?.id || ""),
     startLabel: String(ride?.startLabel || "Start point"),
     endLabel: String(ride?.endLabel || "End point"),
-    distanceM: finiteNumber(ride?.distanceM),
-    durationS: finiteNumber(ride?.durationS),
-    topSpeedKmh: finiteNumber(ride?.topSpeedKmh),
-    avgSpeedKmh: finiteNumber(ride?.avgSpeedKmh),
+    distanceM: finiteNumberOrZero(ride?.distanceM),
+    durationS: finiteNumberOrZero(ride?.durationS),
+    topSpeedKmh: finiteNumberOrZero(ride?.topSpeedKmh),
+    avgSpeedKmh: finiteNumberOrZero(ride?.avgSpeedKmh),
     startedAt: typeof ride?.startedAt === "string" ? ride.startedAt : "",
     aiTitle: typeof ride?.aiTitle === "string" ? ride.aiTitle : null,
     aiSummary: typeof ride?.aiSummary === "string" ? ride.aiSummary : null,
     rideKind: typeof ride?.rideKind === "string" ? ride.rideKind : null,
-    rideKindConfidence: optionalNumber(ride?.rideKindConfidence),
+    rideKindConfidence: optionalFiniteNumber(ride?.rideKindConfidence),
     rideKindReason: typeof ride?.rideKindReason === "string" ? ride.rideKindReason : null,
     keyInsight: typeof ride?.keyInsight === "string" ? ride.keyInsight : null,
     bestMoment: typeof ride?.bestMoment === "string" ? ride.bestMoment : null,
@@ -1414,32 +1407,17 @@ function normalizeRide(ride: any): Ride {
 }
 
 function normalizeRidePoint(point: any): RidePoint | null {
-  const latitude = Number(point?.latitude);
-  const longitude = Number(point?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+  const coordinate = normalizeFiniteCoordinate(point);
+  if (!coordinate) {
     return null;
   }
   return {
-    latitude,
-    longitude,
-    altitudeM: optionalNumber(point?.altitudeM),
-    accuracyM: optionalNumber(point?.accuracyM),
-    speedKmh: optionalNumber(point?.speedKmh),
+    ...coordinate,
+    altitudeM: optionalFiniteNumber(point?.altitudeM),
+    accuracyM: optionalFiniteNumber(point?.accuracyM),
+    speedKmh: optionalFiniteNumber(point?.speedKmh),
     recordedAt: typeof point?.recordedAt === "string" ? point.recordedAt : ""
   };
-}
-
-function optionalNumber(value: unknown) {
-  if (value == null) {
-    return null;
-  }
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-
-function finiteNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
 }
 
 function waitForCaptureReady() {

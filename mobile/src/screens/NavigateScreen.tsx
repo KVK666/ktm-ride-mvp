@@ -11,6 +11,7 @@ import { Screen } from "../components/Screen";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Coordinate, SavedPlace } from "../types";
+import { normalizeBoundedCoordinates } from "../utils/coordinates";
 
 export function NavigateScreen() {
   const { colors } = useTheme();
@@ -269,7 +270,7 @@ function NavigationMap({
   const localMapRef = useRef<MapView | null>(null);
   const activeRef = mapRef || localMapRef;
   const coordinates = useMemo(
-    () => (route?.coordinates || []).filter(isCoordinate),
+    () => normalizeBoundedCoordinates(route?.coordinates || []),
     [route]
   );
   const start = coordinates[0];
@@ -307,12 +308,6 @@ function NavigationMap({
       {destination ? <Marker coordinate={destination} title="Destination" pinColor={colors.orange} /> : null}
     </MapView>
   );
-}
-
-function isCoordinate(coordinate?: Coordinate | null) {
-  const latitude = Number(coordinate?.latitude);
-  const longitude = Number(coordinate?.longitude);
-  return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
 }
 
 const createStyles = (colors: ThemeColors) => ({

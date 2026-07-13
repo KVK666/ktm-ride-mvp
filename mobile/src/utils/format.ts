@@ -1,14 +1,16 @@
+import { finiteNumberOrZero } from "./normalize";
+
 export function km(meters: number) {
-  const safeMeters = safeNumber(meters);
+  const safeMeters = finiteNumberOrZero(meters);
   return `${(safeMeters / 1000).toFixed(safeMeters >= 10000 ? 0 : 1)} km`;
 }
 
 export function kmh(value: number) {
-  return `${Math.round(safeNumber(value))} km/h`;
+  return `${Math.round(finiteNumberOrZero(value))} km/h`;
 }
 
 export function duration(seconds: number) {
-  const safeSeconds = Math.max(0, safeNumber(seconds));
+  const safeSeconds = Math.max(0, finiteNumberOrZero(seconds));
   const hours = Math.floor(safeSeconds / 3600);
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   if (hours > 0) {
@@ -41,9 +43,11 @@ export function time(value: string) {
   });
 }
 
-function safeNumber(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+export function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function safeDate(value: unknown) {
