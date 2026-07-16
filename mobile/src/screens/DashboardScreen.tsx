@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { InlineSkeleton } from "../components/InlineSkeleton";
 import { JournalCard } from "../components/JournalCard";
@@ -15,6 +16,7 @@ import { RideSlideshowModal } from "../components/RideSlideshowModal";
 import { SmartHighlight } from "../components/SmartHighlight";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
+import { getProfilePhotoUri } from "../services/profilePhoto";
 import { buildRideMemories, getRideAlbum } from "../services/rideAlbums";
 import { hasManualRideSession } from "../services/manualRideSession";
 import { typography } from "../theme/colors";
@@ -35,6 +37,7 @@ export function DashboardScreen() {
   const [memories, setMemories] = useState<RideMemory[]>([]);
   const [selectedMemory, setSelectedMemory] = useState<RideMemory | null>(null);
   const [selectedMemoryPhotos, setSelectedMemoryPhotos] = useState<RideAlbumPhoto[]>([]);
+  const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -54,6 +57,18 @@ export function DashboardScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getProfilePhotoUri(user?.id).then((uri) => {
+        if (active) setProfilePhotoUri(uri);
+      });
+      return () => {
+        active = false;
+      };
+    }, [user?.id, user?.profilePhotoUpdatedAt])
+  );
+
   const latestRide = journal?.latestRide || journal?.recentRides?.[0] || null;
   const highlights = journal?.highlights || [];
   const monthChange = journal?.monthlyRecap?.distanceDeltaPercent;
@@ -71,26 +86,42 @@ export function DashboardScreen() {
   }
 
   return (
-    <Screen>
+    <Screen includeTopInset={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.accent} />}
       >
-        <View style={styles.header}>
-          <View style={styles.headerText}>
+        <Pressable
+          accessibilityLabel="Open your profile"
+          onPress={() => navigation.navigate("More", { screen: "Profile" })}
+          style={({ pressed }) => [styles.hero, { backgroundColor: colors.surfaceHigh }, pressed && styles.pressed]}
+        >
+          {profilePhotoUri ? (
+            <Image source={{ uri: profilePhotoUri }} resizeMode="cover" style={styles.heroImage} />
+          ) : (
+            <View style={styles.heroFallback}>
+              <ProfileAvatar user={user} size={124} radius={44} />
+            </View>
+          )}
+          <LinearGradient
+            colors={["rgba(8,10,12,0.66)", "rgba(8,10,12,0.16)", "rgba(8,10,12,0.02)"]}
+            locations={[0, 0.58, 1]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <LinearGradient
+            colors={["rgba(8,10,12,0.02)", "rgba(8,10,12,0.14)", "rgba(8,10,12,0.82)", "#080A0C"]}
+            locations={[0, 0.48, 0.82, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.heroText}>
             <Text style={[styles.eyebrow, { color: colors.accent }]}>RIDEPULSE JOURNAL</Text>
-            <Text style={[styles.title, { color: colors.text }]}>The road remembers, {firstName}.</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>{user?.bikeModel || "Your motorcycle"} · Smart ride journal</Text>
+            <Text style={styles.title}>The road remembers, {firstName}.</Text>
+            <Text style={styles.subtitle}>{user?.bikeModel || "Your motorcycle"} · Smart ride journal</Text>
           </View>
-          <Pressable
-            accessibilityLabel="Open your profile"
-            onPress={() => navigation.navigate("More", { screen: "Profile" })}
-            style={[styles.avatar, { backgroundColor: colors.surfaceHigh, borderColor: colors.accent }]}
-          >
-            <ProfileAvatar user={user} size={82} radius={27} />
-          </Pressable>
-        </View>
+        </Pressable>
 
         {error ? (
           <Pressable onPress={() => load()} style={[styles.banner, { backgroundColor: `${colors.danger}16` }]}>
@@ -310,28 +341,16 @@ function number(value: unknown) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 118, gap: 26 },
-  header: { flexDirection: "row", alignItems: "center", gap: 16, paddingTop: 2 },
-  headerText: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingBottom: 118, gap: 26 },
+  hero: { height: 430, marginHorizontal: -20, overflow: "hidden", justifyContent: "flex-end" },
+  heroImage: { position: "absolute", top: 0, bottom: 0, left: 0, width: "120%", height: "100%" },
+  heroFallback: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  heroText: { paddingHorizontal: 24, paddingBottom: 74, paddingRight: 62 },
   flex: { flex: 1 },
-  eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.4 },
-  title: { fontFamily: typography.extraBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.8, marginTop: 3 },
-  subtitle: { fontFamily: typography.medium, fontSize: 13, lineHeight: 19, marginTop: 4 },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 31,
-    borderWidth: 2,
-    padding: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 8
-  },
-  startRide: { minHeight: 88, borderRadius: 28, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  eyebrow: { fontFamily: typography.bold, fontSize: 11, letterSpacing: 1.6 },
+  title: { color: "#F7F8F9", fontFamily: typography.extraBold, fontSize: 38, lineHeight: 43, letterSpacing: -1, marginTop: 5 },
+  subtitle: { color: "rgba(247,248,249,0.72)", fontFamily: typography.medium, fontSize: 13, lineHeight: 19, marginTop: 7 },
+  startRide: { minHeight: 88, marginTop: -76, zIndex: 2, borderRadius: 28, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   startIcon: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, borderColor: "rgba(0,0,0,0.16)", alignItems: "center", justifyContent: "center" },
   startKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, opacity: 0.68 },
   startTitle: { fontFamily: typography.extraBold, fontSize: 19, marginTop: 2 },
