@@ -145,6 +145,7 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `mobile/src/services/onboarding.ts`: walkthrough completion storage.
 - `mobile/src/services/profilePhoto.ts`: per-user profile photo picker, local cache, backend upload/download/delete sync.
 - `mobile/src/components/ProfileAvatar.tsx`: shared backend-backed avatar display used by Home, You, and Profile surfaces.
+- The Home journal header presents the signed-in rider photo as a prominent 90px portrait tile with the lime brand outline, while retaining tap-through navigation to Profile.
 - `mobile/src/services/ridePhotos.ts`: scans the phone photo library for photos created between ride start/end times.
 - `mobile/src/services/autoRideTracking.ts`: motion-first auto tracking state machine, thresholds, background handling, pending queue.
 - `mobile/src/services/activityRecognition.ts` and `activityRecognitionTask.ts`: Android native activity-recognition bridge and Headless JS task for motion-first ride wakeups.

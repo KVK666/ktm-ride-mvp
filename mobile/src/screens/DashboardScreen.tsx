@@ -83,8 +83,12 @@ export function DashboardScreen() {
             <Text style={[styles.title, { color: colors.text }]}>The road remembers, {firstName}.</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>{user?.bikeModel || "Your motorcycle"} · Smart ride journal</Text>
           </View>
-          <Pressable accessibilityLabel="Open your profile" onPress={() => navigation.navigate("More", { screen: "Profile" })} style={[styles.avatar, { backgroundColor: colors.surfaceHigh }]}>
-            <ProfileAvatar user={user} size={48} radius={18} />
+          <Pressable
+            accessibilityLabel="Open your profile"
+            onPress={() => navigation.navigate("More", { screen: "Profile" })}
+            style={[styles.avatar, { backgroundColor: colors.surfaceHigh, borderColor: colors.accent }]}
+          >
+            <ProfileAvatar user={user} size={82} radius={27} />
           </Pressable>
         </View>
 
@@ -313,7 +317,20 @@ const styles = StyleSheet.create({
   eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.4 },
   title: { fontFamily: typography.extraBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.8, marginTop: 3 },
   subtitle: { fontFamily: typography.medium, fontSize: 13, lineHeight: 19, marginTop: 4 },
-  avatar: { width: 52, height: 52, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 31,
+    borderWidth: 2,
+    padding: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 8
+  },
   startRide: { minHeight: 88, borderRadius: 28, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   startIcon: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, borderColor: "rgba(0,0,0,0.16)", alignItems: "center", justifyContent: "center" },
   startKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, opacity: 0.68 },
