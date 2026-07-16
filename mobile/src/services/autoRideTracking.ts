@@ -87,6 +87,10 @@ export type AutoTrackingStatus = {
   pendingCount: number;
   autoRideActive: boolean;
   hint?: string;
+  activeRide?: {
+    startedAt: string;
+    points: RidePoint[];
+  };
 };
 
 export type AutoTrackingReadiness = {
@@ -109,7 +113,14 @@ export async function getAutoTrackingStatus(): Promise<AutoTrackingStatus> {
     return { enabled, label: pendingCount ? "Pending upload" : "Off", pendingCount, autoRideActive: false };
   }
   if (state.status === "riding") {
-    return { enabled, label: "Auto ride in progress", pendingCount, autoRideActive: true };
+    return {
+      enabled,
+      label: "Auto ride in progress",
+      pendingCount,
+      autoRideActive: true,
+      hint: "Recording automatically. The ride will finish after movement stops.",
+      activeRide: { startedAt: state.startedAt, points: state.points }
+    };
   }
   if (state.status === "probing") {
     return {

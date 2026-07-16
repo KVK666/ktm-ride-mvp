@@ -10,6 +10,7 @@ import { Screen } from "../components/Screen";
 import { Metric } from "../components/Metric";
 import { useAutoTracking } from "../hooks/useAutoTracking";
 import {
+  getAutoTrackingStatus,
   setManualTrackingActive,
   startManualBackgroundTracking,
   stopManualBackgroundTracking
@@ -34,6 +35,9 @@ import { locationToRidePoint } from "../utils/locationPoint";
 const MAX_REASONABLE_SPEED_KMH = 250;
 const MAX_SPEED_ACCURACY_M = 35;
 const SPEED_SUPPORT_WINDOW_MS = 12000;
+const FAST_START_LOCATION_MAX_AGE_MS = 30000;
+const FAST_START_LOCATION_ACCURACY_M = 90;
+const FRESH_LOCATION_TIMEOUT_MS = 8000;
 
 export function RideScreen() {
   const { colors } = useTheme();
@@ -47,34 +51,41 @@ export function RideScreen() {
   const [message, setMessage] = useState("");
   const [finishVisible, setFinishVisible] = useState(false);
   const autoTracking = useAutoTracking();
+  const autoRide = autoTracking.status.activeRide;
+  const autoRideActive = Boolean(autoTracking.status.autoRideActive && autoRide);
+  const recordingActive = active || autoRideActive;
+  const livePoints = active ? points : autoRide?.points || [];
+  const liveStartedAt = active ? startedAt : autoRide?.startedAt || null;
   const subscription = useRef<Location.LocationSubscription | null>(null);
   const restoring = useRef(false);
 
   const stats = useMemo(() => {
     let distanceM = 0;
-    for (let index = 1; index < points.length; index += 1) {
-      distanceM += distanceMeters(points[index - 1], points[index]);
+    for (let index = 1; index < livePoints.length; index += 1) {
+      distanceM += distanceMeters(livePoints[index - 1], livePoints[index]);
     }
-    const topSpeed = reliableTopSpeed(points);
-    const startMs = startedAt ? timestampMs(startedAt) : Date.now();
-    const durationS = active && startMs ? Math.max(0, Math.floor((Date.now() - startMs) / 1000)) : 0;
+    const topSpeed = reliableTopSpeed(livePoints);
+    const startMs = liveStartedAt ? timestampMs(liveStartedAt) : Date.now();
+    const durationS = recordingActive && startMs ? Math.max(0, Math.floor((Date.now() - startMs) / 1000)) : 0;
     const avgSpeed = durationS > 0 ? (distanceM / 1000 / (durationS / 3600)) : 0;
     return { distanceM, topSpeed, durationS, avgSpeed };
-  }, [active, points, startedAt]);
-  const gpsQuality = gpsQualityLabel(points[points.length - 1], points.length);
+  }, [livePoints, liveStartedAt, recordingActive]);
+  const gpsQuality = gpsQualityLabel(livePoints[livePoints.length - 1], livePoints.length);
 
   async function ensurePermissions() {
-    const foreground = await Location.requestForegroundPermissionsAsync();
+    let foreground = await Location.getForegroundPermissionsAsync();
+    if (foreground.status !== "granted") {
+      foreground = await Location.requestForegroundPermissionsAsync();
+    }
     if (foreground.status !== "granted") {
       throw new Error("Location permission is required for ride tracking");
     }
 
-    const background = await Location.requestBackgroundPermissionsAsync();
+    const background = await Location.getBackgroundPermissionsAsync();
     if (background.status !== "granted") {
       setMessage("Background location is off. Foreground tracking will work, but keep the app open while riding.");
-    } else {
-      setMessage("Background tracking enabled. Disable battery optimization for the most reliable ride logs.");
     }
+    return background.status === "granted";
   }
 
   useEffect(() => {
@@ -154,18 +165,27 @@ export function RideScreen() {
   }
 
   async function startRide() {
-    if (starting || active) {
+    if (starting || active || autoRideActive) {
       return;
     }
 
     setStarting(true);
+    const startRequestedAt = Date.now();
     try {
-      await ensurePermissions();
+      const latestAutoStatus = await getAutoTrackingStatus();
+      if (latestAutoStatus.autoRideActive) {
+        await autoTracking.refresh();
+        throw new Error("An automatic ride is already recording. Follow it in this cockpit.");
+      }
+      const backgroundGranted = await ensurePermissions();
       await clearManualRideSession();
       await setManualTrackingActive(true);
 
-      const firstLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-      const firstPoint = locationToRidePoint(firstLocation);
+      const { location: firstLocation, source } = await getFastStartLocation();
+      const locationPoint = locationToRidePoint(firstLocation);
+      const firstPoint = locationPoint
+        ? { ...locationPoint, recordedAt: new Date().toISOString() }
+        : null;
       if (!firstPoint) {
         throw new Error("Unable to read a valid GPS point");
       }
@@ -173,14 +193,19 @@ export function RideScreen() {
       setPoints([firstPoint]);
       setStartedAt(firstPoint.recordedAt);
       setActive(true);
+      setMessage(
+        backgroundGranted
+          ? "Recording started. High-accuracy GPS is refining your route."
+          : "Recording started. Keep RidePulse open because background location is off."
+      );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      await startForegroundWatcher();
-
-      const backgroundGranted = await Location.getBackgroundPermissionsAsync();
-      if (backgroundGranted.status === "granted") {
-        await startManualBackgroundTracking();
-      }
-      await refreshAutoTrackingStatus();
+      void startRideTrackers(backgroundGranted);
+      void logDiagnostic({
+        level: "info",
+        area: "manual-ride",
+        message: "Manual ride started",
+        details: `startupMs=${Date.now() - startRequestedAt}; firstLocation=${source}`
+      });
     } catch (err: any) {
       await setManualTrackingActive(false).catch((cleanupError) => {
         void logDiagnostic({
@@ -194,6 +219,24 @@ export function RideScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setStarting(false);
+    }
+  }
+
+  async function startRideTrackers(backgroundGranted: boolean) {
+    try {
+      await startForegroundWatcher();
+      if (backgroundGranted) {
+        await startManualBackgroundTracking();
+      }
+      await refreshAutoTrackingStatus();
+    } catch (err) {
+      setMessage("Ride is recording, but background tracking needs attention. Keep RidePulse open.");
+      await logDiagnostic({
+        level: "warn",
+        area: "manual-ride",
+        message: "Ride started but a tracking service failed",
+        details: diagnosticDetails(err)
+      });
     }
   }
 
@@ -334,17 +377,17 @@ export function RideScreen() {
       </Modal>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <View style={styles.recordRow}><View style={[styles.recordDot, active && styles.recordDotActive]} /><Text style={styles.kicker}>{active ? "RECORDING NOW" : "RIDE COCKPIT"}</Text></View>
-          <Text style={styles.title}>{active ? "The road is yours" : "Ready when you are"}</Text>
+          <View style={styles.recordRow}><View style={[styles.recordDot, recordingActive && styles.recordDotActive]} /><Text style={styles.kicker}>{recordingActive ? (autoRideActive ? "AUTO RECORDING NOW" : "RECORDING NOW") : "RIDE COCKPIT"}</Text></View>
+          <Text style={styles.title}>{recordingActive ? "The road is yours" : "Ready when you are"}</Text>
           <Text style={styles.safety}>Set up before moving. Keep your eyes on the road and your phone mounted.</Text>
         </View>
 
         {message ? <Text style={styles.message}>{message}</Text> : null}
         {autoTracking.error ? <Text style={styles.message}>{autoTracking.error}</Text> : null}
 
-        <View style={styles.mapShell}><RideMap coordinates={compactRidePointsForMap(points)} current={points[points.length - 1]} title={active ? "Live ride route" : "Ride map"} /></View>
+        <View style={styles.mapShell}><RideMap coordinates={compactRidePointsForMap(livePoints)} current={livePoints[livePoints.length - 1]} title={recordingActive ? "Live ride route" : "Ride map"} /></View>
 
-        {active ? <View style={styles.speedHero}><Text style={styles.speedValue}>{Math.round(points[points.length - 1]?.speedKmh || 0)}</Text><Text style={styles.speedUnit}>km/h</Text></View> : null}
+        {recordingActive ? <View style={styles.speedHero}><Text style={styles.speedValue}>{Math.round(livePoints[livePoints.length - 1]?.speedKmh || 0)}</Text><Text style={styles.speedUnit}>km/h</Text></View> : null}
 
         <View style={styles.cockpitStatus}>
           <View style={styles.cockpitItem}>
@@ -353,11 +396,11 @@ export function RideScreen() {
           </View>
           <View style={styles.cockpitItem}>
             <Text style={styles.cockpitLabel}>POINTS</Text>
-            <Text style={styles.cockpitValue}>{points.length}</Text>
+            <Text style={styles.cockpitValue}>{livePoints.length}</Text>
           </View>
           <View style={styles.cockpitItem}>
             <Text style={styles.cockpitLabel}>SAVE STATE</Text>
-            <Text style={styles.cockpitValue}>{saving ? "Saving" : active ? "Live" : autoTracking.status.pendingCount ? "Pending" : "Ready"}</Text>
+            <Text style={styles.cockpitValue}>{saving ? "Saving" : recordingActive ? (autoRideActive ? "Auto live" : "Live") : autoTracking.status.pendingCount ? "Pending" : "Ready"}</Text>
           </View>
         </View>
 
@@ -367,7 +410,13 @@ export function RideScreen() {
           <View style={styles.metricDivider} /><Metric label="TOP SPEED" value={kmh(stats.topSpeed)} />
         </View>
 
-        {active ? <PrimaryButton block label="Finish ride" icon="stop-circle" danger loading={saving} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); setFinishVisible(true); }} /> : <PrimaryButton block label="Start recording" icon="play" loading={starting} onPress={startRide} />}
+        {active ? (
+          <PrimaryButton block label="Finish ride" icon="stop-circle" danger loading={saving} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); setFinishVisible(true); }} />
+        ) : autoRideActive ? (
+          <PrimaryButton block label="Auto recording active" icon="radio" disabled onPress={() => {}} />
+        ) : (
+          <PrimaryButton block label="Start recording" icon="play" loading={starting} onPress={startRide} />
+        )}
 
         <View style={styles.autoCard}>
           <View style={styles.autoHeader}>
@@ -381,7 +430,7 @@ export function RideScreen() {
             </View>
             <Switch
               value={autoTracking.status.enabled}
-              disabled={autoTracking.loading || active}
+              disabled={autoTracking.loading || recordingActive}
               onValueChange={autoTracking.toggle}
               thumbColor={autoTracking.status.enabled ? colors.accent : colors.muted}
               trackColor={{ false: colors.border, true: colors.surfaceHigh }}
@@ -417,6 +466,34 @@ export function RideScreen() {
       </ScrollView>
     </Screen>
   );
+}
+
+async function getFastStartLocation() {
+  const lastKnown = await Location.getLastKnownPositionAsync({
+    maxAge: FAST_START_LOCATION_MAX_AGE_MS,
+    requiredAccuracy: FAST_START_LOCATION_ACCURACY_M
+  });
+  if (lastKnown && locationToRidePoint(lastKnown)) {
+    return { location: lastKnown, source: "recent-cache" } as const;
+  }
+
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const location = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("GPS is taking too long. Move near an open area and try again.")),
+          FRESH_LOCATION_TIMEOUT_MS
+        );
+      })
+    ]);
+    return { location, source: "fresh-balanced" } as const;
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 function reliableTopSpeed(points: RidePoint[]) {

@@ -52,8 +52,8 @@ export class ProfilePhotoService {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       throw new Error('Profile photo must be a JPEG, PNG, or WEBP image.');
     }
-    if (file.size > 2 * 1024 * 1024) {
-      throw new Error('Profile photo is too large. Choose an image under 2 MB.');
+    if (file.size > 4 * 1024 * 1024) {
+      throw new Error('Profile photo is too large. Choose an image under 4 MB.');
     }
     const imageBase64 = await this.fileBase64(file);
     const metadata = await this.api.request<ProfilePhotoJson>('/profile/photo', {

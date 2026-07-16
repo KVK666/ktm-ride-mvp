@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class PhotoValidationService {
   private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
-  private static final int MAX_PROFILE_PHOTO_BYTES = 768 * 1024;
+  private static final int MAX_PROFILE_PHOTO_BYTES = 4 * 1024 * 1024;
   private static final int MAX_RIDE_PHOTO_BYTES = 3 * 1024 * 1024;
 
   public NormalizedPhoto normalizeProfilePhotoPayload(Map<String, Object> body) {

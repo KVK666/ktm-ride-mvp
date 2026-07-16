@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { api } from "../api/client";
 import { User } from "../types";
@@ -9,7 +10,8 @@ const PROFILE_PHOTO_KEY_PREFIX = "duke_ride_profile_photo:";
 const PROFILE_PHOTO_DIR = FileSystem.documentDirectory
   ? `${FileSystem.documentDirectory}profile-photos/`
   : "";
-const MAX_UPLOAD_BYTES = 768 * 1024;
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+const PROFILE_PHOTO_MAX_DIMENSION = 2048;
 
 type ProfilePhotoMetadata = Pick<User, "hasProfilePhoto" | "profilePhotoUpdatedAt">;
 
@@ -98,7 +100,7 @@ export async function pickAndSaveProfilePhoto(userId: string) {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
     aspect: [1, 1],
-    quality: 0.58
+    quality: 1
   });
 
   if (result.canceled || !result.assets[0]?.uri) {
@@ -107,11 +109,12 @@ export async function pickAndSaveProfilePhoto(userId: string) {
 
   await ensurePhotoDirectory();
   const currentUri = await getProfilePhotoUri(userId);
-  const sourceUri = result.assets[0].uri;
-  const destinationUri = `${PROFILE_PHOTO_DIR}${userId}-${Date.now()}.${extensionFor(sourceUri)}`;
+  const source = result.assets[0];
+  const optimizedUri = await optimizeProfilePhoto(source.uri, source.width);
+  const destinationUri = `${PROFILE_PHOTO_DIR}${userId}-${Date.now()}.jpg`;
 
   try {
-    await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+    await FileSystem.copyAsync({ from: optimizedUri, to: destinationUri });
     await AsyncStorage.setItem(storageKey(userId), destinationUri);
     await deleteStoredFile(currentUri);
     return destinationUri;
@@ -126,6 +129,29 @@ export async function pickAndSaveProfilePhoto(userId: string) {
   }
 }
 
+async function optimizeProfilePhoto(sourceUri: string, sourceWidth?: number) {
+  const variants = [
+    { width: PROFILE_PHOTO_MAX_DIMENSION, compress: 0.92 },
+    { width: 1800, compress: 0.86 },
+    { width: 1600, compress: 0.82 }
+  ];
+
+  for (const variant of variants) {
+    const actions: ImageManipulator.Action[] =
+      !sourceWidth || sourceWidth > variant.width ? [{ resize: { width: variant.width } }] : [];
+    const optimized = await ImageManipulator.manipulateAsync(sourceUri, actions, {
+      compress: variant.compress,
+      format: ImageManipulator.SaveFormat.JPEG
+    });
+    const info = await FileSystem.getInfoAsync(optimized.uri);
+    if (info.exists && Number(info.size || 0) <= MAX_UPLOAD_BYTES) {
+      return optimized.uri;
+    }
+  }
+
+  throw new Error("Unable to optimize this photo. Try a different JPEG, PNG, or WEBP image.");
+}
+
 export async function removeProfilePhoto(userId: string) {
   const currentUri = await getProfilePhotoUri(userId);
   await deleteStoredFile(currentUri);
@@ -138,7 +164,7 @@ export async function uploadProfilePhoto(userId: string, uri: string): Promise<P
     throw new Error("Profile photo file is missing");
   }
   if (typeof info.size === "number" && info.size > MAX_UPLOAD_BYTES) {
-    throw new Error("Profile photo is too large. Choose a smaller image.");
+    throw new Error("Profile photo optimization did not complete. Choose the photo again.");
   }
 
   const imageBase64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });

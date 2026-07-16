@@ -25,7 +25,6 @@ export function useAutoTracking() {
   const refresh = useCallback(async () => {
     try {
       setError("");
-      await syncPendingRidesForCurrentUser();
       setStatus(await getAutoTrackingStatus());
     } catch (err: any) {
       setError(err.message || "Auto tracking status unavailable");
@@ -34,8 +33,9 @@ export function useAutoTracking() {
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
-      const interval = setInterval(refresh, 10000);
+      void refresh();
+      void syncPendingRidesForCurrentUser().then(refresh).catch(() => {});
+      const interval = setInterval(refresh, 2000);
       return () => clearInterval(interval);
     }, [refresh])
   );
