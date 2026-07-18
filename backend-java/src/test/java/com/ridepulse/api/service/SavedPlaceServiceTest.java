@@ -8,8 +8,10 @@ import static org.mockito.Mockito.when;
 
 import com.ridepulse.api.http.ApiException;
 import com.ridepulse.api.repository.SavedPlaceRepository;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -43,5 +45,16 @@ class SavedPlaceServiceTest {
     assertThatThrownBy(() -> service.update("owner-1", "place-2", Map.of(
         "label", "Office", "kind", "office", "latitude", 12, "longitude", 77)))
         .isInstanceOfSatisfying(ApiException.class, error -> assertThat(error.status()).isEqualTo(HttpStatus.NOT_FOUND));
+  }
+
+  @Test
+  void doesNotMislabelForeignKeyFailuresAsDuplicateNames() {
+    DataIntegrityViolationException foreignKeyFailure = new DataIntegrityViolationException(
+        "insert failed", new SQLException("foreign key violation", "23503"));
+    when(repository.create("owner-1", "Home", "home", 12, 77, 180)).thenThrow(foreignKeyFailure);
+
+    assertThatThrownBy(() -> service.create("owner-1", Map.of(
+        "label", "Home", "kind", "home", "latitude", 12, "longitude", 77)))
+        .isSameAs(foreignKeyFailure);
   }
 }
