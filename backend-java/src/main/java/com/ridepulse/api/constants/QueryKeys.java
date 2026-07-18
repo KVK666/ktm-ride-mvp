@@ -75,6 +75,7 @@ public final class QueryKeys {
   public static final String SCHEMA_USER_PROFILE_MIME = "schema.user-profile-mime";
   public static final String SCHEMA_USER_PROFILE_UPDATED = "schema.user-profile-updated";
   public static final String SCHEMA_USERS_ID_UNIQUE_INDEX = "schema.users-id-unique-index";
+  public static final String SCHEMA_USERS_RECONCILE_PUBLIC = "schema.users-reconcile-public";
   public static final String SCHEMA_PASSWORD_RESET_TABLE = "schema.password-reset-table";
   public static final String SCHEMA_PASSWORD_RESET_USER_FK = "schema.password-reset-user-fk";
   public static final String SCHEMA_RIDE_ALBUM_TABLE = "schema.ride-album-table";
