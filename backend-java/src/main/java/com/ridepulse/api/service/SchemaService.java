@@ -35,6 +35,7 @@ public class SchemaService {
         QueryKeys.SCHEMA_USER_PROFILE_DATA,
         QueryKeys.SCHEMA_USER_PROFILE_MIME,
         QueryKeys.SCHEMA_USER_PROFILE_UPDATED,
+        QueryKeys.SCHEMA_USERS_ID_UNIQUE_INDEX,
         QueryKeys.SCHEMA_PASSWORD_RESET_TABLE,
         QueryKeys.SCHEMA_PASSWORD_RESET_USER_FK,
         QueryKeys.SCHEMA_RIDE_ALBUM_TABLE,
