@@ -16,22 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class JdbcPasswordResetRepository implements PasswordResetRepository {
-  private final NamedParameterJdbcTemplate readOnlyJdbc;
   private final NamedParameterJdbcTemplate readWriteJdbc;
   private final SqlQueries sql;
 
   public JdbcPasswordResetRepository(
-      @Qualifier(BeanNames.READ_ONLY_NAMED_JDBC) NamedParameterJdbcTemplate readOnlyJdbc,
       @Qualifier(BeanNames.READ_WRITE_NAMED_JDBC) NamedParameterJdbcTemplate readWriteJdbc,
       SqlQueries sql) {
-    this.readOnlyJdbc = readOnlyJdbc;
     this.readWriteJdbc = readWriteJdbc;
     this.sql = sql;
   }
 
   @Override
   public Optional<ResetUserRow> findUserByEmail(String email) {
-    return readOnlyJdbc.query(sql.get(QueryKeys.PASSWORD_RESET_USER_BY_EMAIL), new MapSqlParameterSource("email", email), rs -> rs.next() ? Optional.of(RowMappers.resetUser(rs)) : Optional.empty());
+    return readWriteJdbc.query(sql.get(QueryKeys.PASSWORD_RESET_USER_BY_EMAIL), new MapSqlParameterSource("email", email), rs -> rs.next() ? Optional.of(RowMappers.resetUser(rs)) : Optional.empty());
   }
 
   @Override

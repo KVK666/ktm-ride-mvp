@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 class DatabaseConfigTest {
   @Test
@@ -23,5 +24,14 @@ class DatabaseConfigTest {
   @Test
   void rejectsInvalidSchemaName() {
     assertThrows(IllegalStateException.class, () -> DatabaseConfig.toJdbcUrl("postgresql://user:pass@example.com/ridepulse", true, "bad-schema"));
+  }
+
+  @Test
+  void canonicalDatabaseUrlWinsOverLegacySplitOverrides() {
+    MockEnvironment environment = new MockEnvironment()
+        .withProperty("DATABASE_URL", "postgresql://canonical/ridepulse")
+        .withProperty("READ_ONLY_DATABASE_URL", "postgresql://stale-reader/ridepulse");
+
+    assertEquals("postgresql://canonical/ridepulse", DatabaseConfig.databaseUrl(environment, "READ_ONLY_DATABASE_URL"));
   }
 }

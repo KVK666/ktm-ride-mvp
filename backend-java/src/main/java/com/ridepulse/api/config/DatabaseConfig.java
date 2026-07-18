@@ -22,7 +22,7 @@ public class DatabaseConfig {
   @Bean(BeanNames.READ_WRITE_DATA_SOURCE)
   @Primary
   DataSource readWriteDataSource(Environment env) {
-    String rawUrl = firstNonBlank(env.getProperty("READ_WRITE_DATABASE_URL"), env.getProperty("DATABASE_URL"), env.getProperty("SPRING_DATASOURCE_URL"));
+    String rawUrl = databaseUrl(env, "READ_WRITE_DATABASE_URL");
     if (rawUrl == null) {
       throw new IllegalStateException("DATABASE_URL is not configured");
     }
@@ -31,11 +31,21 @@ public class DatabaseConfig {
 
   @Bean(BeanNames.READ_ONLY_DATA_SOURCE)
   DataSource readOnlyDataSource(Environment env) {
-    String rawUrl = firstNonBlank(env.getProperty("READ_ONLY_DATABASE_URL"), env.getProperty("DATABASE_URL"), env.getProperty("SPRING_DATASOURCE_URL"));
+    String rawUrl = databaseUrl(env, "READ_ONLY_DATABASE_URL");
     if (rawUrl == null) {
       throw new IllegalStateException("DATABASE_URL is not configured");
     }
     return hikari(rawUrl, env, true);
+  }
+
+  static String databaseUrl(Environment env, String legacyOverrideKey) {
+    // DATABASE_URL is the documented production source of truth. Prefer it so
+    // stale legacy read/write overrides cannot silently split account reads
+    // from owner-scoped writes and violate foreign keys.
+    return firstNonBlank(
+        env.getProperty("DATABASE_URL"),
+        env.getProperty(legacyOverrideKey),
+        env.getProperty("SPRING_DATASOURCE_URL"));
   }
 
   @Bean(BeanNames.READ_ONLY_NAMED_JDBC)
