@@ -75,8 +75,8 @@ public final class QueryKeys {
   public static final String SCHEMA_USER_PROFILE_MIME = "schema.user-profile-mime";
   public static final String SCHEMA_USER_PROFILE_UPDATED = "schema.user-profile-updated";
   public static final String SCHEMA_USERS_ID_UNIQUE_INDEX = "schema.users-id-unique-index";
-  public static final String SCHEMA_USERS_RECONCILE_PUBLIC = "schema.users-reconcile-public";
   public static final String SCHEMA_PASSWORD_RESET_TABLE = "schema.password-reset-table";
+  public static final String SCHEMA_PASSWORD_RESET_DEFAULTS = "schema.password-reset-defaults";
   public static final String SCHEMA_PASSWORD_RESET_USER_FK = "schema.password-reset-user-fk";
   public static final String SCHEMA_RIDE_ALBUM_TABLE = "schema.ride-album-table";
   public static final String SCHEMA_TRIPS_TABLE = "schema.trips-table";
@@ -99,6 +99,7 @@ public final class QueryKeys {
   public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
   public static final String SCHEMA_RIDES_USER_STARTED_INDEX = "schema.rides-user-started-index";
   public static final String SCHEMA_SAVED_PLACES_TABLE = "schema.saved-places-table";
+  public static final String SCHEMA_SAVED_PLACES_DEFAULTS = "schema.saved-places-defaults";
   public static final String SCHEMA_SAVED_PLACES_USER_FK = "schema.saved-places-user-fk";
   public static final String SCHEMA_SAVED_PLACES_USER_LABEL_INDEX = "schema.saved-places-user-label-index";
 
