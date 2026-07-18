@@ -18,33 +18,32 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class JdbcSavedPlaceRepository implements SavedPlaceRepository {
-  private final NamedParameterJdbcTemplate readOnlyJdbc;
   private final NamedParameterJdbcTemplate readWriteJdbc;
   private final SqlQueries sql;
 
   public JdbcSavedPlaceRepository(
-      @Qualifier(BeanNames.READ_ONLY_NAMED_JDBC) NamedParameterJdbcTemplate readOnlyJdbc,
       @Qualifier(BeanNames.READ_WRITE_NAMED_JDBC) NamedParameterJdbcTemplate readWriteJdbc,
       SqlQueries sql) {
-    this.readOnlyJdbc = readOnlyJdbc;
     this.readWriteJdbc = readWriteJdbc;
     this.sql = sql;
   }
 
   @Override
   public List<Map<String, Object>> list(String userId) {
-    return readOnlyJdbc.query(sql.get(QueryKeys.SAVED_PLACE_LIST), userParams(userId), (rs, rowNum) -> place(rs));
+    // Saved places are user-managed settings. Read them from the writer so a
+    // just-created or updated place cannot disappear because a replica lags.
+    return readWriteJdbc.query(sql.get(QueryKeys.SAVED_PLACE_LIST), userParams(userId), (rs, rowNum) -> place(rs));
   }
 
   @Override
   public Optional<Map<String, Object>> find(String userId, String placeId) {
-    return readOnlyJdbc.query(sql.get(QueryKeys.SAVED_PLACE_BY_ID), placeParams(userId, placeId),
+    return readWriteJdbc.query(sql.get(QueryKeys.SAVED_PLACE_BY_ID), placeParams(userId, placeId),
         rs -> rs.next() ? Optional.of(place(rs)) : Optional.empty());
   }
 
   @Override
   public int count(String userId) {
-    Integer count = readOnlyJdbc.queryForObject(sql.get(QueryKeys.SAVED_PLACE_COUNT), userParams(userId), Integer.class);
+    Integer count = readWriteJdbc.queryForObject(sql.get(QueryKeys.SAVED_PLACE_COUNT), userParams(userId), Integer.class);
     return count == null ? 0 : count;
   }
 

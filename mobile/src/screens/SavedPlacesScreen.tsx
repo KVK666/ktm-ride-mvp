@@ -79,13 +79,13 @@ export function SavedPlacesScreen() {
     setSaving(true);
     setMessage("");
     try {
-      await api("/places", {
+      const response = await api<{ place: SavedPlace }>("/places", {
         method: "POST",
         body: JSON.stringify({ label: label.trim(), kind, radiusM, latitude: captured.latitude, longitude: captured.longitude })
       });
+      setPlaces((current) => [response.place, ...current.filter((place) => place.id !== response.place.id)]);
       setCaptured(null);
       setMessage(`${label.trim()} saved. Future rides can use this name.`);
-      await load();
     } catch (error: any) {
       setMessage(error?.message || "Unable to save this place.");
     } finally {
