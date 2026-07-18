@@ -1,6 +1,7 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import React, { useEffect, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -9,6 +10,7 @@ import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { duration, escapeHtml, km, kmh, shortDate } from "../utils/format";
 import { finiteNumberOrZero } from "../utils/normalize";
+import { rideDisplayTitle } from "../utils/rideTitle";
 
 type Period = "day" | "month" | "year";
 type Report = {
@@ -22,6 +24,9 @@ type Report = {
     topSpeedKmh: number;
   };
   routes: Array<{
+    rideId?: string | null;
+    title?: string | null;
+    aiTitle?: string | null;
     from: string;
     to: string;
     distanceM: number;
@@ -33,6 +38,7 @@ type Report = {
 
 export function ReportsScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   const styles = useThemedStyles(createStyles);
   const [period, setPeriod] = useState<Period>("month");
   const [report, setReport] = useState<Report | null>(null);
@@ -107,12 +113,12 @@ export function ReportsScreen() {
             <PrimaryButton label="Export PDF" icon="download" loading={exporting} onPress={exportPdf} />
 
             {(report.routes || []).map((route, index) => (
-              <View key={`${route.startedAt}-${index}`} style={styles.route}>
-                <Text style={styles.routeTitle}>{route.from} to {route.to}</Text>
+              <Pressable accessibilityRole={route.rideId ? "button" : undefined} onPress={() => route.rideId && navigation.navigate("RideDetail", { rideId: route.rideId })} key={`${route.startedAt}-${index}`} style={styles.route}>
+                <Text style={styles.routeTitle}>{rideDisplayTitle({ title: route.title, aiTitle: route.aiTitle, startLabel: route.from, endLabel: route.to, startedAt: route.startedAt })}</Text>
                 <Text style={styles.routeMeta}>
                   {shortDate(route.startedAt)} - {km(route.distanceM)} - {duration(route.durationS)} - top {kmh(route.topSpeedKmh)}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </>
         ) : null}
@@ -184,6 +190,9 @@ function normalizeReport(report: any, fallbackPeriod: Period): Report {
     },
     routes: Array.isArray(report?.routes)
       ? report.routes.map((route: any) => ({
+          rideId: safeText(route?.rideId) || null,
+          title: safeText(route?.title) || null,
+          aiTitle: safeText(route?.aiTitle) || null,
           from: safeText(route?.from) || "Start point",
           to: safeText(route?.to) || "End point",
           distanceM: finiteNumberOrZero(route?.distanceM),

@@ -37,10 +37,11 @@ import {
   StoryPromptVariantId
 } from "../services/rideStoryPrompt";
 import { shareRideStoryImage } from "../services/rideStoryShare";
-import { getRideAlbum, importRideWindowPhotosToAlbum, pickManualPhotosForAlbum, removeAlbumPhoto } from "../services/rideAlbums";
+import { hydrateRideAlbum, importRideWindowPhotosToAlbum, pickManualPhotosForAlbum, removeAlbumPhoto } from "../services/rideAlbums";
 import { ThemeColors, typography } from "../theme/colors";
 import { useTheme, useThemedStyles } from "../theme/ThemeContext";
 import { Ride, RideAlbum, RideAlbumPhoto, RideIntelligence, RidePhoto, RidePoint, Trip, TripSuggestion } from "../types";
+import { rideDisplayTitle } from "../utils/rideTitle";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 import { normalizeBoundedCoordinate, normalizeFiniteCoordinate } from "../utils/coordinates";
 import { finiteNumberOrZero, optionalFiniteNumber } from "../utils/normalize";
@@ -51,6 +52,8 @@ type RideDetailParams = {
     reviewMode?: boolean;
   };
 };
+
+type RideDetailSection = "overview" | "album" | "details";
 
 export function RideDetailScreen() {
   const { colors } = useTheme();
@@ -93,6 +96,8 @@ export function RideDetailScreen() {
   const [newTripDescription, setNewTripDescription] = useState("");
   const [addingTripId, setAddingTripId] = useState<string | null>(null);
   const [creatingTrip, setCreatingTrip] = useState(false);
+  const [rideTrips, setRideTrips] = useState<Trip[]>([]);
+  const [activeSection, setActiveSection] = useState<RideDetailSection>("overview");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aiRefreshCount, setAiRefreshCount] = useState(0);
@@ -104,7 +109,10 @@ export function RideDetailScreen() {
       setError("");
       setPhotoError("");
       setPhotosSearched(false);
+      setAlbum(null);
       setPhotos([]);
+      setRideTrips([]);
+      setDuplicateRides([]);
       closePhotoViewer();
       const response = await api<{ ride: Ride }>(`/rides/${route.params.rideId}`);
       if (!response.ride) {
@@ -112,33 +120,41 @@ export function RideDetailScreen() {
       }
       const nextRide = normalizeRide(response.ride);
       setRide(nextRide);
-      const nextAlbum = await getRideAlbum(nextRide.id);
-      setAlbum(nextAlbum);
-      setPhotos(nextAlbum?.photos || []);
-      setPhotosSearched(Boolean(nextAlbum?.photos.length));
       setIntelligence(null);
       setAiRefreshCount(0);
       setTitleDraft(nextRide.title || "");
       setNotesDraft(nextRide.notes || "");
       setReviewExpanded(Boolean(route.params.reviewMode));
+      setActiveSection("overview");
       setReviewMessage("");
-      try {
-        const [duplicates, smart] = await Promise.all([
-          api<{ duplicates: Ride[] }>(`/rides/${route.params.rideId}/duplicates`),
-          api<{ intelligence: RideIntelligence }>(`/rides/${route.params.rideId}/intelligence`).catch(() => ({ intelligence: buildFallbackIntelligence(nextRide) }))
-        ]);
-        setDuplicateRides(Array.isArray(duplicates.duplicates) ? duplicates.duplicates.map(normalizeRide) : []);
-        setIntelligence(normalizeIntelligence(smart.intelligence, nextRide));
-      } catch (duplicateError: any) {
-        setDuplicateRides([]);
-        setIntelligence(buildFallbackIntelligence(nextRide));
-        logDiagnostic({
-          level: "error",
-          area: "ride-review",
-          message: "Duplicate ride lookup failed",
-          details: diagnosticDetails(duplicateError)
-        });
-      }
+      setLoading(false);
+      await Promise.all([
+        hydrateRideAlbum(nextRide.id).then((nextAlbum) => {
+          setAlbum(nextAlbum);
+          setPhotos(nextAlbum?.photos || []);
+          setPhotosSearched(Boolean(nextAlbum?.photos.length));
+        }),
+        loadRideMembership(nextRide.id),
+        (async () => {
+          try {
+            const [duplicates, smart] = await Promise.all([
+              api<{ duplicates: Ride[] }>(`/rides/${route.params.rideId}/duplicates`),
+              api<{ intelligence: RideIntelligence }>(`/rides/${route.params.rideId}/intelligence`).catch(() => ({ intelligence: buildFallbackIntelligence(nextRide) }))
+            ]);
+            setDuplicateRides(Array.isArray(duplicates.duplicates) ? duplicates.duplicates.map(normalizeRide) : []);
+            setIntelligence(normalizeIntelligence(smart.intelligence, nextRide));
+          } catch (duplicateError: any) {
+            setDuplicateRides([]);
+            setIntelligence(buildFallbackIntelligence(nextRide));
+            await logDiagnostic({
+              level: "error",
+              area: "ride-review",
+              message: "Duplicate ride lookup failed",
+              details: diagnosticDetails(duplicateError)
+            });
+          }
+        })()
+      ]);
     } catch (err: any) {
       setRide(null);
       setIntelligence(null);
@@ -148,6 +164,17 @@ export function RideDetailScreen() {
       setLoading(false);
     }
   }, [route.params.rideId]);
+
+  async function loadRideMembership(rideId = ride?.id) {
+    if (!rideId) return;
+    try {
+      const response = await api<{ trips: Trip[] }>(`/rides/${rideId}/trips`);
+      setRideTrips(Array.isArray(response.trips) ? response.trips : []);
+    } catch (err) {
+      setRideTrips([]);
+      await logDiagnostic({ level: "warn", area: "trips", message: "Ride trip membership unavailable", details: diagnosticDetails(err) });
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -240,7 +267,7 @@ export function RideDetailScreen() {
     () => ride ? buildRideStoryPrompt(ride, promptVariantId, promptWeather, promptSeed) : "",
     [promptSeed, promptVariantId, promptWeather, ride]
   );
-  const displayTitle = intelligence?.suggestedTitle || rideTitle(ride || ({} as Ride));
+  const displayTitle = rideTitle(ride || ({} as Ride));
   const currentTripSuggestion = useMemo(
     () => intelligence?.tripAutomation || parseTripSuggestion(ride?.tripSuggestion),
     [intelligence?.tripAutomation, ride?.tripSuggestion]
@@ -334,7 +361,7 @@ export function RideDetailScreen() {
     try {
       await api(`/rides/${ride.id}`, { method: "DELETE" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      navigation.navigate("MainTabs", { screen: "History" });
+      navigation.navigate("MainTabs", { screen: "Journal" });
     } catch (err: any) {
       setReviewMessage(err.message || "Unable to delete this ride");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -406,7 +433,7 @@ export function RideDetailScreen() {
   function confirmRemovePhoto(photo: RideAlbumPhoto) {
     Alert.alert(
       "Remove photo from album?",
-      "This only removes the local RidePulse album copy. Your original gallery photo is not deleted.",
+      "This removes the private RidePulse copy from your synced album everywhere. Your original gallery photo is never deleted.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Remove", style: "destructive", onPress: () => removePhotoFromAlbum(photo.id) }
@@ -539,7 +566,7 @@ export function RideDetailScreen() {
     setTripActionMessage("");
     setNewTripTitle(currentTripSuggestion?.title || displayTitle || "");
     setNewTripDescription(currentTripSuggestion?.reason || "");
-    await loadTripOptions();
+    await Promise.all([loadTripOptions(), loadRideMembership(ride.id)]);
   }
 
   function closeTripModal() {
@@ -575,7 +602,7 @@ export function RideDetailScreen() {
       const trip = trips.find((item) => item.id === tripId);
       setTripActionMessage(`Added to ${trip?.title || "trip"}.`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      await loadTripOptions();
+      await Promise.all([loadTripOptions(), loadRideMembership(ride.id)]);
     } catch (err: any) {
       setTripActionMessage(err.message || "Unable to add ride to trip");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -612,7 +639,7 @@ export function RideDetailScreen() {
       setNewTripDescription("");
       setTripActionMessage(`Created ${created.trip.title} and added this ride.`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      await loadTripOptions();
+      await Promise.all([loadTripOptions(), loadRideMembership(ride.id)]);
     } catch (err: any) {
       setTripActionMessage(err.message || "Unable to create trip");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -675,6 +702,40 @@ export function RideDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <AIInsightHero ride={ride} intelligence={intelligence} title={displayTitle} />
 
+        <View style={styles.quickActions}>
+          <QuickAction label={needsReview ? "Review ride" : "Edit review"} icon="create-outline" onPress={() => { setActiveSection("overview"); setReviewExpanded(true); }} />
+          <QuickAction label="Add to trip" icon="albums" onPress={openTripModal} />
+          <QuickAction label="Share" icon="share-social" loading={storySharing} onPress={handleShareStoryImage} />
+          <QuickAction label="AI prompt" icon="sparkles" onPress={openPromptModal} />
+        </View>
+        {rideTrips.length ? <Text style={styles.membershipText}>Saved in {rideTrips.map((trip) => trip.title).join(", ")}</Text> : null}
+        {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
+
+        <View accessibilityRole="tablist" style={styles.sectionTabs}>
+          {([
+            { id: "overview" as const, label: "Overview", icon: "map-outline" as const },
+            { id: "album" as const, label: "Album", icon: "images-outline" as const },
+            { id: "details" as const, label: "Details", icon: "list-outline" as const }
+          ]).map((section) => {
+            const selected = activeSection === section.id;
+            return (
+              <Pressable
+                key={section.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                onPress={() => setActiveSection(section.id)}
+                style={({ pressed }) => [styles.sectionTab, selected && styles.sectionTabActive, pressed && styles.pressedPhoto]}
+              >
+                <Ionicons name={section.icon} color={selected ? colors.onAccent : colors.muted} size={17} />
+                <Text style={[styles.sectionTabText, selected && styles.sectionTabTextActive]}>{section.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {activeSection === "overview" ? <>
         <View style={styles.metricStrip}>
           <Metric label="DISTANCE" value={km(ride.distanceM)} accent />
           <View style={styles.metricDivider} />
@@ -682,8 +743,6 @@ export function RideDetailScreen() {
           <View style={styles.metricDivider} />
           <Metric label="TOP SPEED" value={kmh(ride.topSpeedKmh)} />
         </View>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {intelligence?.cleanupCandidate ? (
           <View style={styles.cleanupCard}>
@@ -703,16 +762,10 @@ export function RideDetailScreen() {
             coordinates={ride.points}
             title={`${ride.startLabel} to ${ride.endLabel}`}
             photoMarkers={photosWithLocation}
+            live={false}
             onPhotoMarkerPress={openPhotoMarker}
           />
         ) : null}
-
-        <View style={styles.quickActions}>
-          <QuickAction label="Share" icon="share-social" loading={storySharing} onPress={handleShareStoryImage} />
-          <QuickAction label="Ask AI" icon="sparkles" onPress={openPromptModal} />
-          <QuickAction label="Trip" icon="albums" onPress={openTripModal} />
-        </View>
-        {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
 
         <View style={[styles.card, needsReview && styles.reviewCard]}>
           <View style={styles.sectionHeader}>
@@ -806,8 +859,9 @@ export function RideDetailScreen() {
               ))}
           </View> : null}
         </View>
+        </> : null}
 
-        <View style={styles.albumCard}>
+        {activeSection === "album" ? <View style={styles.albumCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Album</Text>
             {photos.length ? <Text style={styles.albumCount}>{photos.length}</Text> : null}
@@ -840,7 +894,7 @@ export function RideDetailScreen() {
           {photos.length ? (
             <>
               <Text style={styles.photoMeta}>
-                {photos.length} saved locally, {photosWithLocation.length} with map location.
+                {photos.filter((photo) => photo.syncState === "synced").length} synced, {photos.filter((photo) => photo.syncState === "failed").length} waiting to retry, {photosWithLocation.length} with map location.
               </Text>
               <View style={styles.photoGrid}>
                 {photos.map((photo, index) => (
@@ -853,6 +907,7 @@ export function RideDetailScreen() {
                     <Image source={{ uri: photo.uri }} style={styles.photo} />
                     <View style={styles.photoFooter}>
                       <Text style={styles.photoTime}>{time(photo.createdAt)}</Text>
+                      <Ionicons name={photo.syncState === "synced" ? "cloud-done" : photo.syncState === "failed" ? "cloud-offline" : "phone-portrait-outline"} color={photo.syncState === "failed" ? colors.danger : colors.muted} size={14} />
                       {photo.hasLocation ? <Ionicons name="location" color={colors.blue} size={14} /> : null}
                     </View>
                     </Pressable>
@@ -875,19 +930,42 @@ export function RideDetailScreen() {
               </Text>
             </View>
           ) : null}
-        </View>
+        </View> : null}
 
-        <View style={styles.deleteRow}>
-          <Pressable
-            accessibilityRole="button"
-            disabled={deletingRide}
-            onPress={confirmDeleteRide}
-            style={({ pressed }) => [styles.deleteRideButton, pressed && styles.pressedPhoto, deletingRide && styles.disabledButton]}
-          >
-            <Ionicons name="trash" color={colors.danger} size={18} />
-            <Text style={styles.deleteRideText}>{deletingRide ? "Deleting..." : "Delete ride"}</Text>
-          </Pressable>
-        </View>
+        {activeSection === "details" ? <>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Route details</Text>
+            <DetailRow icon="navigate-outline" label="Start" value={ride.startLabel || "Start point"} />
+            <DetailRow icon="flag-outline" label="Finish" value={ride.endLabel || "End point"} />
+            <DetailRow icon="speedometer-outline" label="Average speed" value={kmh(ride.avgSpeedKmh)} />
+            <DetailRow icon="analytics-outline" label="Recorded points" value={String(ride.points?.length || 0)} />
+            <DetailRow icon="calendar-outline" label="Started" value={ride.startedAt ? new Date(ride.startedAt).toLocaleString() : "Unavailable"} />
+            <DetailRow icon="time-outline" label="Finished" value={ride.endedAt ? new Date(ride.endedAt).toLocaleString() : "Unavailable"} />
+          </View>
+          {(ride.notes || intelligence?.summaryText || ride.aiSummary || intelligence?.keyInsight || ride.keyInsight) ? (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Ride notes and insight</Text>
+              {ride.notes ? <Text style={styles.detailCopy}>{ride.notes}</Text> : null}
+              {intelligence?.summaryText || ride.aiSummary ? <Text style={styles.detailCopy}>{intelligence?.summaryText || ride.aiSummary}</Text> : null}
+              {intelligence?.keyInsight || ride.keyInsight ? <Text style={styles.detailHighlight}>{intelligence?.keyInsight || ride.keyInsight}</Text> : null}
+            </View>
+          ) : null}
+          <View style={styles.dangerCard}>
+            <View style={styles.sectionHeaderText}>
+              <Text style={styles.dangerTitle}>Delete ride</Text>
+              <Text style={styles.sectionMeta}>Permanently removes this ride and its saved route points.</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              disabled={deletingRide}
+              onPress={confirmDeleteRide}
+              style={({ pressed }) => [styles.deleteRideButton, pressed && styles.pressedPhoto, deletingRide && styles.disabledButton]}
+            >
+              <Ionicons name="trash" color={colors.danger} size={18} />
+              <Text style={styles.deleteRideText}>{deletingRide ? "Deleting..." : "Delete ride"}</Text>
+            </Pressable>
+          </View>
+        </> : null}
       </ScrollView>
       <View pointerEvents="none" style={styles.storyCaptureStage}>
         <View ref={storyCaptureRef} collapsable={false}>
@@ -977,21 +1055,26 @@ export function RideDetailScreen() {
                   <Ionicons name="refresh" color={colors.text} size={20} />
                 </Pressable>
               </View>
-              {trips.map((trip) => (
-                <Pressable
-                  key={trip.id}
-                  accessibilityRole="button"
-                  disabled={Boolean(addingTripId)}
-                  onPress={() => addRideToTrip(trip.id)}
-                  style={({ pressed }) => [styles.tripOption, pressed && styles.pressedPhoto, addingTripId === trip.id && styles.disabledButton]}
-                >
-                  <View style={styles.tripOptionText}>
-                    <Text numberOfLines={2} style={styles.tripOptionTitle}>{trip.title}</Text>
-                    <Text style={styles.sectionMeta}>{trip.rideCount || 0} rides · {km(trip.distanceM || 0)}</Text>
-                  </View>
-                  <Text style={styles.tripOptionAction}>{addingTripId === trip.id ? "Adding..." : "Add"}</Text>
-                </Pressable>
-              ))}
+              {trips.map((trip) => {
+                const alreadyAdded = rideTrips.some((membership) => membership.id === trip.id);
+                return (
+                  <Pressable
+                    key={trip.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: alreadyAdded || Boolean(addingTripId) }}
+                    disabled={alreadyAdded || Boolean(addingTripId)}
+                    onPress={() => addRideToTrip(trip.id)}
+                    style={({ pressed }) => [styles.tripOption, alreadyAdded && styles.tripOptionAdded, pressed && styles.pressedPhoto, addingTripId === trip.id && styles.disabledButton]}
+                  >
+                    <View style={styles.tripOptionText}>
+                      <Text numberOfLines={2} style={styles.tripOptionTitle}>{trip.title}</Text>
+                      <Text style={styles.sectionMeta}>{trip.rideCount || 0} rides · {km(trip.distanceM || 0)}</Text>
+                    </View>
+                    {alreadyAdded ? <Ionicons name="checkmark-circle" color={colors.accent} size={20} /> : null}
+                    <Text style={styles.tripOptionAction}>{alreadyAdded ? "Added" : addingTripId === trip.id ? "Adding..." : "Add"}</Text>
+                  </Pressable>
+                );
+              })}
               {!tripsLoading && !trips.length ? <Text style={styles.sectionMeta}>No trips yet. Create one above.</Text> : null}
             </View>
             {tripActionMessage ? <Text style={styles.reviewMessage}>{tripActionMessage}</Text> : null}
@@ -1075,7 +1158,7 @@ function AIInsightHero({ ride, intelligence, title }: { ride: Ride; intelligence
 }
 
 function rideTitle(ride: Ride) {
-  return ride.title?.trim() || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`;
+  return rideDisplayTitle(ride);
 }
 
 function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
@@ -1117,7 +1200,7 @@ function normalizeIntelligence(value: any, ride: Ride): RideIntelligence {
 }
 
 function buildFallbackIntelligence(ride: Ride): RideIntelligence {
-  const title = ride.title?.trim() || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`;
+  const title = rideTitle(ride);
   const summary = ride.aiSummary || ride.summaryText || `${km(ride.distanceM)} captured as a ${rideKindLabel(ride.rideKind).toLowerCase()}.`;
   const badges = Array.isArray(ride.badges) && ride.badges.length ? ride.badges : [
     ride.distanceM >= 30000 ? "Open road" : "Quick spin",
@@ -1342,6 +1425,20 @@ function StoryPromptModal({
         </ScrollView>
       </Screen>
     </Modal>
+  );
+}
+
+function DetailRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.detailRow}>
+      <View style={styles.detailIcon}><Ionicons name={icon} color={colors.accent} size={18} /></View>
+      <View style={styles.detailText}>
+        <Text style={styles.detailLabel}>{label}</Text>
+        <Text selectable style={styles.detailValue}>{value}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -1658,10 +1755,12 @@ const createStyles = (colors: ThemeColors) => ({
   metricDivider: { width: 1, height: 42, backgroundColor: colors.border },
   quickActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10
   },
   quickAction: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "47%",
     minHeight: 84,
     borderRadius: 22,
     borderWidth: 1,
@@ -1688,6 +1787,32 @@ const createStyles = (colors: ThemeColors) => ({
     fontFamily: typography.bold,
     fontSize: 12
   },
+  membershipText: {
+    color: colors.accent,
+    fontFamily: typography.bold,
+    fontSize: 12,
+    lineHeight: 18
+  },
+  sectionTabs: {
+    flexDirection: "row",
+    padding: 4,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  sectionTab: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 5
+  },
+  sectionTabActive: { backgroundColor: colors.accent },
+  sectionTabText: { color: colors.muted, fontFamily: typography.bold, fontSize: 11 },
+  sectionTabTextActive: { color: colors.onAccent },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 24,
@@ -1731,6 +1856,22 @@ const createStyles = (colors: ThemeColors) => ({
     fontFamily: typography.bold,
     fontSize: 13
   },
+  dangerCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: `${colors.danger}55`,
+    backgroundColor: `${colors.danger}0D`,
+    padding: 16,
+    gap: 12
+  },
+  dangerTitle: { color: colors.danger, fontFamily: typography.extraBold, fontSize: 16 },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 4 },
+  detailIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.accent}14` },
+  detailText: { flex: 1, minWidth: 0 },
+  detailLabel: { color: colors.muted, fontFamily: typography.bold, fontSize: 10, letterSpacing: 0.7 },
+  detailValue: { color: colors.text, fontFamily: typography.medium, fontSize: 13, lineHeight: 19, marginTop: 2 },
+  detailCopy: { color: colors.textSoft, fontFamily: typography.regular, fontSize: 13, lineHeight: 20 },
+  detailHighlight: { color: colors.accent, fontFamily: typography.bold, fontSize: 13, lineHeight: 20 },
   reviewCard: {
     borderWidth: 1,
     borderColor: `${colors.accent}55`
@@ -2033,6 +2174,7 @@ const createStyles = (colors: ThemeColors) => ({
     gap: 12,
     backgroundColor: colors.surfaceHigh
   },
+  tripOptionAdded: { borderWidth: 1, borderColor: `${colors.accent}55`, opacity: 0.78 },
   tripOptionText: {
     flex: 1,
     minWidth: 0

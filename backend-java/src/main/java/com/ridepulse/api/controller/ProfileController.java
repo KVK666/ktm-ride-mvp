@@ -1,6 +1,7 @@
 package com.ridepulse.api.controller;
 
 import com.ridepulse.api.auth.AuthSupport;
+import com.ridepulse.api.constants.Messages;
 import com.ridepulse.api.dto.ApiResponse;
 import com.ridepulse.api.pojo.PhotoRow;
 import com.ridepulse.api.service.ProfileService;
@@ -16,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +32,25 @@ public class ProfileController {
   ProfileController(AuthSupport authSupport, ProfileService profileService) {
     this.authSupport = authSupport;
     this.profileService = profileService;
+  }
+
+  @PatchMapping
+  ApiResponse<Map<String, Object>> update(HttpServletRequest request, @RequestBody(required = false) Map<String, Object> body) {
+    return ResponseUtil.ok(profileService.update(
+        authSupport.userId(request),
+        ValidationUtil.requestBody(body, Messages.PROFILE_UPDATE_REQUIRED)));
+  }
+
+  @GetMapping("/preferences")
+  ApiResponse<Map<String, Object>> preferences(HttpServletRequest request) {
+    return ResponseUtil.ok(profileService.preferences(authSupport.userId(request)));
+  }
+
+  @PatchMapping("/preferences")
+  ApiResponse<Map<String, Object>> updatePreferences(HttpServletRequest request, @RequestBody(required = false) Map<String, Object> body) {
+    return ResponseUtil.ok(profileService.updatePreferences(
+        authSupport.userId(request),
+        ValidationUtil.requestBody(body, Messages.MONTHLY_GOAL_INVALID)));
   }
 
   @GetMapping("/photo")

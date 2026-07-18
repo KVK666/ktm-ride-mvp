@@ -2,6 +2,7 @@ import { Ride } from "../types";
 import { hasFiniteCoordinateValues } from "../utils/coordinates";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 import { fetchWithTimeout } from "../utils/network";
+import { rideDisplayTitle } from "../utils/rideTitle";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 
 export type StoryPromptVariantId =
@@ -457,7 +458,7 @@ function containsAny(value: string, needles: string[]) {
 }
 
 function rideTitle(ride: Ride) {
-  return ride.title?.trim() || ride.aiTitle?.trim() || ride.smartTitle?.trim() || `${shortDate(ride.startedAt)} ride`;
+  return rideDisplayTitle(ride);
 }
 
 function routePromptLine(ride: Ride) {

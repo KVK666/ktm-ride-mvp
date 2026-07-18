@@ -7,6 +7,8 @@ import java.util.Optional;
 public interface TripRepository {
   List<Map<String, Object>> list(String userId);
 
+  List<Map<String, Object>> listForRide(String userId, String rideId);
+
   Optional<Map<String, Object>> find(String userId, String tripId);
 
   Optional<Map<String, Object>> findFresh(String userId, String tripId);
@@ -22,6 +24,8 @@ public interface TripRepository {
   int delete(String userId, String tripId);
 
   int addRide(String tripId, String rideId);
+
+  int addRides(String tripId, List<String> rideIds);
 
   int removeRide(String tripId, String rideId);
 

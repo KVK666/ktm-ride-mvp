@@ -1,9 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/client";
 import { InlineSkeleton } from "../components/InlineSkeleton";
 import { JournalCard } from "../components/JournalCard";
@@ -11,12 +10,9 @@ import { JournalHero } from "../components/JournalHero";
 import { MemoryCard } from "../components/MemoryCard";
 import { Metric } from "../components/Metric";
 import { PremiumEmptyState } from "../components/PremiumEmptyState";
-import { ProfileAvatar } from "../components/ProfileAvatar";
 import { RideSlideshowModal } from "../components/RideSlideshowModal";
 import { SmartHighlight } from "../components/SmartHighlight";
 import { Screen } from "../components/Screen";
-import { useAuth } from "../context/AuthContext";
-import { getProfilePhotoUri } from "../services/profilePhoto";
 import { buildRideMemories, getRideAlbum } from "../services/rideAlbums";
 import { hasManualRideSession } from "../services/manualRideSession";
 import { typography } from "../theme/colors";
@@ -27,8 +23,6 @@ import { km } from "../utils/format";
 export function DashboardScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
-  const firstName = (user?.name?.trim() || "Rider").split(/\s+/)[0];
   const [journal, setJournal] = useState<JournalResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,7 +31,6 @@ export function DashboardScreen() {
   const [memories, setMemories] = useState<RideMemory[]>([]);
   const [selectedMemory, setSelectedMemory] = useState<RideMemory | null>(null);
   const [selectedMemoryPhotos, setSelectedMemoryPhotos] = useState<RideAlbumPhoto[]>([]);
-  const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     refresh ? setRefreshing(true) : setLoading(true);
@@ -57,27 +50,16 @@ export function DashboardScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      getProfilePhotoUri(user?.id).then((uri) => {
-        if (active) setProfilePhotoUri(uri);
-      });
-      return () => {
-        active = false;
-      };
-    }, [user?.id, user?.profilePhotoUpdatedAt])
-  );
-
   const latestRide = journal?.latestRide || journal?.recentRides?.[0] || null;
   const highlights = journal?.highlights || [];
   const monthChange = journal?.monthlyRecap?.distanceDeltaPercent;
   const pendingReviewSuggestion = journal?.pendingReviewSuggestions?.[0] || null;
+  const cleanupRide = journal?.recentRides?.find((ride) => ride.cleanupCandidate) || null;
 
   async function openMemory(memory: RideMemory) {
     Haptics.selectionAsync().catch(() => {});
     if (!memory.ride) {
-      navigation.navigate("History");
+      navigation.navigate("Journal");
       return;
     }
     const album = await getRideAlbum(memory.ride.id);
@@ -86,42 +68,17 @@ export function DashboardScreen() {
   }
 
   return (
-    <Screen includeTopInset={false}>
+    <Screen>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.accent} />}
       >
-        <Pressable
-          accessibilityLabel="Open your profile"
-          onPress={() => navigation.navigate("More", { screen: "Profile" })}
-          style={({ pressed }) => [styles.hero, { backgroundColor: colors.surfaceHigh }, pressed && styles.pressed]}
-        >
-          {profilePhotoUri ? (
-            <Image source={{ uri: profilePhotoUri }} resizeMode="cover" style={styles.heroImage} />
-          ) : (
-            <View style={styles.heroFallback}>
-              <ProfileAvatar user={user} size={124} radius={44} />
-            </View>
-          )}
-          <LinearGradient
-            colors={["rgba(8,10,12,0.66)", "rgba(8,10,12,0.16)", "rgba(8,10,12,0.02)"]}
-            locations={[0, 0.58, 1]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <LinearGradient
-            colors={["rgba(8,10,12,0.02)", "rgba(8,10,12,0.14)", "rgba(8,10,12,0.82)", "#080A0C"]}
-            locations={[0, 0.48, 0.82, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.heroText}>
-            <Text style={[styles.eyebrow, { color: colors.accent }]}>RIDEPULSE JOURNAL</Text>
-            <Text style={styles.title}>The road remembers, {firstName}.</Text>
-            <Text style={styles.subtitle}>{user?.bikeModel || "Your motorcycle"} · Smart ride journal</Text>
-          </View>
-        </Pressable>
+        <View style={styles.header}>
+          <Text style={[styles.eyebrow, { color: colors.accent }]}>HOME</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Ready for the road?</Text>
+          <Text style={[styles.subtitle, { color: colors.textSoft }]}>Record, recover, or review the next useful thing.</Text>
+        </View>
 
         {error ? (
           <Pressable onPress={() => load()} style={[styles.banner, { backgroundColor: `${colors.danger}16` }]}>
@@ -130,31 +87,19 @@ export function DashboardScreen() {
           </Pressable>
         ) : null}
 
-        <Pressable onPress={() => navigation.navigate("Ride")} style={({ pressed }) => [styles.startRide, { backgroundColor: colors.accent }, pressed && styles.pressed]}>
-          <View style={styles.startIcon}><Ionicons name={recoverableRide ? "play" : "radio-button-on"} color={colors.onAccent} size={24} /></View>
-          <View style={styles.flex}>
-            <Text style={[styles.startKicker, { color: colors.onAccent }]}>{recoverableRide ? "RECOVERABLE RIDE" : "READY TO RECORD"}</Text>
-            <Text style={[styles.startTitle, { color: colors.onAccent }]}>{recoverableRide ? "Continue your saved ride" : "Start a new chapter"}</Text>
-          </View>
-          <Ionicons name="arrow-forward" color={colors.onAccent} size={24} />
-        </Pressable>
-
-        {recoverableRide || pendingReviewSuggestion ? (
+        {recoverableRide ? (
           <View style={[styles.continueCard, { backgroundColor: colors.surface }]}>
-            <View style={[styles.continueIcon, { backgroundColor: recoverableRide ? `${colors.danger}18` : `${colors.accent}18` }]}>
-              <Ionicons name={recoverableRide ? "pulse" : "create"} color={recoverableRide ? colors.danger : colors.accent} size={22} />
+            <View style={[styles.continueIcon, { backgroundColor: `${colors.danger}18` }]}>
+              <Ionicons name="pulse" color={colors.danger} size={22} />
             </View>
             <View style={styles.flex}>
-              <Text style={[styles.continueKicker, { color: colors.muted }]}>CONTINUE WHERE YOU LEFT OFF</Text>
-              <Text style={[styles.continueTitle, { color: colors.text }]}>
-                {recoverableRide ? "Interrupted ride waiting" : pendingReviewSuggestion?.title || "Ride story waiting"}
-              </Text>
-              <Text style={[styles.continueCopy, { color: colors.textSoft }]}>
-                {recoverableRide ? "Open the Ride tab to finish and save the recovered route." : pendingReviewSuggestion?.prompt || "Add a title or notes while it is still fresh."}
-              </Text>
+              <Text style={[styles.continueKicker, { color: colors.muted }]}>ACTIVE RIDE</Text>
+              <Text style={[styles.continueTitle, { color: colors.text }]}>Interrupted ride waiting</Text>
+              <Text style={[styles.continueCopy, { color: colors.textSoft }]}>Open Ride to continue, finish, or safely recover the route.</Text>
             </View>
             <Pressable
-              onPress={() => recoverableRide ? navigation.navigate("Ride") : navigation.navigate("RideDetail", { rideId: pendingReviewSuggestion?.rideId, reviewMode: true })}
+              accessibilityLabel="Open recoverable ride"
+              onPress={() => navigation.navigate("Ride")}
               style={[styles.continueAction, { backgroundColor: colors.elevated }]}
             >
               <Ionicons name="arrow-forward" color={colors.text} size={18} />
@@ -162,23 +107,34 @@ export function DashboardScreen() {
           </View>
         ) : null}
 
-        {loading ? (
-          <View style={[styles.skeletonCard, { backgroundColor: colors.surface }]}>
-            <InlineSkeleton height={210} />
-            <InlineSkeleton width="62%" height={26} />
-            <InlineSkeleton width="82%" height={14} />
+        <Pressable onPress={() => navigation.navigate("Ride")} style={({ pressed }) => [styles.startRide, { backgroundColor: colors.accent }, pressed && styles.pressed]}>
+          <View style={styles.startIcon}><Ionicons name={recoverableRide ? "play" : "radio-button-on"} color={colors.onAccent} size={24} /></View>
+          <View style={styles.flex}>
+            <Text style={[styles.startKicker, { color: colors.onAccent }]}>{recoverableRide ? "RIDE IN PROGRESS" : "READY TO RECORD"}</Text>
+            <Text style={[styles.startTitle, { color: colors.onAccent }]}>{recoverableRide ? "Continue ride" : "Start ride"}</Text>
           </View>
-        ) : latestRide ? (
-          <JournalHero ride={latestRide} onPress={() => navigation.navigate("RideDetail", { rideId: latestRide.id })} />
-        ) : (
-          <PremiumEmptyState
-            icon="map-outline"
-            title="Your first route starts here"
-            body="Record a ride and RidePulse will turn the GPS trace into a cinematic journal entry."
-            actionLabel="Start a ride"
-            onAction={() => navigation.navigate("Ride")}
-          />
-        )}
+          <Ionicons name="arrow-forward" color={colors.onAccent} size={24} />
+        </Pressable>
+
+        {cleanupRide || pendingReviewSuggestion ? (
+          <View style={[styles.continueCard, { backgroundColor: colors.surface }]}>
+            <View style={[styles.continueIcon, { backgroundColor: `${cleanupRide ? colors.danger : colors.accent}18` }]}>
+              <Ionicons name={cleanupRide ? "warning" : "create"} color={cleanupRide ? colors.danger : colors.accent} size={22} />
+            </View>
+            <View style={styles.flex}>
+              <Text style={[styles.continueKicker, { color: colors.muted }]}>NEEDS ATTENTION</Text>
+              <Text style={[styles.continueTitle, { color: colors.text }]}>{cleanupRide ? "Check a short recording" : pendingReviewSuggestion?.title || "Ride story waiting"}</Text>
+              <Text style={[styles.continueCopy, { color: colors.textSoft }]}>{cleanupRide?.cleanupReason || pendingReviewSuggestion?.prompt || "Review this ride while it is still fresh."}</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Review ride needing attention"
+              onPress={() => navigation.navigate("RideDetail", { rideId: cleanupRide?.id || pendingReviewSuggestion?.rideId, reviewMode: true })}
+              style={[styles.continueAction, { backgroundColor: colors.elevated }]}
+            >
+              <Ionicons name="arrow-forward" color={colors.text} size={18} />
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
@@ -189,13 +145,30 @@ export function DashboardScreen() {
             {journal?.monthlyRecap?.bestRide ? <Text style={[styles.bestLabel, { color: colors.blue }]}>BEST: {km(journal.monthlyRecap.bestRide.distanceM)}</Text> : null}
           </View>
           <View style={[styles.metrics, { backgroundColor: colors.surface }]}>
-            <Metric label="DISTANCE" value={km(journal?.monthlyRecap?.distanceM || journal?.stats?.monthDistanceM || 0)} accent />
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <Metric label="RIDES" value={String(journal?.monthlyRecap?.rideCount || 0)} />
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <Metric label="BEST SPEED" value={`${Math.round(journal?.stats?.bestTopSpeedKmh || 0)} km/h`} />
+            <View style={[styles.metricCell, { borderColor: colors.border }]}><Metric label="DISTANCE" value={km(journal?.monthlyRecap?.distanceM || journal?.stats?.monthDistanceM || 0)} accent /></View>
+            <View style={[styles.metricCell, { borderColor: colors.border }]}><Metric label="RIDES" value={String(journal?.monthlyRecap?.rideCount || 0)} /></View>
+            <View style={[styles.metricCell, { borderColor: colors.border }]}><Metric label="BEST SPEED" value={`${Math.round(journal?.stats?.bestTopSpeedKmh || 0)} km/h`} /></View>
+            <View style={[styles.metricCell, { borderColor: colors.border }]}><Metric label="LAST MONTH" value={km(journal?.monthlyRecap?.previousMonthDistanceM || 0)} /></View>
           </View>
         </View>
+
+        {loading ? (
+          <View style={[styles.skeletonCard, { backgroundColor: colors.surface }]}>
+            <InlineSkeleton height={150} />
+            <InlineSkeleton width="62%" height={26} />
+            <InlineSkeleton width="82%" height={14} />
+          </View>
+        ) : latestRide ? (
+          <JournalHero ride={latestRide} onPress={() => navigation.navigate("RideDetail", { rideId: latestRide.id })} />
+        ) : (
+          <PremiumEmptyState
+            icon="map-outline"
+            title="Your first route starts here"
+            body="Record a ride and RidePulse will turn the GPS trace into a useful journal entry."
+            actionLabel="Start a ride"
+            onAction={() => navigation.navigate("Ride")}
+          />
+        )}
 
         {memories.length ? (
           <View style={styles.section}>
@@ -231,7 +204,7 @@ export function DashboardScreen() {
 
         {journal?.recentRides?.length ? (
           <View style={styles.section}>
-            <View style={styles.sectionHeading}><Text style={[styles.sectionTitle, { color: colors.text }]}>Recent journeys</Text><Pressable onPress={() => navigation.navigate("History")}><Text style={[styles.seeAll, { color: colors.accent }]}>See journal</Text></Pressable></View>
+            <View style={styles.sectionHeading}><Text style={[styles.sectionTitle, { color: colors.text }]}>Recent journeys</Text><Pressable onPress={() => navigation.navigate("Journal")}><Text style={[styles.seeAll, { color: colors.accent }]}>See journal</Text></Pressable></View>
             {journal.recentRides.filter((ride) => ride.id !== latestRide?.id).slice(0, 4).map((ride) => <JournalCard key={ride.id} ride={ride} onPress={() => navigation.navigate("RideDetail", { rideId: ride.id })} />)}
           </View>
         ) : null}
@@ -341,16 +314,13 @@ function number(value: unknown) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20, paddingBottom: 118, gap: 26 },
-  hero: { height: 430, marginHorizontal: -20, overflow: "hidden", justifyContent: "flex-end" },
-  heroImage: { position: "absolute", top: 0, bottom: 0, left: 0, width: "120%", height: "100%" },
-  heroFallback: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
-  heroText: { paddingHorizontal: 24, paddingBottom: 74, paddingRight: 62 },
+  content: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 118, gap: 20 },
+  header: { paddingTop: 4, paddingRight: 62, gap: 4 },
   flex: { flex: 1 },
   eyebrow: { fontFamily: typography.bold, fontSize: 11, letterSpacing: 1.6 },
-  title: { color: "#F7F8F9", fontFamily: typography.extraBold, fontSize: 38, lineHeight: 43, letterSpacing: -1, marginTop: 5 },
-  subtitle: { color: "rgba(247,248,249,0.72)", fontFamily: typography.medium, fontSize: 13, lineHeight: 19, marginTop: 7 },
-  startRide: { minHeight: 88, marginTop: -76, zIndex: 2, borderRadius: 28, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  title: { fontFamily: typography.extraBold, fontSize: 31, lineHeight: 36, letterSpacing: -0.8 },
+  subtitle: { fontFamily: typography.medium, fontSize: 13, lineHeight: 19 },
+  startRide: { minHeight: 82, borderRadius: 26, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   startIcon: { width: 44, height: 44, borderRadius: 15, borderWidth: 1, borderColor: "rgba(0,0,0,0.16)", alignItems: "center", justifyContent: "center" },
   startKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.2, opacity: 0.68 },
   startTitle: { fontFamily: typography.extraBold, fontSize: 19, marginTop: 2 },
@@ -359,15 +329,15 @@ const styles = StyleSheet.create({
   continueKicker: { fontFamily: typography.bold, fontSize: 9, letterSpacing: 1.15 },
   continueTitle: { fontFamily: typography.extraBold, fontSize: 17, marginTop: 3 },
   continueCopy: { fontFamily: typography.medium, fontSize: 12, lineHeight: 17, marginTop: 3 },
-  continueAction: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  continueAction: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   section: { gap: 14 },
   sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 },
   sectionTitle: { fontFamily: typography.extraBold, fontSize: 22, letterSpacing: -0.3 },
   sectionMeta: { fontFamily: typography.medium, fontSize: 11 },
   bestLabel: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1 },
   seeAll: { fontFamily: typography.bold, fontSize: 12 },
-  metrics: { flexDirection: "row", alignItems: "center", padding: 17, borderRadius: 26, gap: 12 },
-  divider: { width: 1, height: 42 },
+  metrics: { flexDirection: "row", flexWrap: "wrap", padding: 8, borderRadius: 26 },
+  metricCell: { width: "50%", minHeight: 76, padding: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, justifyContent: "center" },
   highlightRail: { gap: 12, paddingRight: 20 },
   memoryRail: { gap: 14, paddingRight: 20 },
   banner: { flexDirection: "row", gap: 12, padding: 15, borderRadius: 20 },

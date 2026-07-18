@@ -1,14 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
 import * as Updates from "expo-updates";
-import React, { useCallback, useState } from "react";
-import { Image, Pressable, ScrollView, Switch, Text, View } from "react-native";
-import { API_BASE_URL } from "../api/client";
+import React, { useCallback, useEffect, useState } from "react";
+import { Image, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { API_BASE_URL, api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
@@ -63,8 +62,7 @@ function ProfileRow({ icon, label, value }: ProfileRowProps) {
 export function ProfileScreen() {
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const bottomTabBarHeight = useBottomTabBarHeight();
-  const floatingTabClearance = Math.max(bottomTabBarHeight, 96) + 56;
+  const floatingTabClearance = 42;
   const { user, logout, updateUser } = useAuth();
   const autoTracking = useAutoTracking();
   const [diagnostics, setDiagnostics] = useState<DiagnosticEvent[]>([]);
@@ -79,9 +77,19 @@ export function ProfileScreen() {
   const [updateMessage, setUpdateMessage] = useState("");
   const [trackingReadiness, setTrackingReadiness] = useState<AutoTrackingReadiness | null>(null);
   const [checkingTracking, setCheckingTracking] = useState(false);
+  const [accountEditing, setAccountEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState(user?.name || "");
+  const [bikeDraft, setBikeDraft] = useState(user?.bikeModel || "");
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountMessage, setAccountMessage] = useState("");
   const displayName = user?.name?.trim() || "Rider";
   const bikeModel = user?.bikeModel || "Motorcycle";
   const riderId = user?.id ? user.id.slice(0, 8).toUpperCase() : "Not available";
+
+  useEffect(() => {
+    setNameDraft(user?.name || "");
+    setBikeDraft(user?.bikeModel || "");
+  }, [user?.bikeModel, user?.name]);
 
   const loadDiagnostics = useCallback(async () => {
     setDiagnostics(await getDiagnostics());
@@ -226,6 +234,30 @@ export function ProfileScreen() {
     }
   }
 
+  async function saveAccount() {
+    const name = nameDraft.trim();
+    const bikeModel = bikeDraft.trim();
+    if (!name || !bikeModel) {
+      setAccountMessage("Name and bike are required.");
+      return;
+    }
+    setAccountSaving(true);
+    setAccountMessage("");
+    try {
+      const response = await api<{ user: NonNullable<typeof user> }>("/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ name, bikeModel })
+      });
+      updateUser(response.user || { name, bikeModel });
+      setAccountEditing(false);
+      setAccountMessage("Account updated.");
+    } catch (err: any) {
+      setAccountMessage(err.message || "Unable to update account.");
+    } finally {
+      setAccountSaving(false);
+    }
+  }
+
   return (
     <Screen includeTopInset={false}>
       <ScrollView
@@ -259,10 +291,18 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
+          <View style={styles.accountHeading}><Text style={styles.cardTitle}>Identity & motorcycle</Text><Pressable accessibilityRole="button" onPress={() => setAccountEditing((value) => !value)}><Text style={styles.editAccount}>{accountEditing ? "Cancel" : "Edit"}</Text></Pressable></View>
+          {accountEditing ? <>
+            <TextInput accessibilityLabel="Rider name" value={nameDraft} onChangeText={setNameDraft} placeholder="Name" placeholderTextColor={colors.muted} style={styles.accountInput} />
+            <TextInput accessibilityLabel="Motorcycle" value={bikeDraft} onChangeText={setBikeDraft} placeholder="Motorcycle" placeholderTextColor={colors.muted} style={styles.accountInput} />
+            <PrimaryButton label="Save account" icon="checkmark" loading={accountSaving} onPress={saveAccount} />
+          </> : <>
           <ProfileRow icon="person" label="Name" value={displayName} />
           <ProfileRow icon="mail" label="Email" value={user?.email || "Not available"} />
           <ProfileRow icon="speedometer" label="Bike" value={bikeModel} />
           <ProfileRow icon="finger-print" label="Rider ID" value={riderId} />
+          </>}
+          {accountMessage ? <Text style={accountMessage === "Account updated." ? styles.success : styles.error}>{accountMessage}</Text> : null}
         </View>
 
         <View style={styles.photoActions}>
@@ -583,6 +623,9 @@ const createStyles = (colors: ThemeColors) => ({
     padding: 16,
     gap: 10
   },
+  accountHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  editAccount: { color: colors.accent, fontFamily: typography.bold, fontSize: 12, padding: 8 },
+  accountInput: { minHeight: 50, borderRadius: 16, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.background, color: colors.text, paddingHorizontal: 14, fontFamily: typography.medium, fontSize: 15 },
   row: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { dateLabel, duration, km, kmh } from '../../core/format';
 import { ReportResponse } from '../../core/models';
@@ -9,13 +10,19 @@ type Period = 'day' | 'month' | 'year';
 @Component({
   selector: 'app-reports-page',
   standalone: true,
-  imports: [LoadingPulseComponent],
+  imports: [LoadingPulseComponent, RouterLink],
   template: `
     <section class="page-title">
-      <p class="kicker">REPORTS</p>
-      <h2>Ride summaries</h2>
-      <p>Readable summaries powered by the existing reports endpoint.</p>
+      <p class="kicker">RIDER PULSE</p>
+      <h1>Ride summaries</h1>
+      <p>Reports are part of Insights: use them to review a period, open its rides, or export a printable summary.</p>
     </section>
+
+    <nav class="insights-tabs" aria-label="Insights sections">
+      <a routerLink="/app/analytics">Overview</a>
+      <a routerLink="/app/analytics" fragment="trends">Trends</a>
+      <a class="active" routerLink="/app/reports" aria-current="page">Reports</a>
+    </nav>
 
     <div class="filter-bar">
       @for (item of periods; track item) {
@@ -39,11 +46,11 @@ type Period = 'day' | 'month' | 'year';
           <button type="button" class="primary-action" (click)="exportReport(current)">Export / print</button>
         </div>
         <div class="ride-list">
-          @for (route of current.routes; track route.startedAt) {
-            <article class="ride-row">
+          @for (route of current.routes; track route.rideId || route.startedAt) {
+            <a class="ride-row" [routerLink]="route.rideId ? ['/app/journal', route.rideId] : null">
               <div><strong>{{ route.from }}</strong><span>{{ route.to }} · {{ dateLabel(route.startedAt) }}</span></div>
               <b>{{ km(route.distanceM) }}</b>
-            </article>
+            </a>
           } @empty {
             <article class="empty-card">No routes in this report period.</article>
           }

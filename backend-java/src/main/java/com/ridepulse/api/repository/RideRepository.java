@@ -1,18 +1,22 @@
 package com.ridepulse.api.repository;
 
 import com.ridepulse.api.service.PhotoValidationService.NormalizedRidePhoto;
+import com.ridepulse.api.dto.RideListQuery;
+import com.ridepulse.api.pojo.PhotoRow;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 public interface RideRepository {
-  List<Map<String, Object>> list(String userId, String period, String query);
+  List<Map<String, Object>> list(String userId, RideListQuery query);
 
   Optional<Map<String, Object>> findOwnedRide(String userId, String rideId);
 
   boolean ownedRideExists(String userId, String rideId);
 
   boolean ownedRideExistsFresh(String userId, String rideId);
+
+  List<String> ownedRideIdsFresh(String userId, List<String> rideIds);
 
   List<Map<String, Object>> points(String rideId);
 
@@ -36,7 +40,9 @@ public interface RideRepository {
 
   int delete(String userId, String rideId);
 
-  List<Map<String, Object>> photos(String userId, String rideId);
+  List<Map<String, Object>> photos(String userId, String rideId, boolean includeData);
+
+  Optional<PhotoRow> photo(String userId, String rideId, String photoId);
 
   Map<String, Object> insertPhoto(String userId, String rideId, NormalizedRidePhoto photo);
 

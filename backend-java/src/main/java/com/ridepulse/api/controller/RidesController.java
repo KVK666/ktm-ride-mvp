@@ -5,10 +5,14 @@ import com.ridepulse.api.constants.Messages;
 import com.ridepulse.api.dto.ApiResponse;
 import com.ridepulse.api.dto.CreateRideResult;
 import com.ridepulse.api.service.RideService;
+import com.ridepulse.api.service.TripService;
 import com.ridepulse.api.utility.ResponseUtil;
 import com.ridepulse.api.utility.ValidationUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import java.time.Instant;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,18 +31,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class RidesController {
   private final AuthSupport authSupport;
   private final RideService rideService;
+  private final TripService tripService;
 
-  RidesController(AuthSupport authSupport, RideService rideService) {
+  RidesController(AuthSupport authSupport, RideService rideService, TripService tripService) {
     this.authSupport = authSupport;
     this.rideService = rideService;
+    this.tripService = tripService;
   }
 
   @GetMapping
   ApiResponse<Map<String, Object>> list(
       HttpServletRequest request,
       @RequestParam(defaultValue = "all") String period,
-      @RequestParam(defaultValue = "") String q) {
-    return ResponseUtil.ok(rideService.list(authSupport.userId(request), period, q));
+      @RequestParam(defaultValue = "") String q,
+      @RequestParam(required = false) Integer limit,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) String reviewStatus,
+      @RequestParam(required = false) String sort) {
+    return ResponseUtil.ok(rideService.list(authSupport.userId(request), period, q, limit, cursor, reviewStatus, sort));
   }
 
   @GetMapping("/{id}/intelligence")
@@ -52,8 +62,34 @@ public class RidesController {
   }
 
   @GetMapping("/{id}/photos")
-  ApiResponse<Map<String, Object>> photos(HttpServletRequest request, @PathVariable String id) {
-    return ResponseUtil.ok(rideService.photos(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
+  ApiResponse<Map<String, Object>> photos(
+      HttpServletRequest request,
+      @PathVariable String id,
+      @RequestParam(defaultValue = "true") boolean includeData) {
+    return ResponseUtil.ok(rideService.photos(
+        authSupport.userId(request),
+        ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND),
+        includeData));
+  }
+
+  @GetMapping("/{id}/trips")
+  ApiResponse<Map<String, Object>> trips(HttpServletRequest request, @PathVariable String id) {
+    return ResponseUtil.ok(tripService.forRide(
+        authSupport.userId(request),
+        ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND)));
+  }
+
+  @GetMapping("/{id}/photos/{photoId}")
+  ResponseEntity<?> photo(HttpServletRequest request, @PathVariable String id, @PathVariable String photoId) {
+    com.ridepulse.api.pojo.PhotoRow photo = rideService.photo(
+        authSupport.userId(request),
+        ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND),
+        ValidationUtil.requiredPath(photoId, Messages.RIDE_PHOTO_NOT_FOUND));
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType(photo.mimeType()))
+        .cacheControl(CacheControl.maxAge(java.time.Duration.ofHours(1)).cachePrivate())
+        .lastModified(lastModified(photo.updatedAt()))
+        .body(photo.data());
   }
 
   @PostMapping("/{id}/photos")
@@ -91,5 +127,13 @@ public class RidesController {
   ApiResponse<Void> delete(HttpServletRequest request, @PathVariable String id) {
     rideService.delete(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND));
     return ResponseUtil.deleted();
+  }
+
+  private static long lastModified(String value) {
+    try {
+      return Instant.parse(value).toEpochMilli();
+    } catch (Exception ignored) {
+      return Instant.now().toEpochMilli();
+    }
   }
 }

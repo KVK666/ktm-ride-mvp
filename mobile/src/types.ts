@@ -22,6 +22,7 @@ export type RideAlbumPhoto = RidePhoto & {
   fileName?: string | null;
   backendPhotoId?: string | null;
   importedAt: string;
+  syncState?: "local" | "syncing" | "synced" | "failed";
 };
 
 export type RideAlbum = {

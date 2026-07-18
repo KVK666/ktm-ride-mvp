@@ -38,6 +38,14 @@ public class JdbcTripRepository implements TripRepository {
   }
 
   @Override
+  public List<Map<String, Object>> listForRide(String userId, String rideId) {
+    return readOnlyJdbc.query(
+        sql.get(QueryKeys.TRIP_LIST_FOR_RIDE),
+        userParams(userId).addValue("rideId", rideId),
+        (rs, rowNum) -> trip(rs));
+  }
+
+  @Override
   public Optional<Map<String, Object>> find(String userId, String tripId) {
     return readOnlyJdbc.query(sql.get(QueryKeys.TRIP_BY_ID), tripParams(userId, tripId), rs -> rs.next() ? Optional.of(trip(rs)) : Optional.empty());
   }
@@ -82,6 +90,17 @@ public class JdbcTripRepository implements TripRepository {
   @Transactional
   public int addRide(String tripId, String rideId) {
     return readWriteJdbc.update(sql.get(QueryKeys.TRIP_ADD_RIDE), rideParams(tripId, rideId));
+  }
+
+  @Override
+  @Transactional
+  public int addRides(String tripId, List<String> rideIds) {
+    if (rideIds == null || rideIds.isEmpty()) return 0;
+    int added = 0;
+    for (String rideId : rideIds) {
+      added += addRide(tripId, rideId);
+    }
+    return added;
   }
 
   @Override

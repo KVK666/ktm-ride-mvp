@@ -1,19 +1,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
-import { api } from "../api/client";
+import { API_BASE_URL, api, readToken } from "../api/client";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
 import { importRidePhotos } from "./ridePhotos";
 import { JournalResponse, Ride, RideAlbum, RideAlbumPhoto, RideMemory, RidePhoto } from "../types";
 import { km, shortDate } from "../utils/format";
 import { normalizeBoundedCoordinate } from "../utils/coordinates";
 import { finiteNumberOrZero } from "../utils/normalize";
+import { rideDisplayTitle } from "../utils/rideTitle";
 
 const ALBUM_KEY_PREFIX = "duke_ride_album:";
 const ALBUM_INDEX_KEY = "duke_ride_album_index_v1";
 const ALBUM_DIRECTORY = `${FileSystem.documentDirectory || ""}ride-albums/`;
-const MAX_SYNC_PHOTO_BYTES = 3 * 1024 * 1024;
+const MAX_SYNC_PHOTO_BYTES = 4 * 1024 * 1024;
+const MAX_SYNC_PHOTO_DIMENSION = 2048;
 
 export async function getRideAlbum(rideId?: string | null): Promise<RideAlbum | null> {
   if (!rideId) {
@@ -34,6 +37,40 @@ export async function getRideAlbum(rideId?: string | null): Promise<RideAlbum | 
       details: diagnosticDetails(error)
     });
     return emptyAlbum(rideId);
+  }
+}
+
+export async function hydrateRideAlbum(rideId: string): Promise<RideAlbum> {
+  const local = await getRideAlbum(rideId) || emptyAlbum(rideId);
+  try {
+    const response = await api<{ photos?: any[] }>(`/rides/${rideId}/photos?includeData=false`);
+    const remotePhotos = Array.isArray(response.photos) ? response.photos : [];
+    await ensureAlbumDirectory(rideId);
+    const remoteIds = new Set(remotePhotos.map((photo) => String(photo?.id || "")).filter(Boolean));
+    const staleSynced = local.photos.filter((photo) => photo.backendPhotoId && !remoteIds.has(photo.backendPhotoId));
+    const retainedLocal = local.photos.filter((photo) => !photo.backendPhotoId || remoteIds.has(photo.backendPhotoId));
+    const hydrated = await Promise.all(remotePhotos.map(async (photo) => {
+      try {
+        return await cacheBackendPhoto(rideId, photo, retainedLocal);
+      } catch (error) {
+        await logDiagnostic({ level: "warn", area: "albums", message: "Private album photo cache failed", details: diagnosticDetails(error) });
+        return null;
+      }
+    }));
+    const photos = dedupePhotos([...retainedLocal, ...(hydrated.filter(Boolean) as RideAlbumPhoto[])]);
+    const next = { ...local, coverUri: photos[0]?.uri || null, photos, updatedAt: new Date().toISOString() };
+    await persistAlbum(next);
+    await Promise.all(staleSynced.map((photo) => deletePrivateAlbumCopy(photo.uri)));
+    return next;
+  } catch (error) {
+    await logDiagnostic({ level: "warn", area: "albums", message: "Private album refresh unavailable", details: diagnosticDetails(error) });
+    return local;
+  }
+}
+
+async function deletePrivateAlbumCopy(uri?: string | null) {
+  if (uri?.startsWith(FileSystem.documentDirectory || "")) {
+    await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
   }
 }
 
@@ -84,35 +121,38 @@ export async function savePhotosToAlbum(
   const copied = await Promise.all(
     photos.map((photo, index) => copyPhotoToAlbum(ride.id, photo, source, index))
   );
-  const synced = await syncAlbumPhotosToBackend(ride.id, copied.filter((photo): photo is RideAlbumPhoto => Boolean(photo)));
-  const nextPhotos = dedupePhotos([...existingPhotos, ...synced]);
-  const album = {
+  const localPhotos = copied.filter((photo): photo is RideAlbumPhoto => Boolean(photo));
+  const pendingPhotos = localPhotos.map((photo) => ({ ...photo, syncState: "syncing" as const }));
+  const pendingAlbum: RideAlbum = {
     rideId: ride.id,
-    title: ride.title || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`,
+    title: rideDisplayTitle(ride),
+    coverUri: existingPhotos[0]?.uri || pendingPhotos[0]?.uri || null,
+    photos: dedupePhotos([...existingPhotos, ...pendingPhotos]),
+    updatedAt: new Date().toISOString()
+  };
+  await persistAlbum(pendingAlbum);
+
+  const synced = await syncAlbumPhotosToBackend(ride.id, pendingPhotos);
+  const nextPhotos = dedupePhotos([...existingPhotos, ...synced]);
+  const completedAlbum: RideAlbum = {
+    ...pendingAlbum,
     coverUri: nextPhotos[0]?.uri || null,
     photos: nextPhotos,
     updatedAt: new Date().toISOString()
   };
-  await persistAlbum(album);
-  return album;
+  await persistAlbum(completedAlbum);
+  return completedAlbum;
 }
 
 export async function removeAlbumPhoto(rideId: string, photoId: string): Promise<RideAlbum> {
   const album = await getRideAlbum(rideId);
   const removed = album?.photos.find((photo) => photo.id === photoId);
+  if (removed?.backendPhotoId) {
+    await api(`/rides/${rideId}/photos/${removed.backendPhotoId}`, { method: "DELETE" });
+  }
   const photos = (album?.photos || []).filter((photo) => photo.id !== photoId);
   if (removed?.uri?.startsWith(FileSystem.documentDirectory || "")) {
     await FileSystem.deleteAsync(removed.uri, { idempotent: true }).catch(() => {});
-  }
-  if (removed?.backendPhotoId) {
-    await api(`/rides/${rideId}/photos/${removed.backendPhotoId}`, { method: "DELETE" }).catch((error) => {
-      logDiagnostic({
-        level: "warn",
-        area: "albums",
-        message: "Backend ride photo delete failed",
-        details: diagnosticDetails(error)
-      });
-    });
   }
   const nextAlbum = {
     rideId,
@@ -269,7 +309,8 @@ async function copyPhotoToAlbum(
       uri: destination,
       originalUri: photo.uri,
       fileName: destination.split("/").pop() || null,
-      importedAt: new Date().toISOString()
+      importedAt: new Date().toISOString(),
+      syncState: "local"
     };
   } catch (error) {
     await logDiagnostic({
@@ -329,6 +370,11 @@ function normalizeAlbumPhoto(value: any): RideAlbumPhoto | null {
     originalUri: typeof value?.originalUri === "string" ? value.originalUri : null,
     fileName: typeof value?.fileName === "string" ? value.fileName : null,
     backendPhotoId: typeof value?.backendPhotoId === "string" ? value.backendPhotoId : null,
+    syncState: value?.syncState === "syncing"
+      ? "failed"
+      : value?.syncState === "synced" || value?.syncState === "failed"
+      ? value.syncState
+      : value?.backendPhotoId ? "synced" : "local",
     createdAt: typeof value?.createdAt === "string" ? value.createdAt : new Date().toISOString(),
     importedAt: typeof value?.importedAt === "string" ? value.importedAt : new Date().toISOString(),
     latitude: finiteNumberOrZero(value?.latitude),
@@ -346,31 +392,28 @@ async function syncAlbumPhotosToBackend(rideId: string, photos: RideAlbumPhoto[]
 }
 
 async function syncAlbumPhotoToBackend(rideId: string, photo: RideAlbumPhoto): Promise<RideAlbumPhoto> {
+  let uploadUri: string | null = null;
   try {
-    const mimeType = mimeTypeForUri(photo.uri);
-    if (!mimeType) {
-      return photo;
-    }
-    const info = await FileSystem.getInfoAsync(photo.uri);
-    if (!info.exists || Number(info.size || 0) > MAX_SYNC_PHOTO_BYTES) {
-      return photo;
-    }
-    const imageBase64 = await FileSystem.readAsStringAsync(photo.uri, { encoding: FileSystem.EncodingType.Base64 });
+    const prepared = await preparePhotoForSync(photo.uri);
+    if (!prepared) return { ...photo, syncState: "failed" };
+    uploadUri = prepared.uri;
+    const imageBase64 = await FileSystem.readAsStringAsync(prepared.uri, { encoding: FileSystem.EncodingType.Base64 });
     if (!imageBase64) {
-      return photo;
+      return { ...photo, syncState: "failed" };
     }
     const response = await api<{ photo: { id: string } }>(`/rides/${rideId}/photos`, {
       method: "POST",
       body: JSON.stringify({
         imageBase64,
-        mimeType,
-        fileName: photo.fileName,
+        mimeType: "image/jpeg",
+        fileName: jpegFileName(photo.fileName),
+        clientPhotoId: photo.id,
         createdAt: photo.createdAt,
         latitude: photo.hasLocation ? photo.latitude : null,
         longitude: photo.hasLocation ? photo.longitude : null
       })
     });
-    return { ...photo, backendPhotoId: response.photo?.id || photo.backendPhotoId || null };
+    return { ...photo, backendPhotoId: response.photo?.id || photo.backendPhotoId || null, syncState: response.photo?.id ? "synced" : "failed" };
   } catch (error) {
     await logDiagnostic({
       level: "warn",
@@ -378,20 +421,107 @@ async function syncAlbumPhotoToBackend(rideId: string, photo: RideAlbumPhoto): P
       message: "Ride album backend sync failed",
       details: diagnosticDetails(error)
     });
-    return photo;
+    return { ...photo, syncState: "failed" };
+  } finally {
+    if (uploadUri && uploadUri !== photo.uri) {
+      await FileSystem.deleteAsync(uploadUri, { idempotent: true }).catch(() => {});
+    }
   }
 }
 
-function dedupePhotos(photos: RideAlbumPhoto[]) {
-  const seen = new Set<string>();
-  return photos.filter((photo) => {
-    const key = photo.originalUri || photo.id || photo.uri;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
+async function preparePhotoForSync(sourceUri: string): Promise<{ uri: string } | null> {
+  const sourceInfo = await FileSystem.getInfoAsync(sourceUri);
+  if (!sourceInfo.exists) return null;
+
+  const probe = await ImageManipulator.manipulateAsync(sourceUri, [], {
+    compress: 0.96,
+    format: ImageManipulator.SaveFormat.JPEG
   });
+  const probeInfo = await FileSystem.getInfoAsync(probe.uri);
+  const largestDimension = Math.max(probe.width || 0, probe.height || 0);
+  if (largestDimension <= MAX_SYNC_PHOTO_DIMENSION && probeInfo.exists && Number(probeInfo.size || 0) <= MAX_SYNC_PHOTO_BYTES) {
+    return { uri: probe.uri };
+  }
+  await FileSystem.deleteAsync(probe.uri, { idempotent: true }).catch(() => {});
+
+  const variants = [
+    { dimension: 2048, quality: 0.9 },
+    { dimension: 2048, quality: 0.8 },
+    { dimension: 2048, quality: 0.7 },
+    { dimension: 1800, quality: 0.72 },
+    { dimension: 1600, quality: 0.68 },
+    { dimension: 1400, quality: 0.62 }
+  ];
+  for (const variant of variants) {
+    const resize = probe.width >= probe.height
+      ? { width: Math.min(probe.width, variant.dimension) }
+      : { height: Math.min(probe.height, variant.dimension) };
+    const optimized = await ImageManipulator.manipulateAsync(sourceUri, [{ resize }], {
+      compress: variant.quality,
+      format: ImageManipulator.SaveFormat.JPEG
+    });
+    const info = await FileSystem.getInfoAsync(optimized.uri);
+    if (info.exists && Number(info.size || 0) <= MAX_SYNC_PHOTO_BYTES) return { uri: optimized.uri };
+    await FileSystem.deleteAsync(optimized.uri, { idempotent: true }).catch(() => {});
+  }
+  return null;
+}
+
+function jpegFileName(fileName?: string | null) {
+  const base = String(fileName || `ride-photo-${Date.now()}`).replace(/\.[^.]+$/, "");
+  return `${base}.jpg`;
+}
+
+async function cacheBackendPhoto(rideId: string, value: any, localPhotos: RideAlbumPhoto[]): Promise<RideAlbumPhoto | null> {
+  const backendPhotoId = String(value?.id || "");
+  if (!backendPhotoId) return null;
+  const existing = localPhotos.find((photo) => photo.backendPhotoId === backendPhotoId);
+  if (existing) return { ...existing, syncState: "synced" as const };
+  const extension = value?.mimeType === "image/png" ? ".png" : value?.mimeType === "image/webp" ? ".webp" : ".jpg";
+  const destination = `${ALBUM_DIRECTORY}${rideId}/synced-${backendPhotoId.replace(/[^a-zA-Z0-9_-]/g, "-")}${extension}`;
+  const token = await readToken();
+  const result = await FileSystem.downloadAsync(`${API_BASE_URL}/rides/${rideId}/photos/${backendPhotoId}`, destination, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  });
+  if (result.status < 200 || result.status >= 300) return null;
+  return {
+    id: `synced-${backendPhotoId}`,
+    backendPhotoId,
+    uri: result.uri,
+    fileName: typeof value?.fileName === "string" ? value.fileName : null,
+    createdAt: typeof value?.createdAt === "string" ? value.createdAt : new Date().toISOString(),
+    importedAt: new Date().toISOString(),
+    latitude: finiteNumberOrZero(value?.latitude),
+    longitude: finiteNumberOrZero(value?.longitude),
+    hasLocation: value?.hasLocation === true || (
+      value?.latitude != null && value?.longitude != null &&
+      Number.isFinite(Number(value.latitude)) && Number.isFinite(Number(value.longitude))
+    ),
+    syncState: "synced" as const
+  };
+}
+
+function dedupePhotos(photos: RideAlbumPhoto[]) {
+  const keys: string[] = [];
+  const preferred = new Map<string, RideAlbumPhoto>();
+  for (const photo of photos) {
+    const key = photo.originalUri || photo.id || photo.uri;
+    const existing = preferred.get(key);
+    if (!existing) {
+      keys.push(key);
+      preferred.set(key, photo);
+      continue;
+    }
+    if (syncStatePriority(photo.syncState) > syncStatePriority(existing.syncState)) preferred.set(key, photo);
+  }
+  return keys.map((key) => preferred.get(key)).filter((photo): photo is RideAlbumPhoto => Boolean(photo));
+}
+
+function syncStatePriority(state?: RideAlbumPhoto["syncState"]) {
+  if (state === "synced") return 4;
+  if (state === "syncing") return 3;
+  if (state === "local") return 2;
+  return 1;
 }
 
 function emptyAlbum(rideId: string): RideAlbum {

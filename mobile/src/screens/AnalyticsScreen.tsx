@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -55,6 +55,7 @@ type InsightRowItem = {
 export function AnalyticsScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const navigation = useNavigation<any>();
   const styles = useThemedStyles(createStyles);
   const bottomTabBarHeight = useBottomTabBarHeight();
   const floatingTabClearance = Math.max(bottomTabBarHeight, 96) + 56;
@@ -163,7 +164,7 @@ export function AnalyticsScreen() {
       setGoalKm(savedGoal);
       setGoalDraft(formatGoalInput(savedGoal));
       setGoalEditing(false);
-      setGoalMessage("Monthly goal saved on this phone.");
+      setGoalMessage("Monthly goal saved to your RidePulse account.");
     } catch (error: any) {
       setGoalMessage(error?.message || "Unable to save your monthly goal.");
     } finally {
@@ -193,6 +194,7 @@ export function AnalyticsScreen() {
           </View>
           {loading ? <ActivityIndicator accessibilityLabel="Refreshing analytics" color={colors.accent} /> : null}
         </View>
+        <View style={styles.insightTabs}><View style={[styles.insightTab, styles.insightTabActive]}><Text style={styles.insightTabActiveText}>Overview & trends</Text></View><Pressable accessibilityRole="button" onPress={() => navigation.navigate("Reports")} style={styles.insightTab}><Text style={styles.insightTabText}>Reports</Text></Pressable></View>
 
         <View style={styles.goalCard}>
           <View style={styles.goalHeader}>
@@ -741,6 +743,11 @@ const createStyles = (colors: ThemeColors) => ({
   pressed: { opacity: 0.84, transform: [{ scale: 0.99 }] },
   disabled: { opacity: 0.6 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  insightTabs: { flexDirection: "row", borderRadius: 18, padding: 4, backgroundColor: colors.surface },
+  insightTab: { flex: 1, minHeight: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  insightTabActive: { backgroundColor: colors.accent },
+  insightTabText: { color: colors.muted, fontFamily: typography.bold, fontSize: 12 },
+  insightTabActiveText: { color: colors.onAccent, fontFamily: typography.bold, fontSize: 12 },
   headerCopy: { flex: 1 },
   kicker: { color: colors.accent, fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.4, marginBottom: 4 },
   title: { color: colors.text, fontSize: 30, fontFamily: typography.extraBold },

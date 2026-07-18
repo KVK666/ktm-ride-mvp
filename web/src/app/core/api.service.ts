@@ -18,7 +18,7 @@ export class ApiService {
         token: this.auth.token(),
       });
     } catch (error: unknown) {
-      if (error instanceof HttpRequestError && error.status === 401) {
+      if (error instanceof HttpRequestError && (error.status === 401 || error.status === 403)) {
         this.auth.clearSession();
         void this.router.navigate(['/auth']);
         throw new Error('Your session expired. Please sign in again.');

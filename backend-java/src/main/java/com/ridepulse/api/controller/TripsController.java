@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -60,6 +61,14 @@ public class TripsController {
   @PostMapping("/{id}/rides")
   ApiResponse<Map<String, Object>> addRide(HttpServletRequest request, @PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
     return ResponseUtil.ok(tripService.addRide(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_NOT_FOUND)));
+  }
+
+  @PutMapping("/{id}/rides")
+  ApiResponse<Map<String, Object>> addRides(HttpServletRequest request, @PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
+    return ResponseUtil.ok(tripService.addRides(
+        authSupport.userId(request),
+        ValidationUtil.requiredPath(id, Messages.TRIP_NOT_FOUND),
+        ValidationUtil.requestBody(body, Messages.TRIP_RIDES_REQUIRED)));
   }
 
   @DeleteMapping("/{id}/rides/{rideId}")

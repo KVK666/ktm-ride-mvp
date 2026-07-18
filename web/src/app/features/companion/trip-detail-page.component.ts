@@ -5,6 +5,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { ApiService } from '../../core/api.service';
 import { dateLabel, km, kmh } from '../../core/format';
 import { Ride, Trip } from '../../core/models';
+import { rideDisplayTitle } from '../../core/ride-title';
 import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
 import { RouteArtComponent } from '../../shared/route-art.component';
 
@@ -20,7 +21,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
       <section class="detail-hero">
         <div>
           <p class="kicker">TRIP ALBUM</p>
-          <h2>{{ current.title }}</h2>
+          <h1>{{ current.title }}</h1>
           <p>{{ current.description || 'A manual album of rides from your journal.' }}</p>
           <div class="badge-row">
             <span>{{ current.rideCount || rides().length }} rides</span>
@@ -64,7 +65,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
             @for (ride of availableSearchResults(); track ride.id) {
               <article class="ride-row">
                 <div>
-                  <strong>{{ ride.title || ride.aiTitle || ride.smartTitle || dateLabel(ride.startedAt) + ' ride' }}</strong>
+                  <strong>{{ rideTitle(ride) }}</strong>
                   <span>{{ dateLabel(ride.startedAt) }} / {{ km(ride.distanceM) }} / {{ kmh(ride.topSpeedKmh) }}</span>
                 </div>
                 <button type="button" class="primary-action compact-action" [disabled]="addingRideId() === ride.id" (click)="addRide(ride)">
@@ -89,7 +90,7 @@ import { RouteArtComponent } from '../../shared/route-art.component';
               <a [routerLink]="['/app/journal', ride.id]">
                 <div class="tile-art"><app-route-art [points]="ride.routePreview || ride.points" /></div>
                 <p>{{ dateLabel(ride.startedAt) }}</p>
-                <h3>{{ ride.title || ride.aiTitle || ride.smartTitle || dateLabel(ride.startedAt) + ' ride' }}</h3>
+                <h3>{{ rideTitle(ride) }}</h3>
                 <span>{{ ride.aiSummary || ride.summaryText || ride.highlightReason || ride.endLabel }}</span>
                 <div class="tile-metrics">
                   <b>{{ km(ride.distanceM) }}</b>
@@ -135,6 +136,7 @@ export class TripDetailPageComponent implements OnInit {
   readonly km = km;
   readonly kmh = kmh;
   readonly dateLabel = dateLabel;
+  readonly rideTitle = rideDisplayTitle;
   searchQuery = '';
   readonly availableSearchResults = computed(() => {
     const existing = new Set(this.rides().map((ride) => ride.id));

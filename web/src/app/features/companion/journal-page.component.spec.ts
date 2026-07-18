@@ -1,7 +1,7 @@
 import { importProvidersFrom } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { FolderOpen, LucideAngularModule, Search } from 'lucide-angular';
+import { FolderOpen, History, Image, LucideAngularModule, Search } from 'lucide-angular';
 import { ApiService } from '../../core/api.service';
 import { JournalPageComponent } from './journal-page.component';
 
@@ -11,7 +11,7 @@ describe('JournalPageComponent', () => {
       imports: [JournalPageComponent],
       providers: [
         provideRouter([]),
-        importProvidersFrom(LucideAngularModule.pick({ FolderOpen, Search })),
+        importProvidersFrom(LucideAngularModule.pick({ FolderOpen, History, Image, Search })),
         { provide: ApiService, useValue: { request: () => Promise.resolve({ rides: [] }) } },
       ],
     }).compileComponents();
@@ -48,5 +48,30 @@ describe('JournalPageComponent', () => {
     component.choose('cleanup');
 
     expect(component.displayed().map((ride) => ride.id)).toEqual(['noise']);
+  });
+
+  it('separates sorting from rider-review filters', () => {
+    const fixture = TestBed.createComponent(JournalPageComponent);
+    const component = fixture.componentInstance;
+    component.rides.set([
+      { id: 'short', distanceM: 5000, topSpeedKmh: 100, reviewedAt: '2026-07-18T00:00:00Z' },
+      { id: 'long', distanceM: 20000, topSpeedKmh: 70 },
+    ] as never[]);
+
+    component.setSort('longest');
+
+    expect(component.displayed().map((ride) => ride.id)).toEqual(['long', 'short']);
+    component.choose('unreviewed');
+    expect(component.displayed().map((ride) => ride.id)).toEqual(['long']);
+  });
+
+  it('offers rides, trips, and memories as journal sections', async () => {
+    const fixture = TestBed.createComponent(JournalPageComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const labels = Array.from(fixture.nativeElement.querySelectorAll('.journal-tabs button'))
+      .map((button: HTMLButtonElement) => button.textContent?.trim());
+
+    expect(labels).toEqual(['Rides', 'Trips', 'Memories']);
   });
 });

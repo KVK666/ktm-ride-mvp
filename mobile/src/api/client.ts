@@ -2,12 +2,32 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { MIRRORED_TOKEN_KEY } from "../services/trackingKeys";
+import { shouldInvalidateAuthentication } from "../utils/authPolicy";
 import { fetchWithTimeout } from "../utils/network";
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.0.2.2:4001/api";
 
 const TOKEN_KEY = "duke_ride_token";
+const authenticationRejectionListeners = new Set<() => void>();
+
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number, public readonly programCode?: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export function isAuthenticationError(error: unknown) {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
+export function subscribeToAuthenticationRejection(listener: () => void) {
+  authenticationRejectionListeners.add(listener);
+  return () => {
+    authenticationRejectionListeners.delete(listener);
+  };
+}
 
 export async function saveToken(token: string) {
   try {
@@ -114,7 +134,20 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       message: `API ${response.status} for ${path}`,
       details: text
     });
-    throw new Error(parsed.valid ? responseErrorMessage(parsed.value) : parsed.error || "Request failed");
+    if (shouldInvalidateAuthentication(Boolean(token), response.status, path)) {
+      for (const listener of authenticationRejectionListeners) {
+        try {
+          listener();
+        } catch {
+          // Session cleanup is owned by AuthContext; one listener must not block the others.
+        }
+      }
+    }
+    throw new ApiError(
+      parsed.valid ? responseErrorMessage(parsed.value) : parsed.error || "Request failed",
+      response.status,
+      parsed.valid && typeof parsed.value?.programCode === "string" ? parsed.value.programCode : undefined
+    );
   }
 
   if (!parsed.valid) {

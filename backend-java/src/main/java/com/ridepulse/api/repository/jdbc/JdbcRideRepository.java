@@ -2,6 +2,8 @@ package com.ridepulse.api.repository.jdbc;
 
 import com.ridepulse.api.constants.BeanNames;
 import com.ridepulse.api.constants.QueryKeys;
+import com.ridepulse.api.dto.RideListQuery;
+import com.ridepulse.api.pojo.PhotoRow;
 import com.ridepulse.api.repository.RideRepository;
 import com.ridepulse.api.service.PhotoValidationService.NormalizedRidePhoto;
 import com.ridepulse.api.utility.RowMappers;
@@ -35,17 +37,27 @@ public class JdbcRideRepository implements RideRepository {
   }
 
   @Override
-  public List<Map<String, Object>> list(String userId, String period, String searchQuery) {
+  public List<Map<String, Object>> list(String userId, RideListQuery listQuery) {
     StringBuilder query = new StringBuilder(sql.get(QueryKeys.RIDE_SELECT)).append(" ").append(sql.get(QueryKeys.RIDE_LIST_BASE)).append(" ");
-    if ("today".equals(period)) query.append(sql.get(QueryKeys.RIDE_LIST_TODAY)).append(" ");
-    if ("month".equals(period)) query.append(sql.get(QueryKeys.RIDE_LIST_MONTH)).append(" ");
-    if ("year".equals(period)) query.append(sql.get(QueryKeys.RIDE_LIST_YEAR)).append(" ");
+    if ("today".equals(listQuery.period())) query.append(sql.get(QueryKeys.RIDE_LIST_TODAY)).append(" ");
+    if ("month".equals(listQuery.period())) query.append(sql.get(QueryKeys.RIDE_LIST_MONTH)).append(" ");
+    if ("year".equals(listQuery.period())) query.append(sql.get(QueryKeys.RIDE_LIST_YEAR)).append(" ");
     query.append(sql.get(QueryKeys.RIDE_LIST_SEARCH)).append(" ");
-    query.append(sql.get(QueryKeys.RIDE_LIST_ORDER));
-    String normalizedSearch = normalizeSearch(searchQuery);
+    if ("needs_review".equals(listQuery.reviewStatus())) query.append(sql.get(QueryKeys.RIDE_LIST_NEEDS_REVIEW)).append(" ");
+    if ("cleanup".equals(listQuery.reviewStatus())) query.append(sql.get(QueryKeys.RIDE_LIST_CLEANUP)).append(" ");
+    if (listQuery.cursor() != null) query.append(sql.get(cursorQueryKey(listQuery.sort()))).append(" ");
+    query.append(sql.get(orderQueryKey(listQuery.sort()))).append(" ");
+    query.append(sql.get(QueryKeys.RIDE_LIST_LIMIT));
+    String normalizedSearch = normalizeSearch(listQuery.searchQuery());
     MapSqlParameterSource params = userParams(userId)
         .addValue("searchQuery", normalizedSearch)
-        .addValue("searchPattern", "%" + normalizedSearch + "%");
+        .addValue("searchPattern", "%" + normalizedSearch + "%")
+        .addValue("fetchLimit", listQuery.fetchLimit());
+    if (listQuery.cursor() != null) {
+      params.addValue("cursorStartedAt", listQuery.cursor().startedAt())
+          .addValue("cursorRideId", listQuery.cursor().rideId())
+          .addValue("cursorSortValue", listQuery.cursor().sortValue());
+    }
     return readOnlyJdbc.query(query.toString(), params, (rs, rowNum) -> Rows.ride(rs));
   }
 
@@ -62,6 +74,15 @@ public class JdbcRideRepository implements RideRepository {
   @Override
   public boolean ownedRideExistsFresh(String userId, String rideId) {
     return Boolean.TRUE.equals(readWriteJdbc.query(sql.get(QueryKeys.RIDE_EXISTS), rideParams(userId, rideId), (ResultSetExtractor<Boolean>) rs -> rs.next()));
+  }
+
+  @Override
+  public List<String> ownedRideIdsFresh(String userId, List<String> rideIds) {
+    if (rideIds == null || rideIds.isEmpty()) return List.of();
+    return readWriteJdbc.query(
+        sql.get(QueryKeys.RIDE_OWNED_IDS),
+        userParams(userId).addValue("rideIds", rideIds),
+        (rs, rowNum) -> rs.getString(1));
   }
 
   @Override
@@ -190,8 +211,17 @@ public class JdbcRideRepository implements RideRepository {
   }
 
   @Override
-  public List<Map<String, Object>> photos(String userId, String rideId) {
-    return readOnlyJdbc.query(sql.get(QueryKeys.RIDE_PHOTO_LIST), rideParams(userId, rideId), (rs, rowNum) -> RowMappers.ridePhoto(rs, true));
+  public List<Map<String, Object>> photos(String userId, String rideId, boolean includeData) {
+    String queryKey = includeData ? QueryKeys.RIDE_PHOTO_LIST : QueryKeys.RIDE_PHOTO_LIST_METADATA;
+    return readOnlyJdbc.query(sql.get(queryKey), rideParams(userId, rideId), (rs, rowNum) -> RowMappers.ridePhoto(rs, includeData));
+  }
+
+  @Override
+  public Optional<PhotoRow> photo(String userId, String rideId, String photoId) {
+    return readOnlyJdbc.query(
+        sql.get(QueryKeys.RIDE_PHOTO_BINARY_BY_ID),
+        rideParams(userId, rideId).addValue("photoId", photoId),
+        rs -> rs.next() ? Optional.of(RowMappers.profilePhoto(rs)) : Optional.empty());
   }
 
   @Override
@@ -205,13 +235,13 @@ public class JdbcRideRepository implements RideRepository {
         .addValue("importedAt", photo.importedAt())
         .addValue("latitude", photo.latitude())
         .addValue("longitude", photo.longitude())
-        .addValue("hasLocation", photo.hasLocation());
-    KeyHolder keyHolder = new GeneratedKeyHolder();
-    readWriteJdbc.update(sql.get(QueryKeys.RIDE_PHOTO_INSERT), params, keyHolder, new String[] {"id"});
-    Object photoId = keyHolder.getKeys() == null ? null : keyHolder.getKeys().get("id");
+        .addValue("hasLocation", photo.hasLocation())
+        .addValue("clientPhotoId", photo.clientPhotoId());
+    String photoId = readWriteJdbc.query(sql.get(QueryKeys.RIDE_PHOTO_INSERT), params,
+        rs -> rs.next() ? String.valueOf(rs.getObject("id")) : null);
     return readWriteJdbc.query(
         sql.get(QueryKeys.RIDE_PHOTO_BY_ID),
-        rideParams(userId, rideId).addValue("photoId", String.valueOf(photoId)),
+        rideParams(userId, rideId).addValue("photoId", photoId),
         rs -> rs.next() ? RowMappers.ridePhoto(rs, true) : Map.of());
   }
 
@@ -236,6 +266,22 @@ public class JdbcRideRepository implements RideRepository {
   private static String normalizeSearch(String value) {
     if (value == null) return "";
     return value.trim().toLowerCase();
+  }
+
+  private static String cursorQueryKey(String sort) {
+    return switch (sort) {
+      case "longest" -> QueryKeys.RIDE_LIST_CURSOR_LONGEST;
+      case "fastest" -> QueryKeys.RIDE_LIST_CURSOR_FASTEST;
+      default -> QueryKeys.RIDE_LIST_CURSOR_NEWEST;
+    };
+  }
+
+  private static String orderQueryKey(String sort) {
+    return switch (sort) {
+      case "longest" -> QueryKeys.RIDE_LIST_ORDER_LONGEST;
+      case "fastest" -> QueryKeys.RIDE_LIST_ORDER_FASTEST;
+      default -> QueryKeys.RIDE_LIST_ORDER_NEWEST;
+    };
   }
 
   private static String text(Object value) {

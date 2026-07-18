@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class PhotoValidationService {
   private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
   private static final int MAX_PROFILE_PHOTO_BYTES = 4 * 1024 * 1024;
-  private static final int MAX_RIDE_PHOTO_BYTES = 3 * 1024 * 1024;
+  private static final int MAX_RIDE_PHOTO_BYTES = 4 * 1024 * 1024;
 
   public NormalizedPhoto normalizeProfilePhotoPayload(Map<String, Object> body) {
     return normalizePhoto(body, MAX_PROFILE_PHOTO_BYTES, true, Messages.PROFILE_PHOTO_INVALID_MIME);
@@ -32,7 +32,8 @@ public class PhotoValidationService {
         Instant.now().toString(),
         hasLocation ? latitude : null,
         hasLocation ? longitude : null,
-        hasLocation);
+        hasLocation,
+        normalizeOptionalText(body == null ? null : body.get("clientPhotoId"), 300));
   }
 
   private NormalizedPhoto normalizePhoto(Map<String, Object> body, int maxBytes, boolean profilePhoto, String mimeMessage) {
@@ -97,5 +98,6 @@ public class PhotoValidationService {
       String importedAt,
       Double latitude,
       Double longitude,
-      boolean hasLocation) {}
+      boolean hasLocation,
+      String clientPhotoId) {}
 }

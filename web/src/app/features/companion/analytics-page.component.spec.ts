@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { AnalyticsPoint, RiderPulseInsights } from '../../core/models';
@@ -46,6 +47,7 @@ describe('AnalyticsPageComponent', () => {
     await TestBed.configureTestingModule({
       imports: [AnalyticsPageComponent],
       providers: [
+        provideRouter([]),
         { provide: ApiService, useValue: { request } },
         { provide: AuthService, useValue: { user } },
       ],
@@ -83,7 +85,7 @@ describe('AnalyticsPageComponent', () => {
 
     component.startGoalEdit();
     component.goalDraftKm.set(520);
-    component.saveGoal(new Event('submit'));
+    await component.saveGoal(new Event('submit'));
 
     expect(component.monthlyGoalKm()).toBe(520);
     expect(window.localStorage.getItem('ridepulse_monthly_goal_km_rider-7')).toBe('520');
@@ -98,7 +100,7 @@ describe('AnalyticsPageComponent', () => {
     const component = fixture.componentInstance;
     component.startGoalEdit();
     component.goalDraftKm.set(9000);
-    component.saveGoal(new Event('submit'));
+    await component.saveGoal(new Event('submit'));
 
     expect(component.monthlyGoalKm()).toBe(300);
     expect(component.goalError()).toContain('5,000');

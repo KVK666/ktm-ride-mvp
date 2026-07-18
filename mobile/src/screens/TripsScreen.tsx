@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
@@ -18,6 +18,7 @@ export function TripsScreen() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -57,6 +58,7 @@ export function TripsScreen() {
       });
       setTitle("");
       setDescription("");
+      setCreateOpen(false);
       await load();
       if (response.trip?.id) {
         navigation.navigate("TripDetail", { tripId: response.trip.id });
@@ -76,33 +78,22 @@ export function TripsScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
       >
         <View style={styles.header}>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>TRIP ALBUMS</Text>
-          <Text style={[styles.title, { color: colors.text }]}>Trips</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerCopy}>
+              <Text style={[styles.eyebrow, { color: colors.accent }]}>TRIP ALBUMS</Text>
+              <Text style={[styles.title, { color: colors.text }]}>Trips</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Create new trip"
+              onPress={() => { setMessage(""); setCreateOpen(true); }}
+              style={({ pressed }) => [styles.newTripButton, { backgroundColor: colors.accent }, pressed && styles.pressed]}
+            >
+              <Ionicons name="add" color={colors.onAccent} size={20} />
+              <Text style={[styles.newTripText, { color: colors.onAccent }]}>New trip</Text>
+            </Pressable>
+          </View>
           <Text style={[styles.subtitle, { color: colors.muted }]}>Group related rides into a manual album without changing the ride records.</Text>
-        </View>
-
-        <View style={[styles.createCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>New trip album</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Coastal weekend, monsoon loop..."
-            placeholderTextColor={colors.muted}
-            maxLength={120}
-            style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceHigh }]}
-          />
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Optional notes"
-            placeholderTextColor={colors.muted}
-            maxLength={1000}
-            style={[styles.input, styles.descriptionInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceHigh }]}
-            multiline
-            textAlignVertical="top"
-          />
-          <PrimaryButton label="Create trip" icon="folder-open" loading={saving} onPress={createTrip} />
-          {message ? <Text style={[styles.message, { color: message.includes("Unable") ? colors.danger : colors.muted }]}>{message}</Text> : null}
         </View>
 
         {error ? (
@@ -146,6 +137,44 @@ export function TripsScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <Modal visible={createOpen} transparent animationType="slide" onRequestClose={() => setCreateOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close new trip form" style={styles.modalDismiss} onPress={() => setCreateOpen(false)} />
+          <View style={[styles.createSheet, { backgroundColor: colors.surface }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View style={styles.headerCopy}>
+                <Text style={[styles.eyebrow, { color: colors.accent }]}>NEW TRIP</Text>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Create a trip album</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => setCreateOpen(false)} style={[styles.closeButton, { backgroundColor: colors.surfaceHigh }]}>
+                <Ionicons name="close" color={colors.text} size={22} />
+              </Pressable>
+            </View>
+            <TextInput
+              autoFocus
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Coastal weekend, monsoon loop..."
+              placeholderTextColor={colors.muted}
+              maxLength={120}
+              style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceHigh }]}
+            />
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Optional notes"
+              placeholderTextColor={colors.muted}
+              maxLength={1000}
+              style={[styles.input, styles.descriptionInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surfaceHigh }]}
+              multiline
+              textAlignVertical="top"
+            />
+            <PrimaryButton label="Create trip" icon="folder-open" loading={saving} onPress={createTrip} />
+            {message ? <Text style={[styles.message, { color: message.includes("Unable") ? colors.danger : colors.muted }]}>{message}</Text> : null}
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -168,11 +197,14 @@ function normalizeTrip(value: any): Trip {
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 118, gap: 18 },
   header: { gap: 5 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  headerCopy: { flex: 1, minWidth: 0, gap: 4 },
   eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 },
   title: { fontFamily: typography.extraBold, fontSize: 38, lineHeight: 44 },
   subtitle: { fontFamily: typography.regular, fontSize: 14, lineHeight: 21, maxWidth: 360 },
-  createCard: { borderRadius: 24, padding: 16, gap: 12 },
   cardTitle: { fontFamily: typography.bold, fontSize: 16 },
+  newTripButton: { minHeight: 44, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 6 },
+  newTripText: { fontFamily: typography.bold, fontSize: 13 },
   input: { minHeight: 46, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, fontFamily: typography.medium, fontSize: 13 },
   descriptionInput: { minHeight: 82, paddingTop: 12 },
   message: { fontFamily: typography.medium, fontSize: 12 },
@@ -189,5 +221,11 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.88, transform: [{ scale: 0.992 }] },
   empty: { borderRadius: 22, padding: 18, gap: 6 },
   emptyTitle: { fontFamily: typography.bold, fontSize: 16 },
-  emptyText: { fontFamily: typography.regular, fontSize: 13, lineHeight: 19 }
+  emptyText: { fontFamily: typography.regular, fontSize: 13, lineHeight: 19 },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.58)" },
+  modalDismiss: { ...StyleSheet.absoluteFillObject },
+  createSheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 34, gap: 13 },
+  sheetHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: "rgba(150,150,150,0.55)", alignSelf: "center", marginBottom: 4 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  closeButton: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" }
 });

@@ -2,17 +2,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarButtonProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ProfileAvatar } from "../components/ProfileAvatar";
+import { useAuth } from "../context/AuthContext";
+import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
-import { MoreScreen } from "../screens/MoreScreen";
 import { NavigateScreen } from "../screens/NavigateScreen";
-import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
-import { SavedPlacesScreen } from "../screens/SavedPlacesScreen";
 import { RideDetailScreen } from "../screens/RideDetailScreen";
 import { RideScreen } from "../screens/RideScreen";
+import { SavedPlacesScreen } from "../screens/SavedPlacesScreen";
 import { TripDetailScreen } from "../screens/TripDetailScreen";
 import { TripsScreen } from "../screens/TripsScreen";
 import { useTheme } from "../theme/ThemeContext";
@@ -20,37 +22,47 @@ import { typography } from "../theme/colors";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-const MoreStack = createNativeStackNavigator();
 
 const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Dashboard: "home",
-  Navigate: "navigate",
+  Home: "home",
+  Plan: "map",
   Ride: "radio-button-on",
-  History: "time",
-  More: "person-circle"
+  Journal: "book",
+  Insights: "analytics"
 };
 
-function MoreNavigator() {
+function AccountShortcut({ navigation }: { navigation: any }) {
+  const { user } = useAuth();
   const { colors } = useTheme();
-
+  const insets = useSafeAreaInsets();
   return (
-    <MoreStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerShadowVisible: false,
-        headerTintColor: colors.text,
-          headerTitleStyle: { fontFamily: typography.bold },
-        contentStyle: { backgroundColor: colors.background }
-      }}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Open account and settings"
+      onPress={() => navigation.navigate("Account")}
+      style={({ pressed }) => [styles.accountShortcut, { top: insets.top + 8, backgroundColor: colors.overlay, borderColor: colors.border }, pressed && styles.pressed]}
     >
-      <MoreStack.Screen name="MoreHome" component={MoreScreen} options={{ headerShown: false }} />
-      <MoreStack.Screen name="Analytics" component={AnalyticsScreen} />
-      <MoreStack.Screen name="Reports" component={ReportsScreen} />
-      <MoreStack.Screen name="SavedPlaces" component={SavedPlacesScreen} options={{ title: "Saved places" }} />
-      <MoreStack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile & settings" }} />
-    </MoreStack.Navigator>
+      <ProfileAvatar user={user} size={36} radius={13} />
+    </Pressable>
   );
 }
+
+function withAccount(ScreenComponent: React.ComponentType<any>) {
+  return function TabScreen(props: any) {
+    return (
+      <View style={styles.flex}>
+        <ScreenComponent {...props} />
+        <AccountShortcut navigation={props.navigation} />
+      </View>
+    );
+  };
+}
+
+const HomeTab = withAccount(DashboardScreen);
+const PlanTab = withAccount(NavigateScreen);
+const RideTab = withAccount(RideScreen);
+const JournalTab = withAccount(HistoryScreen);
+const InsightsTab = withAccount(AnalyticsScreen);
 
 function RideTabButton(props: BottomTabBarButtonProps) {
   const { colors } = useTheme();
@@ -59,13 +71,10 @@ function RideTabButton(props: BottomTabBarButtonProps) {
       <Pressable
         {...props}
         accessibilityLabel="Ride"
-        style={({ pressed }) => [
-          styles.rideButton,
-          { backgroundColor: colors.accent, borderColor: colors.background },
-          pressed && styles.rideButtonPressed
-        ]}
+        style={({ pressed }) => [styles.rideButton, { backgroundColor: colors.accent, borderColor: colors.background }, pressed && styles.pressed]}
       >
-        <Ionicons name="radio-button-on" size={28} color={colors.onAccent} />
+        <Ionicons name="radio-button-on" size={25} color={colors.onAccent} />
+        <Text style={[styles.rideLabel, { color: colors.onAccent }]}>Ride</Text>
       </Pressable>
     </View>
   );
@@ -73,17 +82,17 @@ function RideTabButton(props: BottomTabBarButtonProps) {
 
 function MainTabs() {
   const { colors } = useTheme();
-
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
           backgroundColor: colors.overlay,
           borderTopColor: "transparent",
-          height: 76,
-          paddingTop: 9,
+          height: 80,
+          paddingTop: 8,
           paddingBottom: 10,
           position: "absolute",
           left: 12,
@@ -94,65 +103,49 @@ function MainTabs() {
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 9, fontFamily: typography.bold },
-        tabBarIcon: ({ color, size }) => (
-          <Ionicons name={icons[route.name]} color={color} size={size} />
-        )
+        tabBarLabelStyle: { fontSize: 10, fontFamily: typography.bold },
+        tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name]} color={color} size={size} />
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: "Home" }} />
-      <Tab.Screen name="Navigate" component={NavigateScreen} />
-      <Tab.Screen
-        name="Ride"
-        component={RideScreen}
-        options={{ tabBarButton: (props) => <RideTabButton {...props} />, tabBarLabel: "Ride" }}
-      />
-      <Tab.Screen name="History" component={HistoryScreen} options={{ title: "Journal" }} />
-      <Tab.Screen name="More" component={MoreNavigator} options={{ headerShown: false, title: "You" }} />
+      <Tab.Screen name="Home" component={HomeTab} />
+      <Tab.Screen name="Plan" component={PlanTab} />
+      <Tab.Screen name="Ride" component={RideTab} options={{ tabBarButton: (props) => <RideTabButton {...props} /> }} />
+      <Tab.Screen name="Journal" component={JournalTab} />
+      <Tab.Screen name="Insights" component={InsightsTab} />
     </Tab.Navigator>
   );
 }
 
 export function AppNavigator() {
   const { colors } = useTheme();
-
+  const screenOptions = {
+    headerStyle: { backgroundColor: colors.background },
+    headerShadowVisible: false,
+    headerTintColor: colors.text,
+    headerTitleStyle: { fontFamily: typography.bold },
+    contentStyle: { backgroundColor: colors.background }
+  };
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerShadowVisible: false,
-        headerTintColor: colors.text,
-        headerTitleStyle: { fontFamily: typography.bold },
-        contentStyle: { backgroundColor: colors.background }
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+      <Stack.Screen name="Account" component={ProfileScreen} options={{ title: "Account & settings" }} />
       <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: "Ride details" }} />
       <Stack.Screen name="Trips" component={TripsScreen} options={{ title: "Trip albums" }} />
       <Stack.Screen name="TripDetail" component={TripDetailScreen} options={{ title: "Trip album" }} />
+      <Stack.Screen name="SavedPlaces" component={SavedPlacesScreen} options={{ title: "Saved places" }} />
+      <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: "Reports" }} />
+      <Stack.Screen name="Navigate" component={NavigateScreen} options={{ title: "Plan" }} />
+      <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: "Insights" }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Account & settings" }} />
     </Stack.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
-  rideButtonSlot: {
-    flex: 1,
-    alignItems: "center"
-  },
-  rideButton: {
-    width: 52,
-    height: 52,
-    marginTop: -16,
-    borderRadius: 26,
-    borderWidth: 4,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#C8FF5A",
-    shadowOpacity: 0.24,
-    shadowRadius: 14,
-    elevation: 7
-  },
-  rideButtonPressed: {
-    transform: [{ scale: 0.94 }]
-  }
+  flex: { flex: 1 },
+  accountShortcut: { position: "absolute", right: 16, zIndex: 20, width: 44, height: 44, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  rideButtonSlot: { flex: 1, alignItems: "center" },
+  rideButton: { width: 58, height: 58, marginTop: -15, borderRadius: 23, borderWidth: 4, alignItems: "center", justifyContent: "center", elevation: 7 },
+  rideLabel: { fontFamily: typography.extraBold, fontSize: 9, marginTop: 1 },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.96 }] }
 });

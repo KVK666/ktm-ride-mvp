@@ -1,6 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { HttpRequestError } from '../../core/http-client';
 import { AnalyticsPoint, RiderPulseInsights } from '../../core/models';
 import { bucketLabel, duration, km, kmh, numberValue } from '../../core/format';
 import { LoadingPulseComponent } from '../../shared/loading-pulse.component';
@@ -10,13 +12,19 @@ type Bucket = 'daily' | 'monthly' | 'yearly';
 @Component({
   selector: 'app-analytics-page',
   standalone: true,
-  imports: [LoadingPulseComponent],
+  imports: [LoadingPulseComponent, RouterLink],
   template: `
     <section class="page-title">
       <p class="kicker">RIDER PULSE</p>
-      <h2>Your riding rhythm</h2>
+      <h1>Your riding rhythm</h1>
       <p>A focused view of your momentum, habits, ride character, and next meaningful target.</p>
     </section>
+
+    <nav class="insights-tabs" aria-label="Insights sections">
+      <a class="active" routerLink="/app/analytics" aria-current="page">Overview</a>
+      <a routerLink="/app/analytics" fragment="trends">Trends</a>
+      <a routerLink="/app/reports">Reports</a>
+    </nav>
 
     @if (insightLoading()) {
       <app-loading-pulse label="Loading your rider pulse" />
@@ -73,8 +81,8 @@ type Bucket = 'daily' | 'monthly' | 'yearly';
                   (input)="updateGoalDraft($event)"
                   aria-describedby="goal-help"
                 />
-                <button class="primary-action" type="submit">Save target</button>
-                <button class="secondary-action" type="button" (click)="cancelGoalEdit()">
+                <button class="primary-action" type="submit" [disabled]="goalSaving()">{{ goalSaving() ? 'Saving...' : 'Save target' }}</button>
+                <button class="secondary-action" type="button" [disabled]="goalSaving()" (click)="cancelGoalEdit()">
                   Cancel
                 </button>
               </div>
@@ -820,6 +828,7 @@ export class AnalyticsPageComponent implements OnInit {
   readonly monthlyGoalKm = signal(300);
   readonly goalDraftKm = signal(300);
   readonly editingGoal = signal(false);
+  readonly goalSaving = signal(false);
   readonly goalError = signal('');
   readonly goalSaved = signal('');
   readonly buckets: Bucket[] = ['daily', 'monthly', 'yearly'];
@@ -933,7 +942,7 @@ export class AnalyticsPageComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.loadGoal();
+    void this.loadGoal();
     void this.loadInsights();
     void this.loadTrend();
   }
@@ -1002,20 +1011,29 @@ export class AnalyticsPageComponent implements OnInit {
     this.goalError.set('');
   }
 
-  saveGoal(event: Event) {
+  async saveGoal(event: Event) {
     event.preventDefault();
+    if (this.goalSaving()) return;
     const value = Number(this.goalDraftKm());
     if (!Number.isFinite(value) || value < 10 || value > 5000) {
       this.goalError.set('Enter a target between 10 and 5,000 km.');
       return;
     }
     const rounded = Math.round(value);
-    this.monthlyGoalKm.set(rounded);
-    this.goalDraftKm.set(rounded);
-    this.writeGoal(rounded);
     this.goalError.set('');
-    this.editingGoal.set(false);
-    this.goalSaved.set(`Monthly target saved at ${rounded} km.`);
+    this.goalSaved.set('');
+    this.goalSaving.set(true);
+    try {
+      const savedToServer = await this.writeGoal(rounded);
+      this.monthlyGoalKm.set(rounded);
+      this.goalDraftKm.set(rounded);
+      this.editingGoal.set(false);
+      this.goalSaved.set(savedToServer ? `Monthly target saved at ${rounded} km.` : `Monthly target saved in this browser while offline.`);
+    } catch (error) {
+      this.goalError.set(`Monthly target was not saved. ${errorMessage(error)} Try again.`);
+    } finally {
+      this.goalSaving.set(false);
+    }
   }
 
   barHeight(value: unknown) {
@@ -1103,20 +1121,58 @@ export class AnalyticsPageComponent implements OnInit {
     return value >= 100 ? Math.round(value).toLocaleString() : value.toFixed(1);
   }
 
-  private loadGoal() {
+  private async loadGoal() {
+    let localGoal: number | null = null;
     try {
       const stored = Number(window.localStorage.getItem(this.goalStorageKey()));
       if (Number.isFinite(stored) && stored >= 10 && stored <= 5000) {
         const rounded = Math.round(stored);
-        this.monthlyGoalKm.set(rounded);
-        this.goalDraftKm.set(rounded);
+        localGoal = rounded;
       }
     } catch {
       // Storage can be disabled; the in-memory default still works.
     }
+    if (localGoal != null) {
+      this.monthlyGoalKm.set(localGoal);
+      this.goalDraftKm.set(localGoal);
+    }
+    try {
+      const response = await this.api.request<{ preferences?: { monthlyDistanceGoalKm?: unknown } }>('/profile/preferences');
+      const serverGoal = Number(response.preferences?.monthlyDistanceGoalKm);
+      if (Number.isFinite(serverGoal) && serverGoal >= 10 && serverGoal <= 5000) {
+        const rounded = Math.round(serverGoal);
+        this.monthlyGoalKm.set(rounded);
+        this.goalDraftKm.set(rounded);
+        this.storeGoal(rounded);
+      } else if (localGoal != null) {
+        void this.writeGoal(localGoal).catch(() => {
+          // Keep the valid legacy local target if the deployed server rejects the migration write.
+        });
+      }
+    } catch {
+      // The server endpoint is additive. Existing deployments continue with rider-scoped local storage.
+    }
   }
 
-  private writeGoal(value: number) {
+  private async writeGoal(value: number): Promise<boolean> {
+    const integerGoal = Math.round(Number(value));
+    if (!Number.isFinite(integerGoal) || integerGoal < 10 || integerGoal > 5000) return false;
+    try {
+      await this.api.request('/profile/preferences', {
+        method: 'PATCH', body: JSON.stringify({ monthlyDistanceGoalKm: integerGoal }),
+      });
+      this.storeGoal(integerGoal);
+      return true;
+    } catch (error) {
+      if (canUseLocalFallback(error)) {
+        this.storeGoal(integerGoal);
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  private storeGoal(value: number) {
     try {
       window.localStorage.setItem(this.goalStorageKey(), String(value));
     } catch {
@@ -1138,4 +1194,16 @@ export class AnalyticsPageComponent implements OnInit {
   }
 
   private trendRequestId = 0;
+}
+
+function canUseLocalFallback(error: unknown) {
+  return (error instanceof HttpRequestError && error.status === 404) || isOfflineError(error);
+}
+
+function isOfflineError(error: unknown) {
+  return error instanceof Error && /Network request failed|Request timed out/i.test(error.message);
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error && error.message ? error.message : 'Check your connection and try again.';
 }

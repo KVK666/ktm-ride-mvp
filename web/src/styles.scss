@@ -57,6 +57,28 @@ input {
   font-family: inherit;
 }
 
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 200;
+  left: 16px;
+  top: -60px;
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 16px;
+}
+
 img {
   max-width: 100%;
 }
@@ -134,7 +156,20 @@ select {
 
 .sidebar nav {
   display: grid;
+  gap: 18px;
+}
+
+.nav-group {
+  display: grid;
   gap: 6px;
+}
+
+.nav-group > p {
+  margin: 0 12px 3px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
 }
 
 .sidebar nav a,
@@ -308,9 +343,13 @@ select {
   margin-bottom: 24px;
 }
 
+.page-title h1,
 .page-title h2,
+.hero-card h1,
 .hero-card h2,
+.detail-hero h1,
 .detail-hero h2,
+.profile-card h1,
 .profile-card h2 {
   margin: 0;
   font-size: clamp(2.35rem, 5vw, 4.8rem);
@@ -365,6 +404,32 @@ select {
   overflow: hidden;
 }
 
+.home-page-title {
+  margin-bottom: 18px;
+}
+
+.home-attention {
+  align-items: center;
+  margin: 0 0 18px;
+}
+
+.home-attention > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-attention .secondary-action {
+  flex: 0 0 auto;
+}
+
+.home-latest-card {
+  min-height: 410px;
+}
+
+.home-latest-card .route-preview {
+  min-height: 180px;
+}
+
 .route-preview {
   min-height: 250px;
   margin: 12px 0;
@@ -402,6 +467,17 @@ select {
   font-size: clamp(1.6rem, 4vw, 2.55rem);
   line-height: 1;
   overflow-wrap: anywhere;
+}
+
+.metric-card small {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.metric-card.accent small {
+  color: rgba(16, 22, 6, 0.7);
 }
 
 .metric-card.accent {
@@ -502,6 +578,51 @@ select {
   gap: 8px;
   margin-bottom: 22px;
 }
+
+.journal-tabs {
+  display: inline-flex;
+  max-width: 100%;
+  margin: 0 0 22px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.insights-tabs { display: inline-flex; margin: 0 0 22px; padding: 4px; gap: 4px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.insights-tabs a { min-height: 44px; border-radius: 13px; display: inline-flex; align-items: center; padding: 0 13px; color: var(--muted); font-size: .86rem; font-weight: 900; text-decoration: none; }
+.insights-tabs a.active, .insights-tabs a:hover { color: var(--on-accent); background: var(--accent); }
+
+.journal-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.journal-tabs button.active { color: var(--on-accent); background: var(--accent); }
+
+.journal-controls { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.journal-sort { display: grid; gap: 6px; color: var(--muted); font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+.journal-sort select { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; padding: 0 10px; color: var(--text); background: var(--surface); font: inherit; text-transform: none; }
+.section-copy { margin: 6px 0 0; color: var(--muted); line-height: 1.5; }
+.journal-rows { gap: 8px; }
+.journal-row { min-height: 92px; }
+.journal-row-art { width: 64px; height: 64px; flex: 0 0 auto; overflow: hidden; border-radius: 15px; background: var(--surface-high); }
+.journal-row-art app-route-art { display: block; width: 100%; height: 100%; }
+.journal-row > div:nth-child(2) { flex: 1; min-width: 0; }
+.journal-row-metrics { min-width: 92px; text-align: right; }
+.journal-row-metrics span { font-size: .8rem; }
+.journal-more { margin-top: 14px; }
 
 .filter-bar button {
   min-height: 42px;
@@ -831,7 +952,7 @@ select {
 }
 
 .icon-danger {
-  width: 42px;
+  width: 44px;
   padding: 0;
   border-radius: 14px;
 }
@@ -1182,6 +1303,25 @@ select {
   font-weight: 800;
 }
 
+.account-edit-card { gap: 11px; }
+.account-edit-card h3 { margin: 0; }
+.account-edit-card label { display: grid; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 900; }
+.account-edit-card input { min-height: 44px; border: 1px solid var(--border-strong); border-radius: 13px; padding: 0 12px; color: var(--text); background: var(--background); font: inherit; }
+.account-edit-card .primary-action { margin-top: 4px; align-self: start; }
+
+.plan-safety-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; border: 1px solid rgba(200, 255, 90, .25); border-radius: 22px; padding: 18px; background: rgba(200, 255, 90, .06); }
+.plan-safety-card lucide-icon { color: var(--accent); }
+.plan-safety-card strong, .plan-safety-card p { display: block; }
+.plan-safety-card p { margin: 4px 0 0; color: var(--muted); line-height: 1.5; }
+
+.dialog-backdrop { position: fixed; inset: 0; z-index: 105; background: rgba(0, 0, 0, .62); }
+.journal-dialog { position: fixed; z-index: 106; left: 50%; top: 50%; width: min(92vw, 540px); transform: translate(-50%, -50%); display: grid; gap: 14px; border: 1px solid var(--border-strong); border-radius: 24px; padding: 22px; color: var(--text); background: var(--surface-high); box-shadow: 0 24px 80px rgba(0,0,0,.5); }
+.journal-dialog .section-head { margin: 0; }
+.journal-dialog .modal-close { position: static; width: 44px; height: 44px; }
+.journal-dialog label { display: grid; gap: 7px; color: var(--muted); font-size: .8rem; font-weight: 900; }
+.journal-dialog input, .journal-dialog textarea { width: 100%; border: 1px solid var(--border-strong); border-radius: 14px; padding: 12px; color: var(--text); background: var(--background); font: inherit; }
+.journal-dialog textarea { min-height: 112px; resize: vertical; }
+
 .avatar {
   width: 118px;
   height: 118px;
@@ -1366,6 +1506,15 @@ select {
     margin-top: 22px;
   }
 
+  .home-attention {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .home-attention .secondary-action {
+    width: 100%;
+  }
+
   .hero-card,
   .detail-hero {
     min-height: auto;
@@ -1388,9 +1537,13 @@ select {
     gap: 12px;
   }
 
+  .page-title h1,
   .page-title h2,
+  .hero-card h1,
   .hero-card h2,
+  .detail-hero h1,
   .detail-hero h2,
+  .profile-card h1,
   .profile-card h2 {
     font-size: clamp(1.95rem, 10.5vw, 3rem);
     line-height: 1.02;
@@ -1426,6 +1579,17 @@ select {
     flex: 1 1 auto;
     padding: 0 12px;
   }
+
+  .journal-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .journal-tabs button { justify-content: center; padding: 0 8px; font-size: .8rem; }
+  .journal-controls { display: grid; grid-template-columns: 1fr; }
+  .journal-sort { width: 100%; }
+  .journal-row { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: center; }
+  .journal-row-art { width: 52px; height: 52px; }
+  .journal-row-metrics { grid-column: 2; min-width: 0; display: flex; justify-content: space-between; text-align: left; }
+
+  .plan-safety-card { grid-template-columns: auto minmax(0, 1fr); }
+  .plan-safety-card .primary-action { grid-column: 1 / -1; width: 100%; }
 
   .button-row > .primary-action,
   .button-row > .secondary-action,

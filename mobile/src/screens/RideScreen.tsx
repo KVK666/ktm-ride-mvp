@@ -1,5 +1,6 @@
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -49,6 +50,7 @@ export function RideScreen() {
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
   const [finishVisible, setFinishVisible] = useState(false);
   const autoTracking = useAutoTracking();
   const autoRide = autoTracking.status.activeRide;
@@ -170,6 +172,7 @@ export function RideScreen() {
     }
 
     setStarting(true);
+    setMessage("");
     const startRequestedAt = Date.now();
     try {
       const latestAutoStatus = await getAutoTrackingStatus();
@@ -375,7 +378,12 @@ export function RideScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        scrollEnabled
+        bounces={!recordingActive}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, recordingActive && styles.recordingContent]}
+      >
         <View style={styles.hero}>
           <View style={styles.recordRow}><View style={[styles.recordDot, recordingActive && styles.recordDotActive]} /><Text style={styles.kicker}>{recordingActive ? (autoRideActive ? "AUTO RECORDING NOW" : "RECORDING NOW") : "RIDE COCKPIT"}</Text></View>
           <Text style={styles.title}>{recordingActive ? "The road is yours" : "Ready when you are"}</Text>
@@ -385,7 +393,7 @@ export function RideScreen() {
         {message ? <Text style={styles.message}>{message}</Text> : null}
         {autoTracking.error ? <Text style={styles.message}>{autoTracking.error}</Text> : null}
 
-        <View style={styles.mapShell}><RideMap coordinates={compactRidePointsForMap(livePoints)} current={livePoints[livePoints.length - 1]} title={recordingActive ? "Live ride route" : "Ride map"} /></View>
+        <View style={[styles.mapShell, recordingActive && styles.recordingMapShell]}><RideMap coordinates={compactRidePointsForMap(livePoints)} current={livePoints[livePoints.length - 1]} title={recordingActive ? "Live ride route" : "Ride map"} /></View>
 
         {recordingActive ? <View style={styles.speedHero}><Text style={styles.speedValue}>{Math.round(livePoints[livePoints.length - 1]?.speedKmh || 0)}</Text><Text style={styles.speedUnit}>km/h</Text></View> : null}
 
@@ -395,12 +403,8 @@ export function RideScreen() {
             <Text style={styles.cockpitValue}>{gpsQuality}</Text>
           </View>
           <View style={styles.cockpitItem}>
-            <Text style={styles.cockpitLabel}>POINTS</Text>
-            <Text style={styles.cockpitValue}>{livePoints.length}</Text>
-          </View>
-          <View style={styles.cockpitItem}>
-            <Text style={styles.cockpitLabel}>SAVE STATE</Text>
-            <Text style={styles.cockpitValue}>{saving ? "Saving" : recordingActive ? (autoRideActive ? "Auto live" : "Live") : autoTracking.status.pendingCount ? "Pending" : "Ready"}</Text>
+            <Text style={styles.cockpitLabel}>RECORDING</Text>
+            <Text style={styles.cockpitValue}>{recordingActive ? (autoRideActive ? "Automatic" : "Manual") : "Ready"}</Text>
           </View>
         </View>
 
@@ -410,15 +414,7 @@ export function RideScreen() {
           <View style={styles.metricDivider} /><Metric label="TOP SPEED" value={kmh(stats.topSpeed)} />
         </View>
 
-        {active ? (
-          <PrimaryButton block label="Finish ride" icon="stop-circle" danger loading={saving} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); setFinishVisible(true); }} />
-        ) : autoRideActive ? (
-          <PrimaryButton block label="Auto recording active" icon="radio" disabled onPress={() => {}} />
-        ) : (
-          <PrimaryButton block label="Start recording" icon="play" loading={starting} onPress={startRide} />
-        )}
-
-        <View style={styles.autoCard}>
+        {!recordingActive ? <View style={styles.autoCard}>
           <View style={styles.autoHeader}>
             <View style={styles.autoText}>
               <Text style={styles.autoTitle}>Auto tracking</Text>
@@ -461,9 +457,15 @@ export function RideScreen() {
             </View>
           ) : null}
           {autoTracking.syncMessage ? <Text style={styles.successText}>{autoTracking.syncMessage}</Text> : null}
-        </View>
+        </View> : null}
+
+        <Pressable accessibilityRole="button" accessibilityState={{ expanded: diagnosticsExpanded }} onPress={() => setDiagnosticsExpanded((value) => !value)} style={styles.diagnosticsToggle}><Ionicons name="options-outline" color={colors.muted} size={17} /><Text style={styles.diagnosticsToggleText}>{diagnosticsExpanded ? "Hide diagnostics" : "Recording diagnostics"}</Text></Pressable>
+        {diagnosticsExpanded ? <View style={styles.diagnosticsPanel}><Text style={styles.autoCopy}>Points: {livePoints.length}</Text><Text style={styles.autoCopy}>Save state: {saving ? "Saving" : recordingActive ? "Live" : autoTracking.status.pendingCount ? "Pending upload" : "Ready"}</Text><Text style={styles.autoCopy}>Average speed: {kmh(stats.avgSpeed)}</Text></View> : null}
 
       </ScrollView>
+      <View style={styles.fixedAction}>
+        {active ? <PrimaryButton block label="Finish ride" icon="stop-circle" danger loading={saving} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); setFinishVisible(true); }} /> : autoRideActive ? <PrimaryButton block label="Manage automatic ride" icon="radio" onPress={() => navigation.navigate("Account")} /> : <PrimaryButton block label="Start ride" icon="play" loading={starting} onPress={startRide} />}
+      </View>
     </Screen>
   );
 }
@@ -583,9 +585,10 @@ function timestampMs(value: string) {
 const createStyles = (colors: ThemeColors) => ({
   content: {
     padding: 20,
-    paddingBottom: 118,
+    paddingBottom: 190,
     gap: 18
   },
+  recordingContent: { paddingBottom: 154, gap: 12 },
   hero: {
     gap: 5,
     paddingTop: 2
@@ -612,6 +615,7 @@ const createStyles = (colors: ThemeColors) => ({
     fontFamily: typography.regular
   },
   mapShell: { height: 340, borderRadius: 28, overflow: "hidden" as const },
+  recordingMapShell: { height: 250 },
   speedHero: { alignItems: "center" as const, justifyContent: "center" as const, paddingVertical: 4 },
   speedValue: { color: colors.text, fontFamily: typography.extraBold, fontSize: 76, lineHeight: 84, letterSpacing: -4 },
   speedUnit: { color: colors.muted, fontFamily: typography.bold, fontSize: 12, letterSpacing: 1.2, marginTop: -4 },
@@ -693,6 +697,10 @@ const createStyles = (colors: ThemeColors) => ({
     color: colors.success,
     fontWeight: "800"
   },
+  diagnosticsToggle: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  diagnosticsToggleText: { color: colors.muted, fontFamily: typography.bold, fontSize: 12 },
+  diagnosticsPanel: { backgroundColor: colors.surface, borderRadius: 18, padding: 14, gap: 6 },
+  fixedAction: { position: "absolute", left: 20, right: 20, bottom: 104, zIndex: 30 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.72)", justifyContent: "flex-end" as const },
   sheet: { backgroundColor: colors.elevated, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 22, paddingBottom: 34, gap: 14 },
   sheetHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, alignSelf: "center" as const },

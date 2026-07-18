@@ -2,6 +2,7 @@ import { AfterViewInit, Component, ElementRef, Input, OnChanges, ViewChild, inje
 import { LucideAngularModule } from 'lucide-angular';
 import { Coordinate, RideAlbumPhoto } from '../core/models';
 import { GoogleMapsService, googleMapsRouteUrl, validCoordinate } from '../core/google-maps.service';
+import { DialogFocusDirective } from './dialog-focus.directive';
 import { RouteArtComponent } from './route-art.component';
 
 declare const google: any;
@@ -18,7 +19,7 @@ const darkMapStyle = [
 @Component({
   selector: 'app-google-route-map',
   standalone: true,
-  imports: [LucideAngularModule, RouteArtComponent],
+  imports: [DialogFocusDirective, LucideAngularModule, RouteArtComponent],
   template: `
     <div class="map-shell" [class.fullscreen]="fullscreen()">
       @if (maps.configured && !error()) {
@@ -43,7 +44,7 @@ const darkMapStyle = [
     </div>
 
     @if (fullscreen()) {
-      <div class="map-modal" role="dialog" aria-modal="true" [attr.aria-label]="title">
+        <div class="map-modal" role="dialog" aria-modal="true" [attr.aria-label]="title" [appDialogFocus]="closeFullscreen">
         <div class="map-modal-panel">
           <button type="button" class="modal-close" (click)="fullscreen.set(false)" title="Close map">
             <lucide-icon name="x" size="22" />
@@ -102,8 +103,8 @@ const darkMapStyle = [
     .map-actions a,
     .map-actions button,
     .modal-close {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border: 1px solid rgba(245, 242, 234, 0.12);
       border-radius: 999px;
       display: grid;
@@ -167,6 +168,8 @@ export class GoogleRouteMapComponent implements AfterViewInit, OnChanges {
   mapUrl() {
     return googleMapsRouteUrl(this.points);
   }
+
+  closeFullscreen = () => this.fullscreen.set(false);
 
   private async render() {
     if (!this.viewReady || !this.maps.configured || !this.mapElement) {

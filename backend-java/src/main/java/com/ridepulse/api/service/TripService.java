@@ -5,7 +5,11 @@ import com.ridepulse.api.constants.ProgramCodes;
 import com.ridepulse.api.http.ApiException;
 import com.ridepulse.api.repository.TripRepository;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +34,13 @@ public class TripService {
 
   public Map<String, Object> list(String userId) {
     return Map.of("trips", tripRepository.list(userId));
+  }
+
+  public Map<String, Object> forRide(String userId, String rideId) {
+    if (!rideService.ownedRideExists(userId, rideId)) {
+      throw new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.RIDE_NOT_FOUND);
+    }
+    return Map.of("trips", tripRepository.listForRide(userId, rideId));
   }
 
   public Map<String, Object> get(String userId, String tripId) {
@@ -79,6 +90,36 @@ public class TripService {
     if (added > 0) {
       tripRepository.touch(userId, tripId);
     }
+    return getFresh(userId, tripId);
+  }
+
+  @Transactional
+  public Map<String, Object> addRides(String userId, String tripId, Map<String, Object> body) {
+    Object rawRideIds = body == null ? null : body.get("rideIds");
+    if (!(rawRideIds instanceof List<?> values)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.TRIP_RIDES_REQUIRED);
+    }
+    Set<String> uniqueRideIds = new LinkedHashSet<>();
+    for (Object value : values) {
+      String rideId = value == null ? "" : String.valueOf(value).trim();
+      if (rideId.isBlank()) {
+        throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.RIDE_NOT_FOUND);
+      }
+      uniqueRideIds.add(rideId);
+    }
+    if (uniqueRideIds.isEmpty()) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.TRIP_RIDES_REQUIRED);
+    }
+    if (uniqueRideIds.size() > 200) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.TRIP_RIDES_LIMIT);
+    }
+    requireTrip(userId, tripId);
+    List<String> rideIds = new ArrayList<>(uniqueRideIds);
+    if (!rideService.ownedRideIdsFresh(userId, rideIds).containsAll(uniqueRideIds)) {
+      throw new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.RIDE_NOT_FOUND);
+    }
+    int added = tripRepository.addRides(tripId, rideIds);
+    if (added > 0) tripRepository.touch(userId, tripId);
     return getFresh(userId, tripId);
   }
 

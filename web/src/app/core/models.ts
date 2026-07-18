@@ -179,7 +179,8 @@ export type RideAlbumPhoto = Coordinate & {
   rideId?: string;
   fileName?: string | null;
   mimeType: string;
-  imageBase64: string;
+  imageBase64?: string | null;
+  clientPhotoId?: string | null;
   createdAt: string;
   importedAt: string;
   hasLocation: boolean;
@@ -242,6 +243,9 @@ export type ReportResponse = {
     topSpeedKmh: number;
   };
   routes: {
+    rideId?: string | null;
+    title?: string | null;
+    aiTitle?: string | null;
     from: string;
     to: string;
     distanceM: number;

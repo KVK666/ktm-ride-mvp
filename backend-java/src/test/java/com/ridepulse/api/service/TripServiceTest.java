@@ -75,4 +75,27 @@ class TripServiceTest {
     verify(tripRepository).ridesFresh("user-1", "trip-1");
     assertThat(response.get("trip")).isEqualTo(Map.of("id", "trip-1", "title", "Weekend"));
   }
+
+  @Test
+  void batchAddDeduplicatesIdsAndVerifiesEveryRideIsOwned() {
+    when(tripRepository.findFresh("user-1", "trip-1")).thenReturn(Optional.of(Map.of("id", "trip-1", "title", "Weekend")));
+    when(rideService.ownedRideIdsFresh("user-1", List.of("ride-1", "ride-2"))).thenReturn(java.util.Set.of("ride-1", "ride-2"));
+    when(tripRepository.addRides("trip-1", List.of("ride-1", "ride-2"))).thenReturn(2);
+    when(tripRepository.ridesFresh("user-1", "trip-1")).thenReturn(List.of(Map.of("id", "ride-1"), Map.of("id", "ride-2")));
+
+    Map<String, Object> response = service.addRides("user-1", "trip-1", Map.of("rideIds", List.of("ride-1", "ride-1", "ride-2")));
+
+    verify(tripRepository).addRides("trip-1", List.of("ride-1", "ride-2"));
+    verify(tripRepository).touch("user-1", "trip-1");
+    assertThat((List<?>) response.get("rides")).hasSize(2);
+  }
+
+  @Test
+  void batchAddRejectsAnyRideNotOwnedByTheUser() {
+    when(tripRepository.findFresh("user-1", "trip-1")).thenReturn(Optional.of(Map.of("id", "trip-1")));
+    when(rideService.ownedRideIdsFresh("user-1", List.of("ride-1", "ride-2"))).thenReturn(java.util.Set.of("ride-1"));
+
+    assertThatThrownBy(() -> service.addRides("user-1", "trip-1", Map.of("rideIds", List.of("ride-1", "ride-2"))))
+        .isInstanceOf(ApiException.class);
+  }
 }

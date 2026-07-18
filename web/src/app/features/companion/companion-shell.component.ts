@@ -11,6 +11,7 @@ import { ProfilePhotoService } from '../../core/profile-photo.service';
   imports: [LucideAngularModule, RouterLink, RouterLinkActive, RouterOutlet],
   template: `
     <div class="app-shell" [class.menu-open]="mobileMenuOpen()">
+      <a class="skip-link" href="#companion-content">Skip to page content</a>
       <header class="mobile-shell-bar">
         <a class="shell-brand" routerLink="/app/home" (click)="closeMobileMenu()">
           <img src="/ridepulse-logo.png" alt="" />
@@ -38,11 +39,16 @@ import { ProfilePhotoService } from '../../core/profile-photo.service';
           <span>RidePulse</span>
         </a>
         <nav aria-label="Companion">
-          @for (item of nav; track item.path) {
-            <a [routerLink]="item.path" routerLinkActive="active" (click)="closeMobileMenu()">
-              <lucide-icon [name]="item.icon" size="18" />
-              <span class="nav-label">{{ item.label }}</span>
-            </a>
+          @for (group of nav; track group.label) {
+            <section class="nav-group">
+              <p>{{ group.label }}</p>
+              @for (item of group.items; track item.path) {
+                <a [routerLink]="item.path" routerLinkActive="active" (click)="closeMobileMenu()">
+                  <lucide-icon [name]="item.icon" size="18" />
+                  <span class="nav-label">{{ item.label }}</span>
+                </a>
+              }
+            </section>
           }
         </nav>
         <a class="sidebar-user" routerLink="/app/profile" (click)="closeMobileMenu()">
@@ -64,16 +70,15 @@ import { ProfilePhotoService } from '../../core/profile-photo.service';
         </button>
       </aside>
 
-      <main class="app-main">
+      <main class="app-main" id="companion-content" tabindex="-1">
         <header class="app-topbar">
           <div>
-            <p>{{ greeting }}</p>
-            <h1>{{ auth.user()?.name || 'Rider' }}</h1>
+            <p>{{ pageEyebrow() }}</p>
           </div>
           <div class="app-actions">
             <a class="download-pill" href="https://github.com/KVK666/ride-pulse/releases/tag/latest" target="_blank" rel="noreferrer">
               <lucide-icon name="download" size="17" />
-              Mobile APK
+              Record in Android
             </a>
             <a class="top-avatar" routerLink="/app/profile" aria-label="Open profile">
               @if (photo.photoUrl()) {
@@ -95,17 +100,17 @@ export class CompanionShellComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   readonly mobileMenuOpen = signal(false);
-  readonly greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
+  readonly pageEyebrow = signal('YOUR RIDEPULSE');
   readonly nav = [
-    { path: '/app/home', label: 'Home', icon: 'house' },
-    { path: '/app/journal', label: 'Journal', icon: 'history' },
-    { path: '/app/trips', label: 'Trips', icon: 'folder-open' },
-    { path: '/app/navigate', label: 'Navigate', icon: 'navigation' },
-    { path: '/app/places', label: 'Places', icon: 'map-pin' },
-    { path: '/app/analytics', label: 'Analytics', icon: 'chart-column-increasing' },
-    { path: '/app/reports', label: 'Reports', icon: 'file-text' },
-    { path: '/app/you', label: 'You', icon: 'activity' },
-    { path: '/app/profile', label: 'Profile', icon: 'user' }
+    { label: 'RIDE', items: [
+      { path: '/app/home', label: 'Home', icon: 'house' },
+      { path: '/app/plan', label: 'Plan', icon: 'navigation' },
+      { path: '/app/journal', label: 'Journal', icon: 'history' },
+    ] },
+    { label: 'REFLECT', items: [
+      { path: '/app/analytics', label: 'Insights', icon: 'chart-column-increasing' },
+      { path: '/app/profile', label: 'Account', icon: 'user' },
+    ] }
   ];
 
   get initials() {
@@ -122,8 +127,10 @@ export class CompanionShellComponent implements OnInit {
     this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.closeMobileMenu();
+        this.updatePageHeader(event.urlAfterRedirects);
       }
     });
+    this.updatePageHeader(this.router.url);
   }
 
   toggleMobileMenu() {
@@ -132,6 +139,22 @@ export class CompanionShellComponent implements OnInit {
 
   closeMobileMenu() {
     this.mobileMenuOpen.set(false);
+  }
+
+  private updatePageHeader(url: string) {
+    const [path] = url.split('?');
+    const match = [
+      ['/app/plan', 'PLAN YOUR RIDE', 'Plan'],
+      ['/app/navigate', 'PLAN YOUR RIDE', 'Plan'],
+      ['/app/places', 'PLAN YOUR RIDE', 'Plan'],
+      ['/app/journal', 'YOUR RIDE LIBRARY', 'Journal'],
+      ['/app/trips', 'YOUR RIDE LIBRARY', 'Journal'],
+      ['/app/analytics', 'RIDER PULSE', 'Insights'],
+      ['/app/reports', 'RIDER PULSE', 'Insights'],
+      ['/app/profile', 'YOUR RIDEPULSE', 'Account'],
+      ['/app/you', 'YOUR RIDEPULSE', 'Account'],
+    ].find(([prefix]) => path.startsWith(prefix));
+    this.pageEyebrow.set(match?.[1] || 'YOUR RIDEPULSE');
   }
 
   async logout() {

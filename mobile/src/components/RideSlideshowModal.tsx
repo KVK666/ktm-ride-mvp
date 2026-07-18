@@ -8,6 +8,7 @@ import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
 import { Ride, RideAlbumPhoto } from "../types";
 import { duration, km, kmh, shortDate } from "../utils/format";
+import { rideDisplayTitle } from "../utils/rideTitle";
 
 const { width } = Dimensions.get("window");
 
@@ -113,7 +114,7 @@ function IntroSlide({ ride }: { ride: Ride }) {
     <View style={styles.inner}>
       <RouteArtwork coordinates={ride.points || ride.routePreview} start={{ latitude: ride.startLatitude, longitude: ride.startLongitude }} end={{ latitude: ride.endLatitude, longitude: ride.endLongitude }} height={360} style={styles.heroArt} />
       <Text style={[styles.kicker, { color: colors.accent }]}>RIDE MEMORY</Text>
-      <Text style={[styles.title, { color: colors.text }]}>{ride.title || ride.aiTitle || ride.smartTitle || `${shortDate(ride.startedAt)} ride`}</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{rideDisplayTitle(ride)}</Text>
       <Text style={[styles.body, { color: colors.textSoft }]}>{ride.aiSummary || ride.summaryText || `${shortDate(ride.startedAt)} ride memory`}</Text>
     </View>
   );

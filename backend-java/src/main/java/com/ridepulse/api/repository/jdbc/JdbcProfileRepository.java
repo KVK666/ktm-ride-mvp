@@ -3,6 +3,7 @@ package com.ridepulse.api.repository.jdbc;
 import com.ridepulse.api.constants.BeanNames;
 import com.ridepulse.api.constants.QueryKeys;
 import com.ridepulse.api.pojo.PhotoRow;
+import com.ridepulse.api.pojo.AuthUserRow;
 import com.ridepulse.api.repository.ProfileRepository;
 import com.ridepulse.api.utility.RowMappers;
 import com.ridepulse.api.utility.SqlQueries;
@@ -27,6 +28,33 @@ public class JdbcProfileRepository implements ProfileRepository {
     this.readOnlyJdbc = readOnlyJdbc;
     this.readWriteJdbc = readWriteJdbc;
     this.sql = sql;
+  }
+
+  @Override
+  @Transactional
+  public Optional<AuthUserRow> update(String userId, boolean updateName, String name, boolean updateBikeModel, String bikeModel) {
+    MapSqlParameterSource params = new MapSqlParameterSource("userId", userId)
+        .addValue("updateName", updateName)
+        .addValue("name", name)
+        .addValue("updateBikeModel", updateBikeModel)
+        .addValue("bikeModel", bikeModel);
+    return readWriteJdbc.query(sql.get(QueryKeys.PROFILE_UPDATE), params,
+        rs -> rs.next() ? Optional.of(RowMappers.authUser(rs)) : Optional.empty());
+  }
+
+  @Override
+  public Optional<Integer> monthlyDistanceGoalKm(String userId) {
+    return readOnlyJdbc.query(sql.get(QueryKeys.PROFILE_PREFERENCES), new MapSqlParameterSource("userId", userId),
+        rs -> rs.next() ? Optional.of(rs.getInt("monthly_distance_goal_km")) : Optional.empty());
+  }
+
+  @Override
+  @Transactional
+  public Optional<Integer> updateMonthlyDistanceGoalKm(String userId, int monthlyDistanceGoalKm) {
+    MapSqlParameterSource params = new MapSqlParameterSource("userId", userId)
+        .addValue("monthlyDistanceGoalKm", monthlyDistanceGoalKm);
+    return readWriteJdbc.query(sql.get(QueryKeys.PROFILE_UPDATE_PREFERENCES), params,
+        rs -> rs.next() ? Optional.of(rs.getInt("monthly_distance_goal_km")) : Optional.empty());
   }
 
   @Override

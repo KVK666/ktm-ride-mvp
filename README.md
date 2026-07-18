@@ -45,11 +45,12 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Focused mobile/web Ride Detail UX centred on story, key stats, map, notes, photos, and trip/share actions instead of model confidence/status and redundant technical sections.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
 - Daily, monthly, and yearly ride history.
-- Rider Pulse analytics on mobile and web with a per-rider monthly distance goal, calendar-month progress, projection and coaching, rolling 30-day comparison, active days, ride-day streak, longest/average ride benchmarks, favourite weekday/time, review completion, cleanup attention, and the existing daily/monthly/yearly charts.
+- Rider Pulse Insights on mobile and web with one account-synced monthly distance goal, calendar-month progress, projection and coaching, rolling 30-day comparison, active days, ride-day streak, longest/average ride benchmarks, favourite weekday/time, review completion, cleanup attention, charts, and reports.
 - JSON report endpoint and in-app PDF export.
 - Location/activity permission, background location prompt, battery optimization warning copy, and internet/API error messages.
 - Brand-neutral RidePulse launcher name, icon, Graphite and OLED Black themes, and compact mobile UI controls.
-- Angular web companion with a cinematic public site, Three.js hero scene, login/register, dashboard, journal, Google Maps route planner, rich ride detail, synced ride albums, analytics, reports export, profile photo management, fixed companion navigation, and branded RidePulse loading states.
+- Job-based Android navigation through Home, Plan, Ride, Journal, and Insights, with Account/settings behind the rider avatar and a tab-safe fixed Ride action.
+- Angular web companion with a cinematic public site plus grouped Home, Plan, Journal, Insights, Account, rich ride detail, private synced albums, profile editing, responsive navigation, and accessible loading/focus states. GPS recording remains Android-only.
 
 ## Required API Keys
 
@@ -101,6 +102,8 @@ $env:CORS_ORIGIN="*"
 ```
 
 The API runs at `http://localhost:4001`.
+
+Run the backend regression suite with `mvn test` from `backend-java/`.
 
 For a hosted PostgreSQL database that stores RidePulse tables in a non-default schema, set `DB_SCHEMA`. For AWS with a schema named `ridepulse_db`, use:
 
@@ -174,6 +177,13 @@ For native Maps/background location behavior, run a native build:
 npm run android
 ```
 
+Run the mobile policy tests and TypeScript check before packaging:
+
+```bash
+npm test
+npm run typecheck
+```
+
 ## Web Setup
 
 ```bash
@@ -193,7 +203,13 @@ cd web
 npm run build
 ```
 
-The web app is a companion experience. It shows the premium public website and authenticated ride dashboard/journal surfaces, but ride recording stays in the Android app for reliable GPS and background tracking. Profile photos are loaded from the existing authenticated `/api/profile/photo` endpoint as JSON.
+Run the Angular unit suite with:
+
+```bash
+npm run test -- --watch=false
+```
+
+The web app exposes the same rider data and organization workflows as Android—rides, trips, memories, albums, plans, insights, reports, and account details—but ride recording and device controls stay in the Android app for reliable GPS/background behavior. Profile and ride photos use authenticated owner-scoped endpoints.
 
 For Render Static Site deployment, the blueprint builds the Angular app with:
 
@@ -208,11 +224,11 @@ and publishes `web/dist/web/browser` with an SPA rewrite to `/index.html`.
 
 The Java backend creates and uses the RidePulse PostgreSQL schema, including:
 
-- `users`: account, password hash, rider name, bike model.
+- `users`: account, password hash, editable rider name/bike model, profile photo, and optional monthly distance goal.
 - `password_reset_tokens`: one-time hashed reset tokens with expiry and usage tracking.
 - `rides`: summary stats and start/end coordinates.
 - `ride_points`: normalized GPS points for route rendering and speed-over-time analysis.
-- `ride_album_photos`: backend-synced ride album copies for web/mobile companion display.
+- `ride_album_photos`: private backend-synced album copies with client idempotency IDs for reliable retry across Android and web.
 - `saved_places`: owner-scoped Home, Office, and custom endpoint coordinates plus a GPS-drift matching radius.
 
 To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMENT.md#1a-migrate-existing-neon-data-to-aws). The migration script reads connection strings from environment variables and does not commit database secrets.
@@ -225,22 +241,34 @@ To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMEN
 - `POST /api/auth/reset-password`
 - `GET /api/auth/me`
 - `GET /api/dashboard`
+- `GET /api/home`
+- `GET /api/journal`
+- `PATCH /api/profile`
+- `GET /api/profile/preferences`
+- `PATCH /api/profile/preferences`
+- `GET /api/profile/photo`
+- `PUT /api/profile/photo`
+- `DELETE /api/profile/photo`
 - `POST /api/rides`
-- `GET /api/rides?period=today|month|year|all`
+- `GET /api/rides?period=today|month|year|all&q=&limit=&cursor=&reviewStatus=&sort=`
 - `GET /api/rides/:id`
 - `PATCH /api/rides/:id`
 - `DELETE /api/rides/:id`
 - `GET /api/rides/:id/intelligence`
 - `GET /api/rides/:id/duplicates`
 - `GET /api/rides/:id/photos`
+- `GET /api/rides/:id/photos?includeData=false`
+- `GET /api/rides/:id/photos/:photoId`
 - `POST /api/rides/:id/photos`
 - `DELETE /api/rides/:id/photos/:photoId`
+- `GET /api/rides/:id/trips`
 - `GET /api/trips`
 - `POST /api/trips`
 - `GET /api/trips/:id`
 - `PATCH /api/trips/:id`
 - `DELETE /api/trips/:id`
 - `POST /api/trips/:id/rides`
+- `PUT /api/trips/:id/rides`
 - `DELETE /api/trips/:id/rides/:rideId`
 - `GET /api/places`
 - `POST /api/places`
@@ -252,6 +280,8 @@ To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMEN
 - `GET /api/reports?period=day|month|year&date=2026-05-11`
 
 Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `rideKind`, `rideKindConfidence`, `rideKindReason`, `keyInsight`, `bestMoment`, `tripSuggestion`, `aiStatus`, and `aiGeneratedAt`. Existing route labels remain available as `startLabel` and `endLabel` for maps and route facts; AI titles, summaries, story prompts, and trip suggestions should avoid treating map labels as the main ride meaning.
+
+Paginated ride-list calls add `data.pageInfo` with `hasMore` and an opaque `nextCursor`; callers that omit pagination parameters keep the legacy `data.rides` response and 100-ride cap. Album listing remains backward-compatible with embedded image data by default, while `includeData=false` plus the individual binary endpoint avoids loading every photo blob. Photo uploads may include `clientPhotoId` so retries are idempotent. All profile, preference, ride, album, trip, place, analytics, and report data remains authenticated and owner-scoped.
 
 `GET /api/analytics/insights` returns authenticated, owner-scoped summary analytics under `data.insights`; it never loads route points or labels. The optional IANA `timezone` query (for example `Asia/Kolkata`) makes calendar-month distance/projection, ride-day streak, favourite weekday, and favourite time rider-local; missing or invalid values safely fall back to UTC. The response includes `generatedAt`, rolling/current/previous distance, ride and active-day counts, streak, longest/average benchmarks, habit labels, review completion, cleanup count, and month projection. Startup schema bootstrap creates the supporting `rides(user_id, started_at)` index automatically, so no manual SQL step is required.
 

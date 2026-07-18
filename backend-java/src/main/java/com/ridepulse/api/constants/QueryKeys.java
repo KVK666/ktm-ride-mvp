@@ -18,6 +18,15 @@ public final class QueryKeys {
   public static final String RIDE_LIST_MONTH = "ride.list-month";
   public static final String RIDE_LIST_YEAR = "ride.list-year";
   public static final String RIDE_LIST_SEARCH = "ride.list-search";
+  public static final String RIDE_LIST_NEEDS_REVIEW = "ride.list-needs-review";
+  public static final String RIDE_LIST_CLEANUP = "ride.list-cleanup";
+  public static final String RIDE_LIST_CURSOR_NEWEST = "ride.list-cursor-newest";
+  public static final String RIDE_LIST_CURSOR_LONGEST = "ride.list-cursor-longest";
+  public static final String RIDE_LIST_CURSOR_FASTEST = "ride.list-cursor-fastest";
+  public static final String RIDE_LIST_ORDER_NEWEST = "ride.list-order-newest";
+  public static final String RIDE_LIST_ORDER_LONGEST = "ride.list-order-longest";
+  public static final String RIDE_LIST_ORDER_FASTEST = "ride.list-order-fastest";
+  public static final String RIDE_LIST_LIMIT = "ride.list-limit";
   public static final String RIDE_LIST_ORDER = "ride.list-order";
   public static final String RIDE_BY_OWNER = "ride.by-owner";
   public static final String RIDE_EXISTS = "ride.exists";
@@ -34,8 +43,10 @@ public final class QueryKeys {
   public static final String RIDE_AI_SAVE = "ride.ai-save";
 
   public static final String RIDE_PHOTO_LIST = "ride-photo.list";
+  public static final String RIDE_PHOTO_LIST_METADATA = "ride-photo.list-metadata";
   public static final String RIDE_PHOTO_INSERT = "ride-photo.insert";
   public static final String RIDE_PHOTO_BY_ID = "ride-photo.by-id";
+  public static final String RIDE_PHOTO_BINARY_BY_ID = "ride-photo.binary-by-id";
   public static final String RIDE_PHOTO_DELETE = "ride-photo.delete";
 
   public static final String ROUTE_PREVIEW = "route-preview";
@@ -51,6 +62,9 @@ public final class QueryKeys {
   public static final String PROFILE_PHOTO = "profile.photo";
   public static final String PROFILE_UPDATE_PHOTO = "profile.update-photo";
   public static final String PROFILE_DELETE_PHOTO = "profile.delete-photo";
+  public static final String PROFILE_UPDATE = "profile.update";
+  public static final String PROFILE_PREFERENCES = "profile.preferences";
+  public static final String PROFILE_UPDATE_PREFERENCES = "profile.update-preferences";
 
   public static final String SAVED_PLACE_LIST = "saved-place.list";
   public static final String SAVED_PLACE_BY_ID = "saved-place.by-id";
@@ -68,12 +82,15 @@ public final class QueryKeys {
   public static final String TRIP_ADD_RIDE = "trip.add-ride";
   public static final String TRIP_REMOVE_RIDE = "trip.remove-ride";
   public static final String TRIP_TOUCH = "trip.touch";
+  public static final String TRIP_LIST_FOR_RIDE = "trip.list-for-ride";
+  public static final String RIDE_OWNED_IDS = "ride.owned-ids";
 
   public static final String SCHEMA_UUID_EXTENSION = "schema.uuid-extension";
   public static final String SCHEMA_PGCRYPTO_EXTENSION = "schema.pgcrypto-extension";
   public static final String SCHEMA_USER_PROFILE_DATA = "schema.user-profile-data";
   public static final String SCHEMA_USER_PROFILE_MIME = "schema.user-profile-mime";
   public static final String SCHEMA_USER_PROFILE_UPDATED = "schema.user-profile-updated";
+  public static final String SCHEMA_USER_MONTHLY_DISTANCE_GOAL = "schema.user-monthly-distance-goal";
   public static final String SCHEMA_USERS_ID_UNIQUE_INDEX = "schema.users-id-unique-index";
   public static final String SCHEMA_PASSWORD_RESET_TABLE = "schema.password-reset-table";
   public static final String SCHEMA_PASSWORD_RESET_DEFAULTS = "schema.password-reset-defaults";
@@ -95,6 +112,8 @@ public final class QueryKeys {
   public static final String SCHEMA_PASSWORD_RESET_EXPIRES_INDEX = "schema.password-reset-expires-index";
   public static final String SCHEMA_RIDE_PHOTO_RIDE_INDEX = "schema.ride-photo-ride-index";
   public static final String SCHEMA_RIDE_PHOTO_USER_INDEX = "schema.ride-photo-user-index";
+  public static final String SCHEMA_RIDE_PHOTO_CLIENT_ID = "schema.ride-photo-client-id";
+  public static final String SCHEMA_RIDE_PHOTO_CLIENT_ID_INDEX = "schema.ride-photo-client-id-index";
   public static final String SCHEMA_TRIPS_USER_INDEX = "schema.trips-user-index";
   public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
   public static final String SCHEMA_RIDES_USER_STARTED_INDEX = "schema.rides-user-started-index";

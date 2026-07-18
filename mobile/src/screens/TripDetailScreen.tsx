@@ -1,14 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { api } from "../api/client";
+import React, { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ApiError, api } from "../api/client";
 import { JournalCard } from "../components/JournalCard";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
 import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
 import { Ride, Trip } from "../types";
 import { km, shortDate } from "../utils/format";
+import { rideDisplayTitle } from "../utils/rideTitle";
 
 type TripDetailParams = {
   TripDetail: {
@@ -26,6 +28,17 @@ export function TripDetailScreen() {
   const [error, setError] = useState("");
   const [removingRideId, setRemovingRideId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [availableRides, setAvailableRides] = useState<Ride[]>([]);
+  const [selectedRideIds, setSelectedRideIds] = useState<string[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [addingRides, setAddingRides] = useState(false);
+
+  const membershipIds = useMemo(() => new Set(rides.map((ride) => ride.id)), [rides]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +57,101 @@ export function TripDetailScreen() {
   }, [route.params.tripId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  function openEdit() {
+    if (!trip) return;
+    setError("");
+    setTitleDraft(trip.title || "");
+    setDescriptionDraft(trip.description || "");
+    setEditOpen(true);
+  }
+
+  async function saveTripDetails() {
+    const title = titleDraft.trim();
+    if (!title || savingEdit) {
+      setError("Trip title is required");
+      return;
+    }
+    setSavingEdit(true);
+    setError("");
+    try {
+      const response = await api<{ trip: Trip; rides: Ride[] }>(`/trips/${route.params.tripId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title, description: descriptionDraft.trim() || null })
+      });
+      setTrip(response.trip || trip);
+      if (Array.isArray(response.rides)) setRides(response.rides);
+      setEditOpen(false);
+    } catch (err: any) {
+      setError(err.message || "Unable to update trip");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function openRidePicker() {
+    setPickerOpen(true);
+    setSelectedRideIds([]);
+    setPickerLoading(true);
+    setError("");
+    try {
+      const collected: Ride[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 10; page += 1) {
+        const cursorParam = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+        const response = await api<{ rides: Ride[]; pageInfo?: { hasMore?: boolean; nextCursor?: string | null } }>(`/rides?limit=100&sort=newest${cursorParam}`);
+        if (Array.isArray(response.rides)) collected.push(...response.rides);
+        cursor = response.pageInfo?.nextCursor || null;
+        if (!response.pageInfo?.hasMore || !cursor) break;
+      }
+      const unique = new Map(collected.filter((ride) => ride?.id).map((ride) => [ride.id, ride]));
+      setAvailableRides([...unique.values()]);
+    } catch (err: any) {
+      setError(err.message || "Unable to load rides");
+    } finally {
+      setPickerLoading(false);
+    }
+  }
+
+  function toggleRideSelection(rideId: string) {
+    if (membershipIds.has(rideId) || addingRides) return;
+    setSelectedRideIds((current) => current.includes(rideId) ? current.filter((id) => id !== rideId) : [...current, rideId]);
+  }
+
+  async function addSelectedRides() {
+    if (!selectedRideIds.length || addingRides) return;
+    setAddingRides(true);
+    setError("");
+    try {
+      let response: { trip: Trip; rides: Ride[] } | null = null;
+      try {
+        response = await api<{ trip: Trip; rides: Ride[] }>(`/trips/${route.params.tripId}/rides`, {
+          method: "PUT",
+          body: JSON.stringify({ rideIds: selectedRideIds })
+        });
+      } catch (err) {
+        if (!(err instanceof ApiError) || (err.status !== 404 && err.status !== 405)) throw err;
+        for (const rideId of selectedRideIds) {
+          await api(`/trips/${route.params.tripId}/rides`, {
+            method: "POST",
+            body: JSON.stringify({ rideId })
+          });
+        }
+      }
+      if (response) {
+        setTrip(response.trip || trip);
+        setRides(Array.isArray(response.rides) ? response.rides : rides);
+      } else {
+        await load();
+      }
+      setSelectedRideIds([]);
+      setPickerOpen(false);
+    } catch (err: any) {
+      setError(err.message || "Unable to add selected rides");
+    } finally {
+      setAddingRides(false);
+    }
+  }
 
   function confirmRemoveRide(ride: Ride) {
     Alert.alert(
@@ -123,13 +231,13 @@ export function TripDetailScreen() {
             </View>
 
             <View style={styles.actions}>
-              <Pressable onPress={() => navigation.navigate("MainTabs", { screen: "History" })} style={[styles.actionButton, { backgroundColor: colors.accent }]}>
+              <Pressable onPress={openRidePicker} style={[styles.actionButton, { backgroundColor: colors.accent }]}>
                 <Ionicons name="add-circle" color={colors.onAccent} size={18} />
-                <Text style={[styles.actionText, { color: colors.onAccent }]}>Add from ride detail</Text>
+                <Text style={[styles.actionText, { color: colors.onAccent }]}>Add rides</Text>
               </Pressable>
-              <Pressable disabled={deleting} onPress={confirmDeleteTrip} style={[styles.actionButton, styles.deleteButton, { backgroundColor: `${colors.danger}20` }]}>
-                <Ionicons name="trash" color={colors.danger} size={18} />
-                <Text style={[styles.actionText, { color: colors.danger }]}>{deleting ? "Deleting..." : "Delete trip"}</Text>
+              <Pressable onPress={openEdit} style={[styles.actionButton, { backgroundColor: colors.surfaceHigh }]}>
+                <Ionicons name="create-outline" color={colors.text} size={18} />
+                <Text style={[styles.actionText, { color: colors.text }]}>Edit details</Text>
               </Pressable>
             </View>
           </>
@@ -162,10 +270,85 @@ export function TripDetailScreen() {
         {!loading && trip && !rides.length ? (
           <View style={[styles.empty, { backgroundColor: colors.surface }]}>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No rides in this trip yet</Text>
-            <Text style={[styles.emptyText, { color: colors.muted }]}>Open any ride detail and use Add to trip.</Text>
+            <Text style={[styles.emptyText, { color: colors.muted }]}>Use Add rides to choose one or more journal rides.</Text>
+          </View>
+        ) : null}
+
+        {trip ? (
+          <View style={[styles.dangerArea, { borderColor: `${colors.danger}45` }]}>
+            <View style={styles.dangerCopy}>
+              <Text style={[styles.dangerTitle, { color: colors.text }]}>Delete trip album</Text>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>Rides and their private albums stay in your journal.</Text>
+            </View>
+            <Pressable disabled={deleting} onPress={confirmDeleteTrip} style={[styles.actionButton, styles.deleteButton, { backgroundColor: `${colors.danger}18` }]}>
+              <Ionicons name="trash" color={colors.danger} size={18} />
+              <Text style={[styles.actionText, { color: colors.danger }]}>{deleting ? "Deleting..." : "Delete"}</Text>
+            </Pressable>
           </View>
         ) : null}
       </ScrollView>
+
+      <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalDismiss} onPress={() => setEditOpen(false)} />
+          <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+            <View style={styles.sheetHeader}>
+              <Text style={[styles.sheetTitle, { color: colors.text }]}>Edit trip details</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => setEditOpen(false)} style={[styles.closeButton, { backgroundColor: colors.surfaceHigh }]}>
+                <Ionicons name="close" color={colors.text} size={22} />
+              </Pressable>
+            </View>
+            <TextInput value={titleDraft} onChangeText={setTitleDraft} maxLength={120} placeholder="Trip title" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} />
+            <TextInput value={descriptionDraft} onChangeText={setDescriptionDraft} maxLength={1000} multiline textAlignVertical="top" placeholder="Optional notes" placeholderTextColor={colors.muted} style={[styles.input, styles.descriptionInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} />
+            {error ? <Text style={[styles.emptyText, { color: colors.danger }]}>{error}</Text> : null}
+            <PrimaryButton label="Save changes" icon="save" loading={savingEdit} onPress={saveTripDetails} />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
+        <Screen>
+          <View style={styles.pickerContent}>
+            <View style={styles.sheetHeader}>
+              <View style={styles.dangerCopy}>
+                <Text style={[styles.eyebrow, { color: colors.accent }]}>RIDE PICKER</Text>
+                <Text style={[styles.pickerTitle, { color: colors.text }]}>Add rides to {trip?.title || "trip"}</Text>
+                <Text style={[styles.emptyText, { color: colors.muted }]}>{rides.length} already in trip · {selectedRideIds.length} selected</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close ride picker" onPress={() => setPickerOpen(false)} style={[styles.closeButton, { backgroundColor: colors.surfaceHigh }]}>
+                <Ionicons name="close" color={colors.text} size={22} />
+              </Pressable>
+            </View>
+            {pickerLoading ? <View style={styles.pickerLoading}><ActivityIndicator color={colors.accent} /></View> : (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pickerList}>
+                {availableRides.map((ride) => {
+                  const inTrip = membershipIds.has(ride.id);
+                  const selected = selectedRideIds.includes(ride.id);
+                  return (
+                    <Pressable
+                      key={ride.id}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: inTrip || selected, disabled: inTrip }}
+                      disabled={inTrip || addingRides}
+                      onPress={() => toggleRideSelection(ride.id)}
+                      style={({ pressed }) => [styles.pickerRide, { backgroundColor: colors.surface }, (inTrip || selected) && { borderColor: colors.accent }, pressed && styles.pressed]}
+                    >
+                      <Ionicons name={inTrip ? "checkmark-circle" : selected ? "checkbox" : "square-outline"} color={inTrip || selected ? colors.accent : colors.muted} size={23} />
+                      <View style={styles.dangerCopy}>
+                        <Text numberOfLines={1} style={[styles.pickerRideTitle, { color: colors.text }]}>{rideDisplayTitle(ride)}</Text>
+                        <Text style={[styles.emptyText, { color: colors.muted }]}>{shortDate(ride.startedAt)} · {km(ride.distanceM)}{inTrip ? " · In trip" : ""}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                {!availableRides.length ? <Text style={[styles.emptyText, { color: colors.muted }]}>No rides are available yet.</Text> : null}
+              </ScrollView>
+            )}
+            {error ? <Text style={[styles.emptyText, { color: colors.danger }]}>{error}</Text> : null}
+            <PrimaryButton label={selectedRideIds.length ? `Add ${selectedRideIds.length} ride${selectedRideIds.length === 1 ? "" : "s"}` : "Select rides"} icon="add-circle" disabled={!selectedRideIds.length} loading={addingRides} onPress={addSelectedRides} />
+          </View>
+        </Screen>
+      </Modal>
     </Screen>
   );
 }
@@ -204,5 +387,22 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.88, transform: [{ scale: 0.992 }] },
   empty: { borderRadius: 22, padding: 18, gap: 6 },
   emptyTitle: { fontFamily: typography.bold, fontSize: 16 },
-  emptyText: { fontFamily: typography.regular, fontSize: 13, lineHeight: 19 }
+  emptyText: { fontFamily: typography.regular, fontSize: 13, lineHeight: 19 },
+  dangerArea: { borderWidth: 1, borderRadius: 20, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  dangerCopy: { flex: 1, minWidth: 0, gap: 3 },
+  dangerTitle: { fontFamily: typography.bold, fontSize: 14 },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.58)" },
+  modalDismiss: { ...StyleSheet.absoluteFillObject },
+  sheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 20, paddingBottom: 34, gap: 13 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  sheetTitle: { flex: 1, fontFamily: typography.extraBold, fontSize: 22 },
+  closeButton: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  input: { minHeight: 46, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, fontFamily: typography.medium, fontSize: 13 },
+  descriptionInput: { minHeight: 92, paddingTop: 12 },
+  pickerContent: { flex: 1, padding: 18, paddingBottom: 28, gap: 14 },
+  pickerTitle: { fontFamily: typography.extraBold, fontSize: 23, lineHeight: 29 },
+  pickerLoading: { flex: 1, alignItems: "center", justifyContent: "center" },
+  pickerList: { gap: 10, paddingBottom: 10 },
+  pickerRide: { minHeight: 68, borderWidth: 1, borderColor: "transparent", borderRadius: 18, padding: 12, flexDirection: "row", alignItems: "center", gap: 11 },
+  pickerRideTitle: { fontFamily: typography.bold, fontSize: 14 }
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, StatusBar, StyleSheet, View, ViewStyle } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../theme/ThemeContext";
 import { motion } from "../theme/colors";
@@ -15,7 +15,6 @@ export function Screen({
   includeTopInset?: boolean;
 }) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -39,8 +38,7 @@ export function Screen({
       style={[
         styles.container,
         {
-          backgroundColor: colors.background,
-          paddingTop: includeTopInset ? Math.max(insets.top, 8) : 0
+          backgroundColor: colors.background
         },
         style
       ]}

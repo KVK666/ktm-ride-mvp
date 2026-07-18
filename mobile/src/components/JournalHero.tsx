@@ -6,6 +6,7 @@ import { typography } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
 import { Ride } from "../types";
 import { duration, km, shortDate } from "../utils/format";
+import { rideDisplayTitle } from "../utils/rideTitle";
 import { RideBadge } from "./RideBadge";
 import { RouteArtwork } from "./RouteArtwork";
 
@@ -13,7 +14,7 @@ export function JournalHero({ ride, onPress }: { ride: Ride; onPress: () => void
   const { colors } = useTheme();
   const start = { latitude: ride.startLatitude, longitude: ride.startLongitude };
   const end = { latitude: ride.endLatitude, longitude: ride.endLongitude };
-  const title = ride.title?.trim() || ride.aiTitle || ride.smartTitle || "Your latest escape";
+  const title = rideDisplayTitle(ride);
   const badges = Array.isArray(ride.badges) ? ride.badges.slice(0, 3) : [];
 
   return (

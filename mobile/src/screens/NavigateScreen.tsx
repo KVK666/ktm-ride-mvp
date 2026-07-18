@@ -1,7 +1,8 @@
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { fetchRoute, geocodeDestination, RouteDetails } from "../api/googleMaps";
 import { api } from "../api/client";
@@ -16,28 +17,25 @@ import { normalizeBoundedCoordinates } from "../utils/coordinates";
 export function NavigateScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const navigation = useNavigation<any>();
   const mapRef = useRef<MapView | null>(null);
   const [destination, setDestination] = useState("");
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SavedPlace | null>(null);
   const [current, setCurrent] = useState<Coordinate | null>(null);
   const [route, setRoute] = useState<RouteDetails | null>(null);
-  const [speed, setSpeed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [safetyVisible, setSafetyVisible] = useState(false);
   const [mapFullScreen, setMapFullScreen] = useState(false);
   const pendingNavigation = useRef(false);
-  const subscription = useRef<Location.LocationSubscription | null>(null);
-
-  useEffect(() => {
+  const loadPlaces = useCallback(() => {
     api<{ places: SavedPlace[] }>("/places")
       .then((response) => setSavedPlaces(Array.isArray(response.places) ? response.places : []))
       .catch(() => setSavedPlaces([]));
-    return () => {
-      subscription.current?.remove();
-    };
   }, []);
+
+  useFocusEffect(useCallback(() => { loadPlaces(); }, [loadPlaces]));
 
   useEffect(() => {
     if (!route?.coordinates.length) {
@@ -96,29 +94,12 @@ export function NavigateScreen() {
         throw new Error("Location permission is required for navigation");
       }
 
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+      const position = await getBoundedPlannerLocation();
       const origin = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude
       };
       setCurrent(origin);
-
-      subscription.current?.remove();
-      subscription.current = null;
-      subscription.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Highest,
-          distanceInterval: 8,
-          timeInterval: 3000
-        },
-        (location) => {
-          setCurrent({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude
-          });
-          setSpeed(Math.max(0, (location.coords.speed || 0) * 3.6));
-        }
-      );
 
       const destinationPoint = selectedPlace && destination === selectedPlace.label
         ? { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude }
@@ -140,7 +121,7 @@ export function NavigateScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.kicker}>PLAN BEFORE YOU MOVE</Text>
-          <Text style={styles.title}>Route planner</Text>
+          <Text style={styles.title}>Plan a route</Text>
           <Text style={styles.subtitle}>A clear route preview for the road ahead—not turn-by-turn navigation.</Text>
         </View>
         <View style={styles.searchRow}>
@@ -152,7 +133,7 @@ export function NavigateScreen() {
             placeholderTextColor={colors.muted}
             style={styles.input}
           />
-          <PrimaryButton label="Go" icon="navigate" loading={loading} onPress={requestRoute} />
+          <PrimaryButton label="Preview" icon="navigate" loading={loading} onPress={requestRoute} />
         </View>
         {savedPlaces.length ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.placeChips}>
@@ -168,6 +149,10 @@ export function NavigateScreen() {
             ))}
           </ScrollView>
         ) : null}
+        <Pressable accessibilityRole="button" onPress={() => navigation.navigate("SavedPlaces")} style={styles.managePlaces}>
+          <Ionicons name="settings-outline" color={colors.accent} size={17} />
+          <Text style={styles.managePlacesText}>Manage saved places</Text>
+        </Pressable>
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.mapShell}>
@@ -204,14 +189,16 @@ export function NavigateScreen() {
             <Text style={styles.metricValue}>{route?.distanceText || "--"}</Text>
           </View>
           <View>
-            <Text style={styles.metricLabel}>Speed</Text>
-            <Text style={styles.metricValue}>{Math.round(speed)} km/h</Text>
+            <Text style={styles.metricLabel}>Mode</Text>
+            <Text style={styles.metricValue}>Preview</Text>
           </View>
           <View>
             <Text style={styles.metricLabel}>Progress</Text>
             <Text style={styles.metricValue}>{progress}%</Text>
           </View>
         </View>
+
+        {route ? <PrimaryButton block label="Open in Google Maps" icon="open-outline" onPress={() => openInGoogleMaps(selectedPlace, destination, route)} /> : null}
 
         {route?.steps.slice(0, 8).map((step, index) => (
           <View key={`${step.instruction}-${index}`} style={styles.step}>
@@ -252,6 +239,30 @@ export function NavigateScreen() {
       </Modal>
     </Screen>
   );
+}
+
+async function getBoundedPlannerLocation() {
+  const cached = await Location.getLastKnownPositionAsync({ maxAge: 120000, requiredAccuracy: 150 });
+  if (cached) return cached;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("Current location is taking too long. Try again in an open area.")), 10000);
+      })
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function openInGoogleMaps(place: SavedPlace | null, destinationText: string, route: RouteDetails) {
+  const endpoint = route.coordinates[route.coordinates.length - 1];
+  const destination = place
+    ? `${place.latitude},${place.longitude}`
+    : endpoint ? `${endpoint.latitude},${endpoint.longitude}` : destinationText.trim();
+  Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`).catch(() => {});
 }
 
 function NavigationMap({
@@ -299,8 +310,8 @@ function NavigationMap({
       provider={PROVIDER_GOOGLE}
       googleRenderer="LEGACY"
       style={StyleSheet.absoluteFill}
-      showsUserLocation
-      followsUserLocation
+      showsUserLocation={false}
+      followsUserLocation={false}
       initialRegion={{ ...initial, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
     >
       {coordinates.length > 1 ? <Polyline coordinates={coordinates} strokeColor={colors.orange} strokeWidth={5} /> : null}
@@ -352,6 +363,8 @@ const createStyles = (colors: ThemeColors) => ({
   placeChipActive: { backgroundColor: colors.accent },
   placeChipText: { color: colors.text, fontFamily: typography.bold, fontSize: 12 },
   placeChipTextActive: { color: colors.onAccent },
+  managePlaces: { minHeight: 44, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 4 },
+  managePlacesText: { color: colors.accent, fontFamily: typography.bold, fontSize: 12 },
   input: {
     flex: 1,
     backgroundColor: colors.surfaceHigh,

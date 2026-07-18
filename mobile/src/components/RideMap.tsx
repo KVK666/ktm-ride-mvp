@@ -22,7 +22,8 @@ export function RideMap({
   title = "Ride map",
   fullScreenEnabled = true,
   photoMarkers = [],
-  onPhotoMarkerPress
+  onPhotoMarkerPress,
+  live = true
 }: {
   coordinates: Coordinate[];
   current?: Coordinate | null;
@@ -31,6 +32,7 @@ export function RideMap({
   fullScreenEnabled?: boolean;
   photoMarkers?: RidePhoto[];
   onPhotoMarkerPress?: (photo: RidePhoto) => void;
+  live?: boolean;
 }) {
   const { colors } = useTheme();
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
@@ -86,8 +88,8 @@ export function RideMap({
         googleRenderer="LEGACY"
         style={StyleSheet.absoluteFill}
         customMapStyle={darkMapStyle}
-        showsUserLocation
-        followsUserLocation
+        showsUserLocation={live}
+        followsUserLocation={live}
         initialRegion={{
           ...initial,
           latitudeDelta: 0.04,
@@ -141,6 +143,7 @@ export function RideMap({
             current={mapCurrent}
             photoMarkers={photoMarkers}
             onPhotoMarkerPress={onPhotoMarkerPress}
+            live={live}
             style={styles.fullScreenMap}
             fullScreenEnabled={false}
           />

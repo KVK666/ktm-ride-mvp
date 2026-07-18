@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { api, ApiError } from "../api/client";
 
 const MONTHLY_GOAL_KEY_PREFIX = "ridepulse_monthly_distance_goal_km";
 
@@ -15,13 +16,41 @@ export async function getMonthlyDistanceGoalKm(userId?: string | null) {
     return DEFAULT_MONTHLY_DISTANCE_GOAL_KM;
   }
 
+  const stored = await AsyncStorage.getItem(storageKey(userId)).catch(() => null);
+  const parsed = Number(stored);
+  const localGoal = isValidMonthlyDistanceGoal(parsed)
+    ? Math.round(parsed)
+    : DEFAULT_MONTHLY_DISTANCE_GOAL_KM;
+
   try {
-    const stored = await AsyncStorage.getItem(storageKey(userId));
-    const parsed = Number(stored);
-    return isValidMonthlyDistanceGoal(parsed) ? parsed : DEFAULT_MONTHLY_DISTANCE_GOAL_KM;
+    const response = await api<{ preferences?: { monthlyDistanceGoalKm?: number | null } }>("/profile/preferences");
+    const rawServerGoal = response.preferences?.monthlyDistanceGoalKm;
+    const serverGoal = Number(rawServerGoal);
+    if (isValidMonthlyDistanceGoal(serverGoal)) {
+      const normalized = Math.round(serverGoal);
+      await AsyncStorage.setItem(storageKey(userId), String(normalized));
+      return normalized;
+    }
+    if (rawServerGoal == null) {
+      try {
+        const migrated = await api<{ preferences?: { monthlyDistanceGoalKm?: number | null } }>("/profile/preferences", {
+          method: "PATCH",
+          body: JSON.stringify({ monthlyDistanceGoalKm: localGoal })
+        });
+        const savedGoal = Number(migrated.preferences?.monthlyDistanceGoalKm);
+        if (isValidMonthlyDistanceGoal(savedGoal)) {
+          const normalized = Math.round(savedGoal);
+          await AsyncStorage.setItem(storageKey(userId), String(normalized));
+          return normalized;
+        }
+      } catch {
+        // Keep the valid legacy/default goal until migration can be retried.
+      }
+    }
   } catch {
-    return DEFAULT_MONTHLY_DISTANCE_GOAL_KM;
+    // Older/offline backends fall through to the established local preference.
   }
+  return localGoal;
 }
 
 export async function saveMonthlyDistanceGoalKm(userId: string, goalKm: number) {
@@ -34,9 +63,33 @@ export async function saveMonthlyDistanceGoalKm(userId: string, goalKm: number) 
     );
   }
 
-  const normalized = Math.round(goalKm * 10) / 10;
+  const normalized = Math.round(goalKm);
+  try {
+    const response = await api<{ preferences?: { monthlyDistanceGoalKm?: number | null } }>("/profile/preferences", {
+      method: "PATCH",
+      body: JSON.stringify({ monthlyDistanceGoalKm: normalized })
+    });
+    const serverGoal = Number(response.preferences?.monthlyDistanceGoalKm);
+    if (isValidMonthlyDistanceGoal(serverGoal)) {
+      const normalizedServerGoal = Math.round(serverGoal);
+      await AsyncStorage.setItem(storageKey(userId), String(normalizedServerGoal));
+      return normalizedServerGoal;
+    }
+  } catch (error) {
+    if (!canUseLocalFallback(error)) {
+      throw error;
+    }
+    // Preserve the local preference when the additive endpoint is unavailable or offline.
+  }
   await AsyncStorage.setItem(storageKey(userId), String(normalized));
   return normalized;
+}
+
+function canUseLocalFallback(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.status === 404 || error.status === 405 || error.status === 501;
+  }
+  return true;
 }
 
 export function isValidMonthlyDistanceGoal(value: number) {

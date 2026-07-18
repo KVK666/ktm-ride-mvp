@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api, clearToken, readToken, saveToken } from "../api/client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  api,
+  clearToken,
+  isAuthenticationError,
+  readToken,
+  saveToken,
+  subscribeToAuthenticationRejection
+} from "../api/client";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { syncPendingRidesForCurrentUser } from "../services/autoRideTracking";
 import { syncProfilePhotoForUser } from "../services/profilePhoto";
@@ -16,6 +24,7 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const CACHED_USER_KEY = "duke_ride_cached_user_v1";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -23,6 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const unsubscribe = subscribeToAuthenticationRejection(() => {
+      logDiagnostic({
+        level: "warn",
+        area: "auth",
+        message: "Active session was rejected; clearing authentication"
+      });
+      Promise.allSettled([
+        clearToken(),
+        AsyncStorage.removeItem(CACHED_USER_KEY)
+      ]).finally(() => {
+        setToken(null);
+        setUser(null);
+      });
+    });
+
     async function bootstrap() {
       try {
         const storedToken = await readToken();
@@ -30,34 +54,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         setToken(storedToken);
+        const cachedUser = await readCachedUser();
+        if (cachedUser) {
+          setUser(cachedUser);
+        }
         const response = await api<{ user: User }>("/auth/me");
         setUser(response.user);
+        await cacheUser(response.user);
         const profilePhotoMetadata = await syncProfilePhotoForUser(response.user);
         if (profilePhotoMetadata) {
           setUser({ ...response.user, ...profilePhotoMetadata });
         }
         await syncPendingRidesForCurrentUser();
       } catch (err) {
+        if (!isAuthenticationError(err)) {
+          logDiagnostic({
+            level: "warn",
+            area: "auth",
+            message: "Auth refresh unavailable; keeping the offline session",
+            details: diagnosticDetails(err)
+          });
+          return;
+        }
         logDiagnostic({
           level: "warn",
           area: "auth",
-          message: "Auth bootstrap failed; clearing stored session",
+          message: "Stored session was rejected; clearing authentication",
           details: diagnosticDetails(err)
         });
         await clearToken();
+        await AsyncStorage.removeItem(CACHED_USER_KEY).catch(() => {});
         setToken(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }
     }
 
     bootstrap();
+    return unsubscribe;
   }, []);
 
   async function completeAuth(response: { token: string; user: User }) {
     await saveToken(response.token);
     setToken(response.token);
     setUser(response.user);
+    await cacheUser(response.user);
     const profilePhotoMetadata = await syncProfilePhotoForUser(response.user);
     if (profilePhotoMetadata) {
       setUser({ ...response.user, ...profilePhotoMetadata });
@@ -85,10 +127,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await completeAuth(response);
       },
       updateUser: (patch) => {
-        setUser((current) => current ? { ...current, ...patch } : current);
+        setUser((current) => {
+          const next = current ? { ...current, ...patch } : current;
+          if (next) cacheUser(next).catch(() => {});
+          return next;
+        });
       },
       logout: async () => {
         await clearToken();
+        await AsyncStorage.removeItem(CACHED_USER_KEY).catch(() => {});
         setToken(null);
         setUser(null);
       }
@@ -97,6 +144,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+async function readCachedUser(): Promise<User | null> {
+  try {
+    const stored = await AsyncStorage.getItem(CACHED_USER_KEY);
+    const parsed = stored ? JSON.parse(stored) : null;
+    return parsed && typeof parsed.id === "string" && typeof parsed.email === "string" ? parsed as User : null;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheUser(user: User) {
+  await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
 }
 
 export function useAuth() {

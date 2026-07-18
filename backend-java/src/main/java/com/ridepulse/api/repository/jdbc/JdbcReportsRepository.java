@@ -32,6 +32,9 @@ public class JdbcReportsRepository implements ReportsRepository {
   public List<Map<String, Object>> routes(String userId, String grain, String anchor) {
     return readOnlyJdbc.query(sql.get(QueryKeys.REPORTS_ROUTES), params(userId, grain, anchor), (rs, rowNum) -> {
       Map<String, Object> route = new LinkedHashMap<>();
+      route.put("rideId", String.valueOf(rs.getObject("id")));
+      route.put("title", rs.getString("title"));
+      route.put("aiTitle", rs.getString("ai_title"));
       route.put("from", rs.getString("start_label"));
       route.put("to", rs.getString("end_label"));
       route.put("distanceM", Rows.integer(rs.getObject("distance_m")));

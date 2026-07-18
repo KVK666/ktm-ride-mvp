@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-14
+Last updated: 2026-07-19
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -16,7 +16,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Database: PostgreSQL, currently hosted on Neon; AWS RDS cutover is supported with `DB_SCHEMA` when using a custom schema.
 - Backend hosting: Render Starter in Singapore, currently backed by Neon PostgreSQL.
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
-- Current Android app/runtime version: `0.1.1` with Android version code `2`; the runtime bump keeps older `0.1.0` OTA bundles from overriding the embedded Rider Pulse release while preserving installed app data.
+- Current Android app/runtime version: `0.1.6` with Android version code `7`; JavaScript-only UI updates can ship to this runtime through the production OTA channel without clearing rider data.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT and Render-backed email password reset.
 - Main repo branch: `ride-pulse`.
@@ -36,14 +36,15 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Lets a rider register and log in with email/password.
 - Lets a rider request a password reset from mobile or web; email links open the web reset page and update the password through the Java API.
 - Shows the logged-in rider name on the dashboard.
-- Shows a More area with Profile, Analytics, and Reports destinations.
-- Shows a Profile tab with backend-synced display photo, name, email, bike model, rider ID, diagnostics, logout, and auto tracking toggle.
+- Uses a job-based Android navigation model: Home, Plan, a central Ride cockpit, Journal, and Insights. The rider avatar opens Account and device-only settings.
+- Uses the matching web information architecture—Home, Plan, Journal, Insights, and Account—while keeping GPS recording, tracking permissions, diagnostics, and OTA controls Android-only.
+- Account shows the backend-synced display photo, editable name and bike model, immutable email/rider ID, appearance, photo privacy, support, and logout.
 - Shows an App updates card in Profile so riders can manually check for, download, and restart into available OTA updates.
 - Supports two persisted cinematic themes shown as Midnight and True Black, while retaining the `graphite`/`oled` storage values and legacy `ktm`/`universal` migration.
 - UI uses the premium RidePulse journal system: near-black surfaces, warm white Manrope typography, restrained electric-lime accents, route artwork, softer elevation, and a floating bottom nav.
 - Shows an Android app icon based on `mobile/assets/ridepulse-logo.png`, aligned with the in-app lime/black RidePulse identity.
 - Uses Google Maps in navigation, ride, and history views.
-- Lets users search a destination and view route/directions in the Navigate tab.
+- Lets users search a destination and preview a route in Plan, then hand live guidance to Google Maps. Route preview uses a bounded foreground location fix instead of keeping a GPS watcher active.
 - Lets riders save owner-private Home, Office, and custom locations from mobile or web with an adjustable 50-1,000 metre matching radius. Saved places appear as one-tap destinations in both route planners.
 - Shows a safety warning before navigation.
 - Lets users manually start and stop ride tracking.
@@ -58,9 +59,9 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Shows dashboard totals for today, month, year, total rides, best top speed, average speed, and recent rides.
 - Dashboard shows a recovery card when an interrupted manual ride is locally stored and needs to be stopped/saved from the Ride tab.
 - Shows ride history by period, with route maps and full-screen map viewing.
-- Journal ride search is server-backed on mobile and web, matching ride title, notes, start label, and end label while preserving existing period filters.
+- Journal ride search is server-backed on mobile and web, matching manual/AI titles, summaries, ride kind, notes, insights, and endpoint labels while preserving legacy period filters. New clients use cursor pagination, explicit review filters, and newest/longest/fastest sorting.
 - Journal includes a conservative Cleanup queue on mobile and web for unreviewed recordings with near-zero movement. RidePulse explains why each ride was flagged; riders explicitly keep it by marking it reviewed or remove it through the existing confirmed delete control. No ride is auto-deleted.
-- Adds manual Trip Albums: riders can create trip folders, add existing rides, remove rides from a trip without deleting the ride, and browse trip detail on Android and the Angular companion.
+- Adds manual Trip Albums inside Journal: riders can create and edit trip folders, add existing rides individually or in an idempotent batch, remove rides without deleting them, see current membership, and browse trip detail on Android and web.
 - Adds backend-owned AI ride intelligence with deterministic fallback: saved rides can receive human-readable AI titles, summaries, ride classification, key insight, best moment, and trip automation suggestions without blocking ride save. Saved endpoint matches now recognise routines such as Home to Office and enforce useful names such as `Commute · Home to Office` without guessing the rider's timezone.
 - Opens a focused Ride Detail screen from History with the useful ride story, key stats, route map/summary, notes/review, sharing/trip actions, album, and confirmed cleanup controls.
 - Ride Detail no longer exposes internal-looking ride confidence, AI status/date, GPS sample counts, empty duplicate state, route replay, generated chapter list, or the extra speed chart in the primary mobile/web flow. Those removals keep the page centred on the rider's memory rather than model diagnostics.
@@ -68,22 +69,22 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Ride Detail has a confirmed delete option for the selected ride, intended for test rides, unwanted rides, or duplicates that should be fully removed with their route points.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
 - Imported ride photos with GPS metadata appear as camera markers on the ride map.
-- Ride Detail now has a persistent local Ride Album: users can find photos from the ride window, manually add gallery photos, remove album copies without deleting originals, and open a full-screen slideshow/reel.
+- Ride Detail has a private account-synced Ride Album: users can find photos from the ride window, manually add gallery photos, see local/syncing/synced/failed state, restore album copies on another device, and open a full-screen slideshow/reel. Removing a RidePulse album copy never deletes the original gallery photo.
 - Ride Detail can create a local 9:16 ride story image and share it to Instagram/share sheet without using OpenAI API billing.
 - Ride Detail can generate varied ChatGPT image prompts from exact ride stats, time/place mood, and optional Open-Meteo weather; prompts are copied/shared manually into ChatGPT.
 - Adds Rider Pulse analytics on mobile and web: per-user monthly distance targets, calendar-month progress and projection, contextual coaching, rolling 30-day distance/ride/active-day summaries, ride-day streaks, previous-period trend, longest and average ride benchmarks, favourite weekday/time, review completion, cleanup attention, and the existing daily/monthly/yearly charts.
 - Rider Pulse calendar and habit metrics use the device/browser IANA timezone while rolling 30-day comparisons remain instant-based. Invalid or missing timezone input falls back safely to UTC.
-- Monthly targets persist per signed-in rider on the current phone/browser with a 10-5,000 km validation range; no goal value is sent to another rider account.
-- Mobile Analytics, You, and Profile now reserve the measured floating-tab height plus safe clearance, keeping the final Profile card and Logout action visible and tappable above the bottom panel.
+- Monthly targets persist on the authenticated account through `/api/profile/preferences` with a 10-5,000 km validation range and legacy local fallback, so Android and web show the same goal.
+- Mobile screens apply one safe-area inset plus measured floating-tab clearance; fixed Ride actions remain fully visible and tappable above the bottom panel.
 - Generates basic reports and can export reports as PDF.
 - Adds a V2 Smart Journal layer on top of existing ride data: `/api/journal` returns latest ride, monthly recap, highlights, recent rides, and review count; `/api/rides/:id/intelligence` returns suggested title, summary text, badges, fastest/route chapter data, and safe fallbacks for malformed or missing GPS points.
 - Adds a V5 Home layer through `/api/home`, a compact Render endpoint that keeps `/api/journal` compatible while adding Home-specific memory seeds and pending review suggestions.
-- Home, Journal, Ride Detail, Ride, and You now use premium smart-journal primitives such as route heroes, smart highlights, ride badges, route replay, chapter timeline, intentional empty states, and inline skeletons.
+- Home, Journal, Ride Detail, Ride, Insights, and Account use premium smart-journal primitives with clearer action hierarchy, compact cards, intentional empty/error/offline states, and restrained route artwork.
 - Home now includes local Google Photos-style Memories cards built from ride albums, route-art fallbacks, monthly recap memories, and review prompts.
-- Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; the You hub can replay the walkthrough later.
-- User display photos sync through the Render backend using `/api/profile/photo`; the app keeps the legacy local profile-photo cache for fast display and fallback. Ride albums remain local-only.
+- Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; Account can replay the walkthrough later.
+- User display photos sync through `/api/profile/photo`; private ride albums sync through owner-scoped ride-photo endpoints with metadata-first and individual binary loading. Local caches remain for speed and offline fallback.
 - OTA updates are enabled for JavaScript and bundled assets through EAS Update. Native changes such as app icon, permissions, package ID, native dependencies, Google Maps setup, or Android manifest changes still require installing a new APK.
-- Adds an Angular web companion in `web/` using the same graphite/OLED and electric-lime identity. The public site has a Three.js animated route hero, premium product sections, APK download CTA, and sign-in entry; the protected companion supports login/register, Home, Journal, Navigate, rich Ride Detail, You, Analytics, Reports, Profile photo management, synced ride albums, fixed sidebar/topbar navigation, and branded RidePulse loading states. Web builds use the live Render API by default to avoid failed localhost probes in browser Network output.
+- Adds an Angular web companion in `web/` using the same graphite/OLED and electric-lime identity. Its protected experience groups Home, Plan, Journal (Rides/Trips/Memories), Insights (Rider Pulse/Reports), Account, rich Ride Detail, profile editing, saved-place planning, and private synced albums behind a responsive sidebar/mobile shell with accessible focus and loading states.
 - Web ride recording is intentionally out of scope; the website directs riders to the Android app for GPS/background tracking, ride recovery, auto tracking, and OTA update workflows. Web foreground geolocation is used only for route planning.
 - Password reset uses the Java API plus SMTP environment variables.
 
@@ -91,7 +92,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 
 Auto tracking is implemented as an optional setting and is off by default.
 
-- Toggle location: Ride tab and Profile tab.
+- Toggle location: Ride and Account > Ride & Tracking.
 - Manual Start/Stop remains available.
 - Manual tracking takes priority so an auto ride is not created at the same time.
 - On Android, auto tracking arms activity recognition first so enabled auto tracking does not immediately start high-accuracy GPS or the persistent RidePulse foreground location notification.
@@ -123,7 +124,7 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `mobile/plugins/withInstagramPackageQuery.js`: Expo config plugin that exposes Instagram to Android package queries for reliable share targeting.
 - `mobile/plugins/withActivityRecognitionAndroid.js`: Expo config plugin that preserves Android activity-recognition permission, native receiver/service, Gradle dependency, and React package registration across prebuild.
 - `mobile/src/screens/AnalyticsScreen.tsx`: Rider Pulse goal, coaching, habit/performance insights, resilient states, and analytics charts.
-- `mobile/src/services/riderGoal.ts`: validated per-user local monthly distance goal persistence.
+- `mobile/src/services/riderGoal.ts`: validated account-synced monthly distance goal persistence with a legacy local/offline fallback.
 - `mobile/src/screens/ProfileScreen.tsx`: profile, backend display photo, diagnostics, and auto tracking toggle.
 - `mobile/eas.json`: EAS build/update channels. Production builds and OTA updates use the `production` channel.
 - `mobile/app.config.js`: Expo config including Android identity, plugins, EAS project ID, runtime version, and OTA update URL.
@@ -141,7 +142,7 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `web/src/app/features/companion/saved-places-page.component.ts`: responsive Saved Places management for the Angular companion.
 - `backend-java/src/main/java/com/ridepulse/api/service/AnalyticsService.java`: owner-scoped Rider Pulse aggregation, rolling windows, rider-local calendar/habit metrics, and safe empty/malformed handling.
 - `web/src/app/features/companion/analytics-page.component.ts`: responsive Rider Pulse goal, coaching, insight groups, resilient history charts, and accessible controls.
-- `mobile/src/services/rideAlbums.ts`: local ride album persistence, photo copying, manual gallery import, ride-window import, and Home memory generation.
+- `mobile/src/services/rideAlbums.ts`: local album cache, bounded photo processing, private backend hydration/upload, sync states, gallery/ride-window import, and Home memory generation.
 - `mobile/src/services/onboarding.ts`: walkthrough completion storage.
 - `mobile/src/services/profilePhoto.ts`: per-user profile photo picker, local cache, backend upload/download/delete sync.
 - `mobile/src/components/ProfileAvatar.tsx`: shared backend-backed avatar display used by Home, You, and Profile surfaces.
@@ -156,9 +157,9 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `mobile/src/context/AuthContext.tsx`: auth bootstrap and pending ride sync after login.
 - `mobile/src/api/client.ts`: API client, SecureStore token, mirrored background token.
 - `scripts/install-android-release.ps1`: release installer that prebuilds native Android config before Gradle so app icon and OTA metadata stay in sync.
-- `backend-java/src/main/java/com/ridepulse/api/controller/RidesController.java`: ride create/list/detail/delete API.
-- `backend-java/src/main/java/com/ridepulse/api/controller/TripsController.java`: authenticated manual Trip Albums API.
-- `backend-java/src/main/java/com/ridepulse/api/controller/ProfileController.java`: authenticated profile-photo upload, fetch, and delete API.
+- `backend-java/src/main/java/com/ridepulse/api/controller/RidesController.java`: ride create/list/detail/delete, paginated search, private photos, and ride-trip membership API.
+- `backend-java/src/main/java/com/ridepulse/api/controller/TripsController.java`: authenticated manual Trip Albums API with idempotent single/batch ride membership.
+- `backend-java/src/main/java/com/ridepulse/api/controller/ProfileController.java`: authenticated identity, monthly-goal preferences, and profile-photo API.
 - `backend-java/src/main/java/com/ridepulse/api/controller/JournalController.java`: Home and Journal API surfaces.
 - `backend-java/src/main/java/com/ridepulse/api/service/PhotoValidationService.java`: profile-photo and ride-photo MIME/base64/size validation.
 - `backend-java/src/main/resources/db-queries.properties`: SQL, schema bootstrap statements, and `.pojo` mapping keys.
@@ -170,6 +171,7 @@ Mobile:
 
 ```powershell
 cd "C:\Users\BBS001\Documents\New project\mobile"
+npm test
 npm run typecheck
 npm run android
 npm run android:install:release
@@ -289,10 +291,11 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-07-11: Shipped Rider Pulse across Java, Android, and web. The new authenticated `/api/analytics/insights` contract supplies 17 owner-scoped summary signals without route points or PII, including rider-local calendar distance/projection, streak and habit timing via a validated IANA timezone. Mobile and web now add a per-user monthly goal, progress/projection, coaching, 30-day momentum, ride benchmarks, habits, review health, cleanup attention, resilient states, responsive/accessibility polish, and retained history charts. Java bootstrap adds a `rides(user_id, started_at)` index. Mobile Analytics/You/Profile reserve a measured minimum floating-tab clearance so Profile and Logout are no longer hidden by the bottom panel. Android version/runtime `0.1.1` (version code `2`) makes this embedded release authoritative over cached `0.1.0` OTA updates without clearing rider data.
 - 2026-07-14: Added Saved Places across Java, Android, and web. Riders can privately save Home, Office, and custom current locations with a configurable match radius, maintain them from either client, and use them as route-planner shortcuts. New and dynamically loaded Ride Detail intelligence matches route endpoints without exposing the full trace to the AI provider, recognises Home/Office commutes, and produces human routine names. Ride Detail was simplified on both clients by removing confidence/status/model-like metadata and redundant replay/chapter/speed sections from the primary page.
 - 2026-07-18: Fixed Saved Places and forgot-password after live phone, Render-log, and DBeaver testing exposed two migration-era failures. The manually copied `saved_places` and `password_reset_tokens` tables had lost their UUID and timestamp defaults, so inserts failed with null primary keys; those defaults and account foreign keys are now repaired at startup, and the copied `users.id` is restored as a unique key. Password-reset mail now creates a multipart message before adding plain-text and HTML alternatives. The documented `DATABASE_URL` is authoritative for both pools; owner-scoped reads and writes stay on that same database; non-unique integrity failures are no longer mislabeled as duplicate place names; and mobile keeps the server-returned place immediately after a successful save.
-- 2026-07-17: Reworked the Home rider photo into an edge-to-edge photographic hero that dissolves into the dark journal background, with the greeting and primary ride action layered over it. Android/runtime `0.1.4` (version code `5`) makes the final embedded Home authoritative over cached `0.1.2`/`0.1.3` updates without clearing rider data.
+- 2026-07-17: Reworked the Home rider photo into an edge-to-edge photographic hero. That historical layout was superseded by the action-first Home hierarchy on 2026-07-19 so recovery, Start Ride, attention, and monthly progress appear first.
 - 2026-07-17: Made manual cockpit recording start promptly by reusing a recent accurate location when available, falling back to a bounded balanced first fix instead of blocking on a cold highest-accuracy fix, and starting high-accuracy foreground/background trackers after the durable local ride session becomes active. Existing background-location choices are respected without reopening permission prompts on every ride. Android/runtime `0.1.6` (version code `7`) makes the final combined performance and photo fix authoritative on installed devices.
 - 2026-07-17: Connected active automatic rides to the Ride cockpit. While auto tracking is recording, the cockpit refreshes its local snapshot every two seconds and shows the live route, GPS quality, point count, speed, distance, duration, and auto-live save state; manual Start and the auto-tracking switch are disabled to prevent duplicate or destructive tracking. Pending-ride network sync no longer blocks each local status refresh.
 - 2026-07-17: Profile selection now accepts large high-resolution mobile originals and converts them locally into a sharp, upload-efficient JPEG up to 2048px, using adaptive quality only when needed. The Java and web profile-photo ceilings are aligned at 4 MB, replacing the previous 768 KB backend/mobile and 2 MB web limits while retaining a bounded server-side abuse safeguard.
+- 2026-07-19: Reorganized Android and web around Home, Plan, Ride/Journal, Insights, and Account; fixed Android safe-area/tab overlap and offline-auth behavior; added compact paginated Journal flows, canonical ride titles, bounded route preview, profile/goal sync, direct trip membership, and private metadata-first album sync. Java APIs remain additive and owner-scoped, legacy ride-list/photo/trip calls remain compatible, and the current Android tracking services/package/runtime are unchanged. Final verification passed 54 Java tests, 4 mobile policy tests, mobile type-check/Expo introspection, 25 Angular tests, the production web build, two independent review passes, and an Android release build/install/launch on Moto g34 5G `ZA222K77F7`; Home, idle Ride, and Plan were visually checked at 720×1600 with no action/navigation collision or startup crash.
 
 ## Testing Checklist
 
@@ -300,17 +303,17 @@ https://ktm-ride-mvp-java.onrender.com/health
 - Verify web and mobile sign-in/register controls with a screen reader or accessibility inspector, including loading, error, and password-reset states.
 - Request password reset from mobile and web; confirm the email link opens `/#/reset-password`, rejects bad/expired tokens, updates the password, and requires signing in with the new password.
 - Register a new rider and confirm empty form fields.
-- Confirm dashboard says `Hi, <name>`.
-- Confirm Profile shows account details and can add/change/remove the backend-synced display photo.
+- Confirm Home shows the action-first Start Ride hierarchy and the rider avatar opens Account.
+- Confirm Account shows identity/bike details and can add/change/remove the backend-synced display photo.
 - Confirm the same display photo appears on Home, You, and Profile after logout/login and app restart.
 - Confirm Ride Detail can save title/notes and mark reviewed.
 - Confirm Ride Detail shows the story, key stats, map, review, album, and actions without ride confidence, AI status/date, GPS point counts, route replay, chapters, or a duplicate empty state.
 - Confirm Ride Detail can delete the selected ride only after confirmation and returns to Journal.
-- Confirm fresh installs show walkthrough before login, and replay walkthrough works from You.
+- Confirm fresh installs show walkthrough before login, and replay walkthrough works from Account.
 - Confirm Ride Detail album can find ride-window photos, manually add photos, remove album copies, and open slideshow.
 - Confirm synced ride album photos appear on web after mobile import/manual add and can be uploaded/removed from web without deleting original gallery files.
 - Confirm Home prefers `/api/home` and falls back to older journal/dashboard responses.
-- Confirm Journal remembers the selected filter after app restart.
+- Confirm Journal remembers its Rides/Trips/Memories view, filter, and sort after app restart/back navigation, and loads the next cursor page without duplicate rides.
 - Confirm duplicate candidates appear in Ride Detail and require confirmation before delete.
 - Confirm top speed does not jump from one isolated GPS spike during a ride.
 - Manual ride test:
@@ -329,7 +332,7 @@ https://ktm-ride-mvp-java.onrender.com/health
   - Reopen app with internet.
   - Confirm pending ride uploads.
 - Map test:
-  - Navigate tab route appears.
+  - Plan route preview appears, offers Google Maps handoff, and stops foreground location work after the bounded preview fix.
   - Save Home and Office from both mobile and web, confirm they are account-synced, and confirm their chips route to the stored coordinates rather than geocoding the labels.
   - Record a ride whose endpoints fall inside the Home and Office radii; confirm Ride Detail names it as a Home-to-Office or Office-to-Home commute.
   - History ride map appears.
@@ -341,14 +344,14 @@ https://ktm-ride-mvp-java.onrender.com/health
 - Ride Detail `Share story image` creates a 9:16 PNG and opens Instagram Stories when `EXPO_PUBLIC_INSTAGRAM_APP_ID` is configured, otherwise falls back cleanly.
 - Ride Detail `AI story prompt` shows varied prompts, can regenerate styles, copy/share prompt text, and open ChatGPT.
 - Analytics test:
-  - Confirm Rider Pulse loads the calendar-month goal, projection, coaching, 30-day momentum, ride character, habits, review completion, and cleanup count.
-  - Edit the monthly target, restart/reload, and confirm it persists only for the signed-in rider on that phone/browser.
+  - Confirm Insights loads the calendar-month goal, projection, coaching, 30-day momentum, ride character, habits, review completion, cleanup count, and Reports.
+  - Edit the monthly target on one client and confirm the same authenticated rider sees it on Android and web.
   - Confirm Daily/Monthly/Yearly tabs load and rapid period changes leave the latest selected period visible.
   - Confirm summary cards and accessible charts use the latest ride buckets.
   - Temporarily block `/api/analytics/insights`; confirm its retry/error state does not hide or corrupt ride history.
 - Mobile bottom-panel test:
-  - Open You and confirm the final Profile card can scroll fully above the floating tabs.
-  - Open Profile, scroll to the end, and confirm Logout is fully visible and tappable above the floating tabs and Android navigation inset.
+  - Confirm Home, Plan, Journal, Insights, and Account content clears the floating tabs and Android navigation inset.
+  - Confirm Ride Start/Finish remains fully visible and tappable without intersecting the floating tabs.
 
 ## Safety And Reliability Notes
 
@@ -362,7 +365,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 ## Known Gaps / Future Ideas
 
 - True Google Maps trip import is not implemented; the app only tracks rides through RidePulse.
-- Imported ride photos are currently scanned/displayed from the local phone library and are not uploaded to the backend.
+- Ride album copies are private account data stored by the Java backend; gallery originals remain on the phone and are never deleted by RidePulse album removal.
 - Profile display photos are synced to the Render Java backend; local cached copies are used only for speed and fallback.
 - No refresh-token flow yet.
 - The Angular web companion does not record rides in-browser; reliable ride tracking remains Android app-only.
