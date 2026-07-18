@@ -32,8 +32,10 @@ class PasswordResetServiceTest {
 
     assertThat(html)
         .contains("RidePulse", "Reset your password", "This link expires in 30 minutes", "Reset password")
+        .contains("#c8ff5a", "#101606")
         .contains("Rider &lt;One&gt;")
         .contains("https://example.com/reset?token=a&amp;b")
+        .doesNotContain("#f97316", "#fb923c", "#ea580c")
         .doesNotContain("Rider <One>");
   }
 }
