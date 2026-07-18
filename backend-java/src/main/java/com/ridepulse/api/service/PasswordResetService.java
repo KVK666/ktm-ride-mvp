@@ -6,6 +6,7 @@ import com.ridepulse.api.http.ApiException;
 import com.ridepulse.api.pojo.ResetTokenRow;
 import com.ridepulse.api.pojo.ResetUserRow;
 import com.ridepulse.api.repository.PasswordResetRepository;
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -134,19 +135,55 @@ public class PasswordResetService {
     mailSender.getJavaMailProperties().put("mail.smtp.ssl.enable", String.valueOf("true".equalsIgnoreCase(System.getenv("SMTP_SECURE")) || "465".equals(System.getenv("SMTP_PORT"))));
 
     MimeMessage message = mailSender.createMimeMessage();
-    MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+    MimeMessageHelper helper = multipartMessageHelper(message);
     helper.setFrom(System.getenv("SMTP_FROM"));
     helper.setTo(to);
     helper.setSubject("Reset your RidePulse password");
     helper.setText(
         "Hi " + name + ",\n\nUse this link to reset your RidePulse password. It expires in 30 minutes:\n" + link
             + "\n\nIf you did not request this, you can ignore this email.",
-        "<div style=\"font-family: Arial, sans-serif; color: #111827; line-height: 1.5;\"><p>Hi "
-            + escapeHtml(name)
-            + ",</p><p>Use this link to reset your RidePulse password. It expires in 30 minutes.</p><p><a href=\""
-            + escapeHtml(link)
-            + "\" style=\"color: #2563eb;\">Reset password</a></p><p>If you did not request this, you can ignore this email.</p></div>");
+        resetEmailHtml(name, link));
     mailSender.send(message);
+  }
+
+  static MimeMessageHelper multipartMessageHelper(MimeMessage message) throws MessagingException {
+    return new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+  }
+
+  static String resetEmailHtml(String name, String link) {
+    String safeName = escapeHtml(name);
+    String safeLink = escapeHtml(link);
+    return """
+        <!doctype html>
+        <html lang="en">
+          <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#18181b;">
+            <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#f4f4f5;padding:32px 16px;">
+              <tr><td align="center">
+                <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 8px 24px rgba(24,24,27,.08);">
+                  <tr><td style="background:#18181b;padding:28px 36px;color:#ffffff;">
+                    <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#fb923c;font-weight:700;">RidePulse</div>
+                    <div style="font-size:26px;line-height:1.25;font-weight:700;margin-top:8px;">Reset your password</div>
+                  </td></tr>
+                  <tr><td style="padding:34px 36px 18px;">
+                    <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">Hi %s,</p>
+                    <p style="font-size:16px;line-height:1.6;margin:0 0 24px;color:#3f3f46;">We received a request to reset your RidePulse password. Use the button below to choose a new one.</p>
+                    <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="border-radius:10px;background:#f97316;">
+                      <a href="%s" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;">Reset password</a>
+                    </td></tr></table>
+                    <div style="margin:24px 0;padding:14px 16px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:14px;line-height:1.5;"><strong>This link expires in 30 minutes.</strong> For your security, it can only be used once.</div>
+                    <p style="font-size:14px;line-height:1.6;margin:0;color:#71717a;">If you did not request a password reset, you can safely ignore this email. Your password will not change.</p>
+                  </td></tr>
+                  <tr><td style="padding:18px 36px 34px;">
+                    <p style="font-size:12px;line-height:1.5;margin:0 0 8px;color:#a1a1aa;">Button not working? Copy and paste this link into your browser:</p>
+                    <p style="font-size:12px;line-height:1.5;margin:0;word-break:break-all;"><a href="%s" style="color:#ea580c;">%s</a></p>
+                  </td></tr>
+                  <tr><td style="border-top:1px solid #e4e4e7;padding:20px 36px;text-align:center;color:#a1a1aa;font-size:12px;">RidePulse · Your rides, remembered.</td></tr>
+                </table>
+              </td></tr>
+            </table>
+          </body>
+        </html>
+        """.formatted(safeName, safeLink, safeLink, safeLink);
   }
 
   private static String createResetToken() {
