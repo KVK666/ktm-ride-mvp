@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-19
+Last updated: 2026-07-20
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -296,6 +296,8 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-07-17: Connected active automatic rides to the Ride cockpit. While auto tracking is recording, the cockpit refreshes its local snapshot every two seconds and shows the live route, GPS quality, point count, speed, distance, duration, and auto-live save state; manual Start and the auto-tracking switch are disabled to prevent duplicate or destructive tracking. Pending-ride network sync no longer blocks each local status refresh.
 - 2026-07-17: Profile selection now accepts large high-resolution mobile originals and converts them locally into a sharp, upload-efficient JPEG up to 2048px, using adaptive quality only when needed. The Java and web profile-photo ceilings are aligned at 4 MB, replacing the previous 768 KB backend/mobile and 2 MB web limits while retaining a bounded server-side abuse safeguard.
 - 2026-07-19: Reorganized Android and web around Home, Plan, Ride/Journal, Insights, and Account; fixed Android safe-area/tab overlap and offline-auth behavior; added compact paginated Journal flows, canonical ride titles, bounded route preview, profile/goal sync, direct trip membership, and private metadata-first album sync. Java APIs remain additive and owner-scoped, legacy ride-list/photo/trip calls remain compatible, and the current Android tracking services/package/runtime are unchanged. Final verification passed 54 Java tests, 4 mobile policy tests, mobile type-check/Expo introspection, 25 Angular tests, the production web build, two independent review passes, and an Android release build/install/launch on Moto g34 5G `ZA222K77F7`; Home, idle Ride, and Plan were visually checked at 720×1600 with no action/navigation collision or startup crash. The tracked `releases/RidePulse-latest.apk` was refreshed from that same installed build for the push-triggered GitHub `latest` release.
+
+- 2026-07-20: Fixed production Ride Album uploads after a PostgreSQL migration left `ride_album_photos.id` without a UUID default. The Java backend now generates the photo UUID explicitly during upload and additively repairs the table's UUID/timestamp/boolean defaults at startup, while preserving owner scoping and client-photo idempotency.
 
 ## Testing Checklist
 

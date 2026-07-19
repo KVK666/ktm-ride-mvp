@@ -38,7 +38,9 @@ class BackendContractQueryTest {
   @Test
   void photoUploadAndReportsExposeTheNewContracts() {
     assertThat(query("sql.ride-photo.insert"))
-        .contains("client_photo_id", "on conflict", "returning id");
+        .contains("gen_random_uuid()", "client_photo_id", "on conflict", "returning id");
+    assertThat(query("sql.schema.ride-album-defaults"))
+        .contains("alter column id set default gen_random_uuid()", "alter column imported_at set default now()");
     assertThat(query("sql.reports.routes"))
         .contains("id", "title", "ai_title");
   }

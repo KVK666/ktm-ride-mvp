@@ -41,6 +41,7 @@ public class SchemaService {
         QueryKeys.SCHEMA_PASSWORD_RESET_DEFAULTS,
         QueryKeys.SCHEMA_PASSWORD_RESET_USER_FK,
         QueryKeys.SCHEMA_RIDE_ALBUM_TABLE,
+        QueryKeys.SCHEMA_RIDE_ALBUM_DEFAULTS,
         QueryKeys.SCHEMA_TRIPS_TABLE,
         QueryKeys.SCHEMA_TRIP_RIDES_TABLE,
         QueryKeys.SCHEMA_SAVED_PLACES_TABLE,

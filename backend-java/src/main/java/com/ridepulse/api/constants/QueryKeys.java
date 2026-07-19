@@ -96,6 +96,7 @@ public final class QueryKeys {
   public static final String SCHEMA_PASSWORD_RESET_DEFAULTS = "schema.password-reset-defaults";
   public static final String SCHEMA_PASSWORD_RESET_USER_FK = "schema.password-reset-user-fk";
   public static final String SCHEMA_RIDE_ALBUM_TABLE = "schema.ride-album-table";
+  public static final String SCHEMA_RIDE_ALBUM_DEFAULTS = "schema.ride-album-defaults";
   public static final String SCHEMA_TRIPS_TABLE = "schema.trips-table";
   public static final String SCHEMA_TRIP_RIDES_TABLE = "schema.trip-rides-table";
   public static final String SCHEMA_RIDE_AI_TITLE = "schema.ride-ai-title";
