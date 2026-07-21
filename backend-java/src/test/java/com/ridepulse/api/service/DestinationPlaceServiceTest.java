@@ -11,8 +11,21 @@ import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 class DestinationPlaceServiceTest {
+  @Test
+  void springCanCreateServiceWithProductionConstructor() {
+    try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+      context.getBeanFactory().registerSingleton("objectMapper", new ObjectMapper());
+      context.register(DestinationPlaceService.class);
+      context.refresh();
+
+      assertThat(context.getBean(DestinationPlaceService.class).configStatus())
+          .containsEntry("configured", false);
+    }
+  }
+
   @Test
   void choosesNearestPlausiblePlaceAndNormalizesCoffeeCategory() throws Exception {
     HttpClient client = mock(HttpClient.class);

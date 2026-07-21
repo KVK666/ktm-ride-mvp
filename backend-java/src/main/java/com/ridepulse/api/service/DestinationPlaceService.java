@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +37,7 @@ public class DestinationPlaceService {
   private final String placesUrl;
   private final String geocodingUrl;
 
+  @Autowired
   DestinationPlaceService(
       ObjectMapper objectMapper,
       @Value("${RIDEPULSE_GOOGLE_PLACES_API_KEY:}") String apiKey) {
