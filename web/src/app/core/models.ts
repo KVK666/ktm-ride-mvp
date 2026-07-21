@@ -57,6 +57,10 @@ export type Ride = {
   tripSuggestion?: TripSuggestion | string | null;
   aiStatus?: string | null;
   aiGeneratedAt?: string | null;
+  destinationName?: string | null;
+  destinationCategory?: string | null;
+  destinationAddress?: string | null;
+  aiContextVersion?: number | null;
   cleanupCandidate?: boolean;
   cleanupReason?: string | null;
 };

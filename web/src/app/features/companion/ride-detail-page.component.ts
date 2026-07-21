@@ -190,6 +190,11 @@ import { DialogFocusDirective } from '../../shared/dialog-focus.directive';
             <div>
               <span>To</span><strong>{{ current.endLabel }}</strong>
             </div>
+            @if (current.destinationName) {
+              <div>
+                <span>Destination</span><strong>{{ destinationDetail(current) }}</strong>
+              </div>
+            }
             <div>
               <span>Started</span><strong>{{ timeLabel(current.startedAt) }}</strong>
             </div>
@@ -430,12 +435,15 @@ export class RideDetailPageComponent implements OnDestroy, OnInit {
       return '';
     }
     const route = this.routePromptLine(ride);
+    const destination = ride.destinationName
+      ? `, destination: ${this.destinationDetail(ride)}`
+      : '';
     const insight =
       this.intelligence()?.keyInsight ||
       ride.keyInsight ||
       this.intelligence()?.summaryText ||
       ride.aiSummary;
-    return `Create a cinematic RidePulse story image for "${this.displayTitle()}": ${km(ride.distanceM)}, ${duration(ride.durationS)}, top speed ${kmh(ride.topSpeedKmh)}, route context: ${route}${insight ? `, RidePulse insight: ${insight}` : ''}. Keep exact stats, avoid fake location details, use a dark graphite OLED mood with electric-lime route glow.`;
+    return `Create a cinematic RidePulse story image for "${this.displayTitle()}": ${km(ride.distanceM)}, ${duration(ride.durationS)}, top speed ${kmh(ride.topSpeedKmh)}, route context: ${route}${destination}${insight ? `, RidePulse insight: ${insight}` : ''}. Keep exact stats, avoid fake location details, use a dark graphite OLED mood with electric-lime route glow.`;
   });
 
   ngOnInit() {
@@ -760,6 +768,13 @@ export class RideDetailPageComponent implements OnDestroy, OnInit {
     const end = this.cleanRouteLabel(ride.endLabel);
     if (start && end) return `${start} to ${end}`;
     return start || end || 'Saved RidePulse route, exact GPS trace kept private';
+  }
+
+  destinationDetail(ride: Ride) {
+    const category = String(ride.destinationCategory || '').replace(/_/g, ' ');
+    return [ride.destinationName, category, ride.destinationAddress]
+      .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index)
+      .join(' · ');
   }
 
   private cleanRouteLabel(value?: string | null) {

@@ -109,6 +109,11 @@ public final class QueryKeys {
   public static final String SCHEMA_RIDE_TRIP_SUGGESTION = "schema.ride-trip-suggestion";
   public static final String SCHEMA_RIDE_AI_STATUS = "schema.ride-ai-status";
   public static final String SCHEMA_RIDE_AI_GENERATED_AT = "schema.ride-ai-generated-at";
+  public static final String SCHEMA_RIDE_DESTINATION_NAME = "schema.ride-destination-name";
+  public static final String SCHEMA_RIDE_DESTINATION_CATEGORY = "schema.ride-destination-category";
+  public static final String SCHEMA_RIDE_DESTINATION_ADDRESS = "schema.ride-destination-address";
+  public static final String SCHEMA_RIDE_DESTINATION_SOURCE = "schema.ride-destination-source";
+  public static final String SCHEMA_RIDE_AI_CONTEXT_VERSION = "schema.ride-ai-context-version";
   public static final String SCHEMA_PASSWORD_RESET_USER_INDEX = "schema.password-reset-user-index";
   public static final String SCHEMA_PASSWORD_RESET_EXPIRES_INDEX = "schema.password-reset-expires-index";
   public static final String SCHEMA_RIDE_PHOTO_RIDE_INDEX = "schema.ride-photo-ride-index";

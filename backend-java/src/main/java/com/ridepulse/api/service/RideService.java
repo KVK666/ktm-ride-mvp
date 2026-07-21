@@ -90,7 +90,11 @@ public class RideService {
 
   public Map<String, Object> intelligence(String userId, String rideId) {
     Map<String, Object> ride = ownedRide(userId, rideId);
-    rideAiIntelligenceService.processRideIfMissingAsync(userId, ride);
+    boolean refreshing = rideAiIntelligenceService.processRideIfMissingAsync(userId, ride);
+    if (refreshing) {
+      ride = new LinkedHashMap<>(ride);
+      ride.put("aiStatus", "pending");
+    }
     Map<String, Object> statsRow = rideRepository.intelligenceStats(userId);
     Map<String, Object> context = Map.of(
         "monthDistanceM", Rows.numeric(statsRow.get("month_distance_m")),

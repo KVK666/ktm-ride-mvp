@@ -2,6 +2,7 @@ package com.ridepulse.api.controller;
 
 import com.ridepulse.api.service.PasswordResetService;
 import com.ridepulse.api.service.RideAiIntelligenceService;
+import com.ridepulse.api.service.DestinationPlaceService;
 import com.ridepulse.api.dto.ApiResponse;
 import com.ridepulse.api.utility.ResponseUtil;
 import java.util.Map;
@@ -13,10 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthController {
   private final PasswordResetService passwordResetService;
   private final RideAiIntelligenceService rideAiIntelligenceService;
+  private final DestinationPlaceService destinationPlaceService;
 
-  HealthController(PasswordResetService passwordResetService, RideAiIntelligenceService rideAiIntelligenceService) {
+  HealthController(PasswordResetService passwordResetService, RideAiIntelligenceService rideAiIntelligenceService,
+      DestinationPlaceService destinationPlaceService) {
     this.passwordResetService = passwordResetService;
     this.rideAiIntelligenceService = rideAiIntelligenceService;
+    this.destinationPlaceService = destinationPlaceService;
   }
 
   @GetMapping("/health")
@@ -27,6 +31,7 @@ public class HealthController {
         "commit", commit.length() > 7 ? commit.substring(0, 7) : commit,
         "config", Map.of(
             "passwordReset", passwordResetService.configStatus(),
-            "rideAi", rideAiIntelligenceService.configStatus())));
+            "rideAi", rideAiIntelligenceService.configStatus(),
+            "destinationPlaces", destinationPlaceService.configStatus())));
   }
 }

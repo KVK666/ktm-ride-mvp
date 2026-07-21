@@ -283,7 +283,7 @@ function analyzeRidePromptContext(ride: Ride): RidePromptContext {
   const startedAt = new Date(ride.startedAt);
   const hour = Number.isNaN(startedAt.getTime()) ? 12 : startedAt.getHours();
   const distanceKm = ride.distanceM / 1000;
-  const allLabels = `${cleanRouteLabel(ride.startLabel) || ""} ${cleanRouteLabel(ride.endLabel) || ""} ${ride.title || ""} ${ride.aiTitle || ""} ${ride.aiSummary || ""}`.toLowerCase();
+  const allLabels = `${cleanRouteLabel(ride.startLabel) || ""} ${cleanRouteLabel(ride.endLabel) || ""} ${ride.destinationName || ""} ${ride.destinationCategory || ""} ${ride.title || ""} ${ride.aiTitle || ""} ${ride.aiSummary || ""}`.toLowerCase();
 
   return {
     timeMood: timeMood(hour),
@@ -463,7 +463,7 @@ function rideTitle(ride: Ride) {
 
 function routePromptLine(ride: Ride) {
   const start = cleanRouteLabel(ride.startLabel);
-  const end = cleanRouteLabel(ride.endLabel);
+  const end = cleanRouteLabel(ride.destinationName || ride.endLabel);
   if (start && end) {
     return `${start} to ${end}`;
   }

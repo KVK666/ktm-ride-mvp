@@ -120,6 +120,14 @@ The reset flow stores only hashed one-time tokens in Postgres.
 
 The forgot-password UI always shows a generic success message, even when the account email does not exist. For troubleshooting, check `https://ktm-ride-mvp-java.onrender.com/health` for non-secret `config.passwordReset` booleans and Render logs for `Password reset email accepted by SMTP`, `Password reset email failed`, or `Password reset requested for unknown account`.
 
+For intelligent ride destination naming, create a separate server-side Google Cloud key with Places API (New) and Geocoding API enabled, restrict that key to those APIs, and set it only on `ktm-ride-api-java`:
+
+```text
+RIDEPULSE_GOOGLE_PLACES_API_KEY=<server-side-places-key>
+```
+
+Do not reuse or expose the mobile/browser Maps keys. Verify the non-secret state at `/health` under `config.destinationPlaces.configured`. RidePulse checks saved places first and otherwise sends only the final ride coordinate to Google; failures fall back without blocking ride saves.
+
 Do not commit the Maps key. On Google Cloud, enable Maps JavaScript API and Directions API for this browser key, then restrict it by HTTP referrer to the Render Static Site domain with a wildcard path such as `https://ridepulse-web.onrender.com/*`, any custom web domain wildcard, and `http://localhost:4200/*` / `http://127.0.0.1:4200/*` only when local live-map testing is needed. Rebuild/redeploy `ridepulse-web` after changing `WEB_GOOGLE_MAPS_API_KEY`; existing static bundles do not pick up new env vars automatically.
 
 After Render provides the web URL, tighten backend `CORS_ORIGIN` from `*` to a comma-separated list such as:

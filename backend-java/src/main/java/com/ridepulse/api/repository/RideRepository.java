@@ -34,7 +34,7 @@ public interface RideRepository {
 
   void insertPoints(String rideId, List<Map<String, Object>> points);
 
-  void markAiPending(String userId, String rideId);
+  void markAiPending(String userId, String rideId, int contextVersion);
 
   void saveAiIntelligence(String userId, String rideId, Map<String, Object> intelligence);
 

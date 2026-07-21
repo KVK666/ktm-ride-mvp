@@ -41,7 +41,6 @@ module.exports = {
         NSLocationWhenInUseUsageDescription: "RidePulse uses your location for route navigation and ride tracking.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "RidePulse uses background location to keep tracking active during rides.",
         NSPhotoLibraryUsageDescription: "RidePulse reads your photo library only when you import ride photos or choose a profile photo.",
-        LSApplicationQueriesSchemes: ["instagram", "instagram-stories"],
         UIBackgroundModes: ["location"]
       }
     },
@@ -73,7 +72,6 @@ module.exports = {
       "./plugins/withFullBleedAndroidIcon",
       "./plugins/withActivityRecognitionAndroid",
       "./plugins/withExpoUpdatesChannel",
-      "./plugins/withInstagramPackageQuery",
       "expo-font",
       [
         "expo-image-picker",

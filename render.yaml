@@ -41,6 +41,8 @@ services:
         value: gpt-4o-mini
       - key: RIDEPULSE_AI_URL
         value: https://api.openai.com/v1/chat/completions
+      - key: RIDEPULSE_GOOGLE_PLACES_API_KEY
+        sync: false
   - type: web
     runtime: static
     name: ridepulse-web

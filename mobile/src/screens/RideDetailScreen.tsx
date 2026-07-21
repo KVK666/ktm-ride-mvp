@@ -80,7 +80,6 @@ export function RideDetailScreen() {
   const [photoViewerInitialIndex, setPhotoViewerInitialIndex] = useState(0);
   const [photoError, setPhotoError] = useState("");
   const [storySharing, setStorySharing] = useState(false);
-  const [storyMessage, setStoryMessage] = useState("");
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [promptVariantId, setPromptVariantId] = useState<StoryPromptVariantId>("cinematic");
   const [promptSeed, setPromptSeed] = useState(0);
@@ -466,7 +465,6 @@ export function RideDetailScreen() {
     }
 
     setStorySharing(true);
-    setStoryMessage("");
     try {
       if (!storyCaptureRef.current) {
         throw new Error("Story image is not ready yet");
@@ -480,10 +478,9 @@ export function RideDetailScreen() {
         width: 1080,
         height: 1920
       });
-      const result = await shareRideStoryImage(uri);
-      setStoryMessage(result.message);
+      await shareRideStoryImage(uri);
     } catch (err: any) {
-      setStoryMessage(err.message || "Unable to share story image");
+      Alert.alert("Unable to share", err.message || "The ride story image could not be shared.");
       await logDiagnostic({
         level: "error",
         area: "ride-story",
@@ -709,7 +706,6 @@ export function RideDetailScreen() {
           <QuickAction label="AI prompt" icon="sparkles" onPress={openPromptModal} />
         </View>
         {rideTrips.length ? <Text style={styles.membershipText}>Saved in {rideTrips.map((trip) => trip.title).join(", ")}</Text> : null}
-        {storyMessage ? <Text style={styles.reviewMessage}>{storyMessage}</Text> : null}
 
         <View accessibilityRole="tablist" style={styles.sectionTabs}>
           {([
@@ -937,6 +933,7 @@ export function RideDetailScreen() {
             <Text style={styles.sectionTitle}>Route details</Text>
             <DetailRow icon="navigate-outline" label="Start" value={ride.startLabel || "Start point"} />
             <DetailRow icon="flag-outline" label="Finish" value={ride.endLabel || "End point"} />
+            {ride.destinationName ? <DetailRow icon="location-outline" label="Destination" value={destinationDetail(ride)} /> : null}
             <DetailRow icon="speedometer-outline" label="Average speed" value={kmh(ride.avgSpeedKmh)} />
             <DetailRow icon="analytics-outline" label="Recorded points" value={String(ride.points?.length || 0)} />
             <DetailRow icon="calendar-outline" label="Started" value={ride.startedAt ? new Date(ride.startedAt).toLocaleString() : "Unavailable"} />
@@ -1497,10 +1494,21 @@ function normalizeRide(ride: any): Ride {
     tripSuggestion: parseTripSuggestion(ride?.tripSuggestion),
     aiStatus: typeof ride?.aiStatus === "string" ? ride.aiStatus : null,
     aiGeneratedAt: typeof ride?.aiGeneratedAt === "string" ? ride.aiGeneratedAt : null,
+    destinationName: typeof ride?.destinationName === "string" ? ride.destinationName : null,
+    destinationCategory: typeof ride?.destinationCategory === "string" ? ride.destinationCategory : null,
+    destinationAddress: typeof ride?.destinationAddress === "string" ? ride.destinationAddress : null,
+    aiContextVersion: optionalFiniteNumber(ride?.aiContextVersion),
     points: Array.isArray(ride?.points)
       ? ride.points.map(normalizeRidePoint).filter((point): point is RidePoint => Boolean(point))
       : []
   };
+}
+
+function destinationDetail(ride: Ride) {
+  const category = String(ride.destinationCategory || "").replace(/_/g, " ");
+  return [ride.destinationName, category, ride.destinationAddress]
+    .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index)
+    .join(" · ");
 }
 
 function normalizeRidePoint(point: any): RidePoint | null {

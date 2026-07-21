@@ -184,8 +184,9 @@ public class JdbcRideRepository implements RideRepository {
 
   @Override
   @Transactional
-  public void markAiPending(String userId, String rideId) {
-    readWriteJdbc.update(sql.get(QueryKeys.RIDE_AI_MARK_PENDING), rideParams(userId, rideId));
+  public void markAiPending(String userId, String rideId, int contextVersion) {
+    readWriteJdbc.update(sql.get(QueryKeys.RIDE_AI_MARK_PENDING), rideParams(userId, rideId)
+        .addValue("aiContextVersion", contextVersion));
   }
 
   @Override
@@ -200,7 +201,12 @@ public class JdbcRideRepository implements RideRepository {
         .addValue("keyInsight", text(intelligence.get("keyInsight")))
         .addValue("bestMoment", text(intelligence.get("bestMoment")))
         .addValue("tripSuggestion", jsonText(intelligence.get("tripSuggestion")))
-        .addValue("aiStatus", text(intelligence.get("aiStatus"), "fallback"));
+        .addValue("aiStatus", text(intelligence.get("aiStatus"), "fallback"))
+        .addValue("destinationName", text(intelligence.get("destinationName")))
+        .addValue("destinationCategory", text(intelligence.get("destinationCategory")))
+        .addValue("destinationAddress", text(intelligence.get("destinationAddress")))
+        .addValue("destinationSource", text(intelligence.get("destinationSource")))
+        .addValue("aiContextVersion", intelligence.get("aiContextVersion") instanceof Number version ? version.intValue() : 0);
     readWriteJdbc.update(sql.get(QueryKeys.RIDE_AI_SAVE), params);
   }
 

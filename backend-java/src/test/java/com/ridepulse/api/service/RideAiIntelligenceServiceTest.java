@@ -2,6 +2,8 @@ package com.ridepulse.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,10 +16,12 @@ import org.junit.jupiter.api.Test;
 
 class RideAiIntelligenceServiceTest {
   private final SavedPlaceRepository savedPlaceRepository = mock(SavedPlaceRepository.class);
+  private final DestinationPlaceService destinationPlaceService = mock(DestinationPlaceService.class);
   private final RideAiIntelligenceService service = new RideAiIntelligenceService(
       mock(RideRepository.class),
       mock(TripRepository.class),
       savedPlaceRepository,
+      destinationPlaceService,
       new ObjectMapper(),
       "",
       "gpt-4o-mini",
@@ -93,6 +97,7 @@ class RideAiIntelligenceServiceTest {
         mock(RideRepository.class),
         mock(TripRepository.class),
         mock(SavedPlaceRepository.class),
+        mock(DestinationPlaceService.class),
         new ObjectMapper(),
         "sk-test-secret",
         "gpt-test",
@@ -105,5 +110,46 @@ class RideAiIntelligenceServiceTest {
         .containsEntry("model", "gpt-test")
         .containsEntry("endpointHost", "api.openai.com")
         .doesNotContainKey("apiKey");
+  }
+
+  @Test
+  void coffeeDestinationCreatesPurposefulFallbackTitle() {
+    Map<String, Object> ride = Map.of(
+        "id", "ride-2",
+        "destinationName", "Third Wave Coffee",
+        "destinationCategory", "coffee_shop",
+        "distanceM", 6200,
+        "durationS", 1200,
+        "topSpeedKmh", 48,
+        "avgSpeedKmh", 22,
+        "startedAt", "2026-07-21T03:30:00Z");
+
+    Map<String, Object> decorated = service.decorateIntelligence(Map.of(), ride);
+
+    assertThat(decorated.get("suggestedTitle")).isEqualTo("Coffee run to Third Wave Coffee");
+    assertThat(decorated.get("summaryText")).asString().contains("Third Wave Coffee", "coffee shop");
+  }
+
+  @Test
+  void staleGenericRideQueuesOneVersionedRefreshButManualTitleDoesNot() {
+    RideRepository repository = mock(RideRepository.class);
+    RideAiIntelligenceService refreshService = new RideAiIntelligenceService(
+        repository, mock(TripRepository.class), mock(SavedPlaceRepository.class),
+        mock(DestinationPlaceService.class), new ObjectMapper(), "", "gpt-4o-mini", "https://example.invalid");
+    Map<String, Object> genericRide = Map.of(
+        "id", "ride-old", "title", "", "aiTitle", "Morning ride", "aiStatus", "ready", "aiContextVersion", 0);
+
+    assertThat(refreshService.processRideIfMissingAsync("owner-1", genericRide)).isTrue();
+    verify(repository).markAiPending("owner-1", "ride-old", RideAiIntelligenceService.AI_CONTEXT_VERSION);
+
+    RideRepository manualRepository = mock(RideRepository.class);
+    RideAiIntelligenceService manualService = new RideAiIntelligenceService(
+        manualRepository, mock(TripRepository.class), mock(SavedPlaceRepository.class),
+        mock(DestinationPlaceService.class), new ObjectMapper(), "", "gpt-4o-mini", "https://example.invalid");
+    Map<String, Object> manualRide = Map.of(
+        "id", "ride-manual", "title", "My breakfast ride", "aiTitle", "Morning ride", "aiStatus", "ready", "aiContextVersion", 0);
+
+    assertThat(manualService.processRideIfMissingAsync("owner-1", manualRide)).isFalse();
+    verifyNoInteractions(manualRepository);
   }
 }

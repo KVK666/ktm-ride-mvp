@@ -99,6 +99,10 @@ export type Ride = {
   tripSuggestion?: TripSuggestion | string | null;
   aiStatus?: "pending" | "ready" | "fallback" | "failed" | string | null;
   aiGeneratedAt?: string | null;
+  destinationName?: string | null;
+  destinationCategory?: string | null;
+  destinationAddress?: string | null;
+  aiContextVersion?: number | null;
   cleanupCandidate?: boolean;
   cleanupReason?: string | null;
 };

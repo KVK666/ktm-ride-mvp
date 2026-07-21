@@ -40,6 +40,11 @@ public final class Rows {
     row.put("tripSuggestion", rs.getString("trip_suggestion"));
     row.put("aiStatus", rs.getString("ai_status"));
     row.put("aiGeneratedAt", instantString(rs.getObject("ai_generated_at")));
+    row.put("destinationName", rs.getString("destination_name"));
+    row.put("destinationCategory", rs.getString("destination_category"));
+    row.put("destinationAddress", rs.getString("destination_address"));
+    row.put("destinationSource", rs.getString("destination_source"));
+    row.put("aiContextVersion", intNumber(rs.getObject("ai_context_version")));
     return row;
   }
 

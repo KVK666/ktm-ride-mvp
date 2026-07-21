@@ -5,6 +5,7 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { Coordinate, Ride } from "../types";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 import { normalizeFiniteCoordinates, sampleEvenly } from "../utils/coordinates";
+import { rideDisplayTitle } from "../utils/rideTitle";
 
 export const RIDE_STORY_WIDTH = 360;
 export const RIDE_STORY_HEIGHT = 640;
@@ -14,7 +15,7 @@ const ROUTE_HEIGHT = 140;
 export function RideStoryCard({ ride }: { ride: Ride }) {
   const routeCoordinates = useMemo(() => storyCoordinates(ride), [ride]);
   const routePath = useMemo(() => buildRoutePath(routeCoordinates, ROUTE_WIDTH, ROUTE_HEIGHT), [routeCoordinates]);
-  const title = ride.title?.trim() || "My Ride";
+  const title = rideDisplayTitle(ride);
   const mood = rideMoodLabel(ride);
 
   return (
@@ -68,7 +69,7 @@ export function RideStoryCard({ ride }: { ride: Ride }) {
 
       <View style={styles.routeLabels}>
         <RouteLabel icon="radio-button-on" label="From" value={ride.startLabel} />
-        <RouteLabel icon="flag" label="To" value={ride.endLabel} />
+        <RouteLabel icon="flag" label="To" value={ride.destinationName || ride.endLabel} />
       </View>
 
       <View style={styles.statsGrid}>

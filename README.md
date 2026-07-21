@@ -39,8 +39,8 @@ For the latest living summary of what the app currently does, deployed URLs, tes
 - Post-ride review with ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Non-destructive ride Cleanup queue for unreviewed near-zero movement recordings, with explicit keep-by-review or confirmed-delete decisions on mobile and web.
 - Ride Detail photo import for camera photos taken during a ride, including map markers when photo GPS metadata exists.
-- Ride Detail story sharing with a local Instagram Story image and dynamic ChatGPT image prompts based on ride details, place mood, time, and optional weather.
-- Backend-owned AI Ride Intelligence for human ride titles, summaries, ride-kind detection, key insights, best moments, and trip automation suggestions, with deterministic fallback and long-ride trip suggestions when AI is unavailable.
+- Ride Detail story sharing through the native all-app share sheet plus dynamic ChatGPT image prompts based on ride details, destination, place mood, time, and optional weather.
+- Backend-owned AI Ride Intelligence for destination-aware human ride titles, summaries, ride-kind detection, key insights, best moments, and trip automation suggestions, with deterministic fallback and long-ride trip suggestions when AI is unavailable.
 - Account-synced Saved Places for Home, Office, and custom stops, with adjustable GPS matching radii, route-planner shortcuts, and intelligent routine names such as `Commute · Home to Office`.
 - Focused mobile/web Ride Detail UX centred on story, key stats, map, notes, photos, and trip/share actions instead of model confidence/status and redundant technical sections.
 - Dashboard totals for today, month, year, total rides, best top speed, and average speed.
@@ -68,10 +68,11 @@ Optional backend AI enrichment is configured only on the Java API server:
 - `RIDEPULSE_AI_API_KEY` or `OPENAI_API_KEY`
 - `RIDEPULSE_AI_MODEL` (defaults to `gpt-4o-mini`)
 - `RIDEPULSE_AI_URL` (defaults to the OpenAI chat completions endpoint)
+- `RIDEPULSE_GOOGLE_PLACES_API_KEY` (server-side Google Places and Geocoding key for endpoint destination recognition)
 
 Mobile and web clients never store AI secrets. If no AI key is configured, rides still save and receive deterministic fallback titles, summaries, ride kind, and insight fields.
 
-Check `/health` for non-secret AI config status before debugging usage: `config.rideAi.apiKeyPresent` reports whether Render has an AI key, while `model` and `endpointHost` show the configured provider target without exposing credentials. Render logs include `ride ai provider skipped missing api key`, `ride ai provider request started`, `ride ai provider non-success`, and `ride ai saved` messages so OpenAI dashboard usage can be matched against backend attempts.
+Check `/health` for non-secret AI config status before debugging usage: `config.rideAi.apiKeyPresent` reports whether Render has an AI key, `config.destinationPlaces.configured` reports whether destination lookup is configured, and no secret values are returned. Render logs include `ride ai provider skipped missing api key`, `ride ai provider request started`, `ride ai provider non-success`, and `ride ai saved` messages.
 
 ## Backend Setup
 
@@ -155,13 +156,7 @@ Set the backend URL:
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:4001/api
 ```
 
-Optional direct Instagram Stories handoff:
-
-```text
-EXPO_PUBLIC_INSTAGRAM_APP_ID=your-facebook-app-id
-```
-
-Without this value, RidePulse still generates the story image and falls back to Instagram image sharing or the Android share sheet.
+Ride story images use the native Android/iOS share sheet, so no Instagram app ID or package-specific configuration is required.
 
 Use `10.0.2.2` for Android emulator, `http://localhost:4001/api` for iOS simulator, and your machine LAN IP for a physical device.
 
@@ -279,7 +274,7 @@ To move existing production data from Neon to AWS, use [DEPLOYMENT.md](DEPLOYMEN
 - `GET /api/analytics/speed/:rideId`
 - `GET /api/reports?period=day|month|year&date=2026-05-11`
 
-Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `rideKind`, `rideKindConfidence`, `rideKindReason`, `keyInsight`, `bestMoment`, `tripSuggestion`, `aiStatus`, and `aiGeneratedAt`. Existing route labels remain available as `startLabel` and `endLabel` for maps and route facts; AI titles, summaries, story prompts, and trip suggestions should avoid treating map labels as the main ride meaning.
+Ride responses may include additive AI fields such as `aiTitle`, `aiSummary`, `rideKind`, `rideKindConfidence`, `rideKindReason`, `keyInsight`, `bestMoment`, `tripSuggestion`, `aiStatus`, and `aiGeneratedAt`, plus optional `destinationName`, `destinationCategory`, and `destinationAddress`. Existing route labels remain available as `startLabel` and `endLabel` for maps and route facts. Destination lookup sends only the ride endpoint to Google, never the full GPS trace; saved places are matched locally first. Eligible older rides with generic generated titles refresh once when Ride Detail is opened, while manual titles remain authoritative.
 
 Paginated ride-list calls add `data.pageInfo` with `hasMore` and an opaque `nextCursor`; callers that omit pagination parameters keep the legacy `data.rides` response and 100-ride cap. Album listing remains backward-compatible with embedded image data by default, while `includeData=false` plus the individual binary endpoint avoids loading every photo blob. Photo uploads may include `clientPhotoId` so retries are idempotent. All profile, preference, ride, album, trip, place, analytics, and report data remains authenticated and owner-scoped.
 
