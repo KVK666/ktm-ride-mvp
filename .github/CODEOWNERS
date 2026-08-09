@@ -1,0 +1,5 @@
+# Default owner for every repository change.
+* @KVK666
+
+# Keep repository governance changes under the same explicit ownership.
+/.github/ @KVK666

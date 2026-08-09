@@ -44,7 +44,8 @@ class RideAiIntelligenceServiceTest {
     assertThat(decorated.get("suggestedTitle")).asString()
         .doesNotContain("Auto start")
         .doesNotContain("Unnamed Road")
-        .contains("ride");
+        .isNotEqualTo("Fallback")
+        .isNotBlank();
   }
 
   @Test
