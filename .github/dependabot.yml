@@ -1,4 +1,9 @@
 version: 2
+
+# Version-update pull requests are paused. Change each
+# open-pull-requests-limit from 0 to 2 to resume them.
+# Security-update pull requests are controlled separately in
+# Settings > Advanced Security > Dependabot security updates.
 updates:
   - package-ecosystem: npm
     directory: /mobile
@@ -7,7 +12,7 @@ updates:
       day: monday
       time: "04:00"
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "*"
         update-types:
@@ -22,11 +27,16 @@ updates:
       - dependency-name: "@react-native-*/*"
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /web
@@ -35,18 +45,23 @@ updates:
       day: monday
       time: "04:00"
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: maven
     directory: /backend-java
@@ -55,18 +70,23 @@ updates:
       day: monday
       time: "04:00"
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
@@ -75,15 +95,20 @@ updates:
       day: monday
       time: "04:00"
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0
     ignore:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
