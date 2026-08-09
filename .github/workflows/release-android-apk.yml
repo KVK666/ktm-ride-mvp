@@ -41,7 +41,7 @@ jobs:
           } > dist/release-notes.md
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: RidePulse-latest-apk
           path: dist/RidePulse-latest.apk
