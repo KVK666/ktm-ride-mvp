@@ -22,11 +22,16 @@ updates:
       - dependency-name: "@react-native-*/*"
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /web
@@ -42,11 +47,16 @@ updates:
           - version-update:semver-major
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: maven
     directory: /backend-java
@@ -62,11 +72,16 @@ updates:
           - version-update:semver-major
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
@@ -82,8 +97,13 @@ updates:
           - version-update:semver-major
     groups:
       safe-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
           - minor
           - patch
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
