@@ -7,3 +7,4 @@ export const AUTO_RIDE_STATE_KEY = "duke_ride_auto_ride_state";
 export const AUTO_PENDING_RIDES_KEY = "duke_ride_auto_pending_rides";
 export const MANUAL_TRACKING_ACTIVE_KEY = "duke_ride_manual_tracking_active";
 export const MANUAL_RIDE_SESSION_KEY = "duke_ride_manual_ride_session";
+export const MANUAL_AUTO_STOP_NOTICE_KEY = "duke_ride_manual_auto_stop_notice_v1";

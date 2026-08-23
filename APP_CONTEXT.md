@@ -49,6 +49,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Shows a safety warning before navigation.
 - Lets users manually start and stop ride tracking.
 - Manual ride tracking is crash-resilient: active ride start time and GPS points are continuously persisted locally and recovered after app restart.
+- Manual rides automatically stop after reported or inferred movement stays at or below `5 km/h` for about `5 minutes`. The saved ride ends at its last moving point so the parked confirmation tail does not inflate duration or the photo window.
 - If a manual ride save/upload fails, the ride is kept in the local pending upload queue instead of being lost.
 - Pending ride uploads show a `Retry upload now` action on Ride/Profile and report the upload result or failure reason.
 - Tracks GPS points, distance, duration, top speed, average speed, start/end time, and route path.
@@ -297,6 +298,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - 2026-07-17: Connected active automatic rides to the Ride cockpit. While auto tracking is recording, the cockpit refreshes its local snapshot every two seconds and shows the live route, GPS quality, point count, speed, distance, duration, and auto-live save state; manual Start and the auto-tracking switch are disabled to prevent duplicate or destructive tracking. Pending-ride network sync no longer blocks each local status refresh.
 - 2026-07-17: Profile selection now accepts large high-resolution mobile originals and converts them locally into a sharp, upload-efficient JPEG up to 2048px, using adaptive quality only when needed. The Java and web profile-photo ceilings are aligned at 4 MB, replacing the previous 768 KB backend/mobile and 2 MB web limits while retaining a bounded server-side abuse safeguard.
 - 2026-07-19: Reorganized Android and web around Home, Plan, Ride/Journal, Insights, and Account; fixed Android safe-area/tab overlap and offline-auth behavior; added compact paginated Journal flows, canonical ride titles, bounded route preview, profile/goal sync, direct trip membership, and private metadata-first album sync. Java APIs remain additive and owner-scoped, legacy ride-list/photo/trip calls remain compatible, and the current Android tracking services/package/runtime are unchanged. Final verification passed 54 Java tests, 4 mobile policy tests, mobile type-check/Expo introspection, 25 Angular tests, the production web build, two independent review passes, and an Android release build/install/launch on Moto g34 5G `ZA222K77F7`; Home, idle Ride, and Plan were visually checked at 720×1600 with no action/navigation collision or startup crash. The tracked `releases/RidePulse-latest.apk` was refreshed from that same installed build for the push-triggered GitHub `latest` release.
+- 2026-08-23: Added an always-on manual-ride auto-stop safety net. Foreground and background GPS samples share one serialized evaluator; five continuous minutes at or below `5 km/h` ends the ride at its last moving point. Completed rides upload with the existing idempotent manual client ID, fall back to the durable pending queue, retain recovery data if neither save path succeeds, and surface a one-time cockpit result without unexpected navigation.
 
 - 2026-07-20: Fixed production Ride Album uploads after a PostgreSQL migration left `ride_album_photos.id` without a UUID default. The Java backend now generates the photo UUID explicitly during upload and additively repairs the table's UUID/timestamp/boolean defaults at startup, while preserving owner scoping and client-photo idempotency.
 
@@ -324,6 +326,9 @@ https://ktm-ride-mvp-java.onrender.com/health
   - Move a short distance.
   - Stop Ride.
   - Confirm History/Dashboard update.
+  - Start another manual ride, move above `5 km/h`, then remain stopped for `5 minutes`; confirm the cockpit exits recording automatically and the saved duration/endpoint exclude the parked tail.
+  - Repeat with the app backgrounded and background location granted; confirm the completed ride is not shown as an interrupted recovery.
+  - Repeat offline; confirm the auto-stopped ride is queued locally and uploads after connectivity returns.
 - Auto ride test:
   - Enable Auto tracking before riding.
   - Grant background location permission.
@@ -362,6 +367,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 - Do not interact with the phone while riding.
 - Mount the phone securely.
 - Android background tracking reliability depends on location permission and battery optimization.
+- Manual auto-stop works in the foreground without background permission; background auto-stop requires `Allow all the time` location access and remains subject to Android battery management.
 - For best field testing, allow location all the time and disable battery optimization for RidePulse.
 - Paid Render Starter avoids free-tier sleeping; Neon can still have occasional database cold latency if the database scales to zero.
 

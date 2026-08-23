@@ -11,7 +11,12 @@ import {
   stopActivityRecognition
 } from "./activityRecognition";
 import { diagnosticDetails, logDiagnostic } from "./diagnostics";
-import { appendManualRidePoints } from "./manualRideSession";
+import { appendManualRidePoints, clearManualRideSession } from "./manualRideSession";
+import {
+  evaluateAndFinalizeManualRideAutoStop,
+  isManualAutoStopComplete,
+  ManualAutoStopResult
+} from "./manualRideAutoStop";
 import {
   createRideClientId,
   queuePendingRide,
@@ -51,6 +56,8 @@ const DUPLICATE_MOTION_EVENT_WINDOW_MS = 5 * 1000;
 let motionActivityQueue: Promise<void> = Promise.resolve();
 let lastMotionEventKey = "";
 let lastMotionEventHandledAt = 0;
+let manualPointQueue: Promise<unknown> = Promise.resolve();
+let manualStopRequested = false;
 
 type AutoRideState =
   | {
@@ -178,6 +185,7 @@ export async function disableAutoTracking() {
 }
 
 export async function setManualTrackingActive(active: boolean) {
+  manualStopRequested = !active;
   await AsyncStorage.setItem(MANUAL_TRACKING_ACTIVE_KEY, active ? "true" : "false");
   if (active) {
     await writeAutoRideState({ status: "armed" });
@@ -189,11 +197,26 @@ export async function setManualTrackingActive(active: boolean) {
 }
 
 export async function startManualBackgroundTracking() {
-  await startBackgroundLocationUpdates("Ride tracking is active.");
+  await startBackgroundLocationUpdates("Ride tracking is active.", false, "manual");
 }
 
 export async function stopManualBackgroundTracking() {
   await setManualTrackingActive(false);
+}
+
+export function recordManualRidePoints(
+  points: RidePoint[],
+  source: "foreground" | "background"
+): Promise<ManualAutoStopResult> {
+  const operation = manualPointQueue.then(
+    () => recordManualRidePointsOnce(points, source),
+    () => recordManualRidePointsOnce(points, source)
+  );
+  manualPointQueue = operation.then(
+    () => undefined,
+    () => undefined
+  );
+  return operation;
 }
 
 export async function handleBackgroundLocations(locations: Location.LocationObject[]) {
@@ -212,7 +235,7 @@ export async function handleBackgroundLocations(locations: Location.LocationObje
 
     const manualActive = (await AsyncStorage.getItem(MANUAL_TRACKING_ACTIVE_KEY)) === "true";
     if (manualActive) {
-      await appendManualBackgroundPoints(points);
+      await recordManualRidePoints(points, "background");
       return;
     }
 
@@ -233,6 +256,34 @@ export async function handleBackgroundLocations(locations: Location.LocationObje
       details: diagnosticDetails(err)
     });
   }
+}
+
+async function recordManualRidePointsOnce(
+  points: RidePoint[],
+  source: "foreground" | "background"
+): Promise<ManualAutoStopResult> {
+  if (manualStopRequested || (await AsyncStorage.getItem(MANUAL_TRACKING_ACTIVE_KEY)) !== "true") {
+    return { status: "inactive" };
+  }
+
+  if (source === "background") {
+    await appendManualBackgroundPoints(points);
+  } else {
+    await appendManualRidePoints(points);
+  }
+
+  if (manualStopRequested) {
+    return { status: "active" };
+  }
+
+  const result = await evaluateAndFinalizeManualRideAutoStop();
+  if (isManualAutoStopComplete(result)) {
+    await stopManualBackgroundTracking();
+    // Stop the location producer before a final cleanup so a late background batch
+    // cannot recreate the recoverable manual-point backup after completion.
+    await clearManualRideSession();
+  }
+  return result;
 }
 
 export async function syncPendingRidesForCurrentUser() {
@@ -483,7 +534,7 @@ async function startGpsProbeFromMotion(activity: MotionActivity, state: AutoRide
 async function startBackgroundLocationUpdates(
   notificationBody: string,
   restart = false,
-  mode: "tracking" | "probe" | "fallback" = "tracking"
+  mode: "manual" | "tracking" | "probe" | "fallback" = "tracking"
 ) {
   const running = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
   if (running && !restart) {
@@ -495,7 +546,7 @@ async function startBackgroundLocationUpdates(
 
   await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
     accuracy: mode === "fallback" ? Location.Accuracy.Balanced : Location.Accuracy.Highest,
-    distanceInterval: mode === "fallback" ? 150 : 15,
+    distanceInterval: mode === "fallback" ? 150 : mode === "manual" ? 0 : 15,
     timeInterval: mode === "fallback" ? 60000 : 5000,
     deferredUpdatesDistance: mode === "fallback" ? 150 : undefined,
     deferredUpdatesInterval: mode === "fallback" ? 60000 : undefined,

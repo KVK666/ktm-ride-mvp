@@ -12,6 +12,7 @@ import { Metric } from "../components/Metric";
 import { useAutoTracking } from "../hooks/useAutoTracking";
 import {
   getAutoTrackingStatus,
+  recordManualRidePoints,
   setManualTrackingActive,
   startManualBackgroundTracking,
   stopManualBackgroundTracking
@@ -24,6 +25,13 @@ import {
   readMergedManualRideSession,
   startManualRideSession
 } from "../services/manualRideSession";
+import {
+  clearManualAutoStopNotice,
+  consumeManualAutoStopNotice,
+  isManualAutoStopComplete,
+  ManualAutoStopCompletionStatus,
+  ManualAutoStopResult
+} from "../services/manualRideAutoStop";
 import { createRideClientId, queuePendingRide } from "../services/rideUpload";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
 import { ThemeColors, typography } from "../theme/colors";
@@ -60,6 +68,7 @@ export function RideScreen() {
   const liveStartedAt = active ? startedAt : autoRide?.startedAt || null;
   const subscription = useRef<Location.LocationSubscription | null>(null);
   const restoring = useRef(false);
+  const handlingAutoStop = useRef(false);
 
   const stats = useMemo(() => {
     let distanceM = 0;
@@ -98,6 +107,16 @@ export function RideScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    const interval = setInterval(() => {
+      void reconcileManualAutoStop();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [active]);
+
   async function restoreActiveRide() {
     if (restoring.current) {
       return;
@@ -107,6 +126,10 @@ export function RideScreen() {
     try {
       const session = await readMergedManualRideSession();
       if (!session?.points.length) {
+        const notice = await consumeManualAutoStopNotice();
+        if (notice) {
+          await presentManualAutoStop(notice.status);
+        }
         return;
       }
 
@@ -145,7 +168,7 @@ export function RideScreen() {
     subscription.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Highest,
-        distanceInterval: 10,
+        distanceInterval: 0,
         timeInterval: 5000
       },
       (location) => {
@@ -153,17 +176,72 @@ export function RideScreen() {
         if (!point) {
           return;
         }
-        void appendManualRidePoints([point]).catch((err) => {
-          void logDiagnostic({
-            level: "error",
-            area: "manual-ride",
-            message: "Foreground ride point persistence failed",
-            details: diagnosticDetails(err)
-          });
-        });
         setPoints((current) => dedupeRidePoints([...current, point]));
+        void recordManualRidePoints([point], "foreground")
+          .then(handleManualAutoStopResult)
+          .catch((err) => {
+            void logDiagnostic({
+              level: "error",
+              area: "manual-ride",
+              message: "Foreground ride point persistence failed",
+              details: diagnosticDetails(err)
+            });
+          });
       }
     );
+  }
+
+  async function handleManualAutoStopResult(result: ManualAutoStopResult) {
+    if (result.status === "failed") {
+      setMessage(result.message);
+      return;
+    }
+    if (isManualAutoStopComplete(result)) {
+      await presentManualAutoStop(result.status, result.points);
+      return;
+    }
+    if (result.status === "inactive") {
+      const notice = await consumeManualAutoStopNotice();
+      if (notice) {
+        await presentManualAutoStop(notice.status);
+      }
+    }
+  }
+
+  async function reconcileManualAutoStop() {
+    if (handlingAutoStop.current) {
+      return;
+    }
+    const session = await readMergedManualRideSession();
+    if (session?.points.length) {
+      return;
+    }
+    const notice = await consumeManualAutoStopNotice();
+    if (notice) {
+      await presentManualAutoStop(notice.status);
+    }
+  }
+
+  async function presentManualAutoStop(status: ManualAutoStopCompletionStatus, completedPoints?: RidePoint[]) {
+    if (handlingAutoStop.current) {
+      return;
+    }
+    handlingAutoStop.current = true;
+    subscription.current?.remove();
+    subscription.current = null;
+    if (completedPoints) {
+      setPoints(completedPoints);
+    }
+    setActive(false);
+    setStartedAt(null);
+    await consumeManualAutoStopNotice();
+    setMessage(manualAutoStopMessage(status));
+    Haptics.notificationAsync(
+      status === "too-short"
+        ? Haptics.NotificationFeedbackType.Warning
+        : Haptics.NotificationFeedbackType.Success
+    ).catch(() => {});
+    await refreshAutoTrackingStatus();
   }
 
   async function startRide() {
@@ -173,6 +251,7 @@ export function RideScreen() {
 
     setStarting(true);
     setMessage("");
+    handlingAutoStop.current = false;
     const startRequestedAt = Date.now();
     try {
       const latestAutoStatus = await getAutoTrackingStatus();
@@ -182,6 +261,7 @@ export function RideScreen() {
       }
       const backgroundGranted = await ensurePermissions();
       await clearManualRideSession();
+      await clearManualAutoStopNotice();
       await setManualTrackingActive(true);
 
       const { location: firstLocation, source } = await getFastStartLocation();
@@ -246,6 +326,10 @@ export function RideScreen() {
   async function stopRide() {
     setSaving(true);
     try {
+      subscription.current?.remove();
+      subscription.current = null;
+      await stopManualBackgroundTracking();
+
       try {
         const finalLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         const finalPoint = locationToRidePoint(finalLocation);
@@ -256,10 +340,6 @@ export function RideScreen() {
       } catch {
         // A final point is useful, but stopping must still work without it.
       }
-
-      subscription.current?.remove();
-      subscription.current = null;
-      await stopManualBackgroundTracking();
 
       const session = await readMergedManualRideSession();
       const merged = dedupeRidePoints([...(session?.points || []), ...points]);
@@ -496,6 +576,16 @@ async function getFastStartLocation() {
       clearTimeout(timeout);
     }
   }
+}
+
+function manualAutoStopMessage(status: ManualAutoStopCompletionStatus) {
+  if (status === "saved") {
+    return "Ride automatically stopped after 5 minutes below 5 km/h and was saved.";
+  }
+  if (status === "queued") {
+    return "Ride automatically stopped after 5 minutes below 5 km/h and was saved locally. It will upload when the backend is reachable.";
+  }
+  return "Ride automatically stopped after 5 minutes below 5 km/h, but it was too short to save.";
 }
 
 function reliableTopSpeed(points: RidePoint[]) {
