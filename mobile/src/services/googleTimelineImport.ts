@@ -8,6 +8,7 @@ import { saveGoogleTimelineBackup, updateGoogleTimelineBackupResult } from "./go
 export const GOOGLE_TIMELINE_IMPORT_STATE_KEY = "ridepulse_google_timeline_import_state_v1";
 export const GOOGLE_TIMELINE_IMPORT_MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 export const GOOGLE_TIMELINE_IMPORT_BATCH_SIZE = 50;
+export const GOOGLE_TIMELINE_BACKUP_VERSION = 2;
 
 export type GoogleTimelineImportProgress = {
   phase: GoogleTimelineUploadState["phase"];
@@ -52,7 +53,7 @@ export async function prepareGoogleTimelineImport(jsonText: string, options: Goo
   const candidates = await assignStableCandidateIds(normalized.candidates);
   const groups = await assignStableGroupIds(groupTimelineCandidates(candidates));
   const backup: GoogleTimelineBackup = {
-    version: 1,
+    version: GOOGLE_TIMELINE_BACKUP_VERSION,
     importId: `gti-${sourceHash.slice(0, 32)}`,
     sourceHash,
     createdAt: new Date().toISOString(),

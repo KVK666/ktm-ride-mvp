@@ -44,7 +44,7 @@ export type GoogleTimelineGroup = {
 };
 
 export type GoogleTimelineBackup = {
-  version: 1;
+  version: 1 | 2;
   importId: string;
   sourceHash: string;
   createdAt: string;

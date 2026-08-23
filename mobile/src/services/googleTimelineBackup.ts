@@ -102,6 +102,24 @@ export async function loadGoogleTimelineBackup(importId?: string): Promise<Googl
   }
 }
 
+export async function loadGoogleTimelineRawJson(importId?: string): Promise<string | null> {
+  const metadata = await metadataFor(importId);
+  if (!metadata) return null;
+  if (metadata.rawJsonUri) {
+    try {
+      const info = await FileSystem.getInfoAsync(metadata.rawJsonUri);
+      if (info.exists) return await FileSystem.readAsStringAsync(metadata.rawJsonUri, { encoding: FileSystem.EncodingType.UTF8 });
+    } catch {
+      // Fall through to the inline fallback used on environments without a document directory.
+    }
+  }
+  try {
+    return await AsyncStorage.getItem(rawInlineKey(metadata.importId));
+  } catch {
+    return null;
+  }
+}
+
 export async function clearGoogleTimelineBackup(importId?: string) {
   const metadata = await metadataFor(importId);
   if (!metadata) return false;
@@ -166,7 +184,7 @@ function parseMetadata(value: unknown): GoogleTimelineBackupMetadata | null {
 function parseBackup(value: string): GoogleTimelineBackup | null {
   try {
     const parsed = JSON.parse(value);
-    if (parsed?.version !== 1 || typeof parsed.importId !== "string" || typeof parsed.sourceHash !== "string" || !Array.isArray(parsed.candidates) || !Array.isArray(parsed.groups)) return null;
+    if (![1, 2].includes(parsed?.version) || typeof parsed.importId !== "string" || typeof parsed.sourceHash !== "string" || !Array.isArray(parsed.candidates) || !Array.isArray(parsed.groups)) return null;
     return parsed as GoogleTimelineBackup;
   } catch {
     return null;
