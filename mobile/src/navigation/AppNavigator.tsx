@@ -8,6 +8,7 @@ import { ProfileAvatar } from "../components/ProfileAvatar";
 import { useAuth } from "../context/AuthContext";
 import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
+import { GoogleTimelineImportScreen } from "../screens/GoogleTimelineImportScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { NavigateScreen } from "../screens/NavigateScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
@@ -131,6 +132,7 @@ export function AppNavigator() {
       <Stack.Screen name="Account" component={ProfileScreen} options={{ title: "Account & settings" }} />
       <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: "Ride details" }} />
       <Stack.Screen name="Trips" component={TripsScreen} options={{ title: "Trip albums" }} />
+      <Stack.Screen name="GoogleTimelineImport" component={GoogleTimelineImportScreen} options={{ title: "Import Timeline" }} />
       <Stack.Screen name="TripDetail" component={TripDetailScreen} options={{ title: "Trip album" }} />
       <Stack.Screen name="SavedPlaces" component={SavedPlacesScreen} options={{ title: "Saved places" }} />
       <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: "Reports" }} />

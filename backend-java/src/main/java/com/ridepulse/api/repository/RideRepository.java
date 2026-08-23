@@ -18,6 +18,10 @@ public interface RideRepository {
 
   List<String> ownedRideIdsFresh(String userId, List<String> rideIds);
 
+  Map<String, String> ownedRideIdsByClientIds(String userId, List<String> clientRideIds);
+
+  List<Map<String, Object>> overlaps(String userId, String startedAt, String endedAt);
+
   List<Map<String, Object>> points(String rideId);
 
   List<Map<String, Object>> intelligencePoints(String rideId);
@@ -31,6 +35,8 @@ public interface RideRepository {
   Optional<Map<String, Object>> findByClientRideId(String userId, String clientRideId);
 
   String insertRide(String userId, Map<String, Object> body, String rideClientId, String startedAt, String endedAt, List<Map<String, Object>> points, Map<String, Object> summary);
+
+  String insertImportedRide(String userId, Map<String, Object> body, String rideClientId, String startedAt, String endedAt, List<Map<String, Object>> points, Map<String, Object> summary);
 
   void insertPoints(String rideId, List<Map<String, Object>> points);
 

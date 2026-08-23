@@ -5,5 +5,7 @@ public record RideListQuery(
     String searchQuery,
     String reviewStatus,
     String sort,
+    String startedFrom,
+    String startedBefore,
     int fetchLimit,
     RideListCursor cursor) {}

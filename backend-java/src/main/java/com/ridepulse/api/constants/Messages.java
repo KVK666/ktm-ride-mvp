@@ -55,6 +55,16 @@ public final class Messages {
   public static final String SAVED_PLACE_RADIUS_INVALID = "Saved place radius must be between 50 and 1,000 metres";
   public static final String SAVED_PLACE_DUPLICATE = "A saved place with this name already exists";
   public static final String SAVED_PLACE_LIMIT = "You can save up to 20 places";
+  public static final String GOOGLE_TIMELINE_RIDES_REQUIRED = "Google Timeline import requires a rides array";
+  public static final String GOOGLE_TIMELINE_TRIPS_REQUIRED = "Google Timeline import requires a trips array";
+  public static final String GOOGLE_TIMELINE_RIDE_INVALID = "Google Timeline ride must include a client id, start time, end time, and at least 2 points";
+  public static final String GOOGLE_TIMELINE_RIDE_ID_REQUIRED = "Google Timeline ride client id is required";
+  public static final String GOOGLE_TIMELINE_RIDE_LIMIT = "Google Timeline import supports up to 50 rides per batch";
+  public static final String GOOGLE_TIMELINE_TRIP_LIMIT = "Google Timeline import supports up to 50 trips per batch";
+  public static final String GOOGLE_TIMELINE_POINTS_LIMIT = "Google Timeline ride contains too many points";
+  public static final String GOOGLE_TIMELINE_TRIP_INVALID = "Google Timeline trip must include a client id and at least one ride";
+  public static final String GOOGLE_TIMELINE_RIDE_NOT_FOUND = "A Google Timeline trip includes a ride that is not owned by this account";
+  public static final String GOOGLE_TIMELINE_RIDE_OVERLAP = "Google Timeline ride overlaps an existing ride";
 
   private Messages() {}
 }

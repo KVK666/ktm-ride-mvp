@@ -64,14 +64,32 @@ public class RideService {
       String encodedCursor,
       String requestedReviewStatus,
       String requestedSort) {
+    return list(userId, period, query, requestedLimit, encodedCursor, requestedReviewStatus, requestedSort, null, null);
+  }
+
+  public Map<String, Object> list(
+      String userId,
+      String period,
+      String query,
+      Integer requestedLimit,
+      String encodedCursor,
+      String requestedReviewStatus,
+      String requestedSort,
+      String requestedStartedFrom,
+      String requestedStartedBefore) {
     boolean paginationRequested = requestedLimit != null || (encodedCursor != null && !encodedCursor.isBlank());
     int limit = paginationRequested ? normalizeLimit(requestedLimit) : 100;
     String reviewStatus = normalizeReviewStatus(requestedReviewStatus);
     String sort = normalizeSort(requestedSort);
+    String startedFrom = normalizeOptionalInstant(requestedStartedFrom);
+    String startedBefore = normalizeOptionalInstant(requestedStartedBefore);
+    if (startedFrom != null && startedBefore != null && !Instant.parse(startedBefore).isAfter(Instant.parse(startedFrom))) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, "Ride date range is invalid");
+    }
     RideListCursor cursor = decodeCursor(encodedCursor, sort);
     List<Map<String, Object>> rows = rideRepository.list(
         userId,
-        new RideListQuery(period, query, reviewStatus, sort, paginationRequested ? limit + 1 : limit, cursor));
+        new RideListQuery(period, query, reviewStatus, sort, startedFrom, startedBefore, paginationRequested ? limit + 1 : limit, cursor));
     boolean hasMore = paginationRequested && rows.size() > limit;
     List<Map<String, Object>> pageRows = hasMore ? new ArrayList<>(rows.subList(0, limit)) : rows;
     List<Map<String, Object>> rides = journalIntelligenceService.decorateRides(
@@ -182,6 +200,11 @@ public class RideService {
     Map<String, Object> normalizedBody = new LinkedHashMap<>(safeBody);
     normalizedBody.put("startLabel", defaultText(normalizeOptionalText(safeBody.get("startLabel"), 180), Messages.DEFAULT_START_LABEL));
     normalizedBody.put("endLabel", defaultText(normalizeOptionalText(safeBody.get("endLabel"), 180), Messages.DEFAULT_END_LABEL));
+    normalizedBody.put("source", "ridepulse");
+    normalizedBody.put("sourceActivityType", null);
+    normalizedBody.put("speedDataQuality", "recorded");
+    normalizedBody.put("aiStatus", "fallback");
+    normalizedBody.put("markReviewed", false);
     Map<String, Object> summary = rideMathService.summarizeRide(points, startedAt, endedAt);
 
     try {
@@ -320,6 +343,15 @@ public class RideService {
     return normalized;
   }
 
+  private static String normalizeOptionalInstant(String value) {
+    if (value == null || value.isBlank()) return null;
+    try {
+      return Instant.parse(value.trim()).toString();
+    } catch (Exception ignored) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, "Ride date range is invalid");
+    }
+  }
+
   private static RideListCursor decodeCursor(String value, String sort) {
     if (value == null || value.isBlank()) return null;
     try {
@@ -352,4 +384,5 @@ public class RideService {
     Double number = RideMathService.optionalNumber(value);
     return number == null || !Double.isFinite(number) ? 0d : number;
   }
+
 }

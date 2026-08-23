@@ -13,11 +13,15 @@ public interface TripRepository {
 
   Optional<Map<String, Object>> findFresh(String userId, String tripId);
 
+  Optional<Map<String, Object>> findByClientTripId(String userId, String clientTripId);
+
   List<Map<String, Object>> rides(String userId, String tripId);
 
   List<Map<String, Object>> ridesFresh(String userId, String tripId);
 
   String create(String userId, String title, String description);
+
+  String createImported(String userId, String title, String description, String clientTripId);
 
   int update(String userId, String tripId, String title, String description);
 

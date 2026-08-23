@@ -10,6 +10,7 @@ import com.ridepulse.api.utility.RowMappers;
 import com.ridepulse.api.utility.Rows;
 import com.ridepulse.api.utility.SqlQueries;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -42,6 +43,7 @@ public class JdbcRideRepository implements RideRepository {
     if ("today".equals(listQuery.period())) query.append(sql.get(QueryKeys.RIDE_LIST_TODAY)).append(" ");
     if ("month".equals(listQuery.period())) query.append(sql.get(QueryKeys.RIDE_LIST_MONTH)).append(" ");
     if ("year".equals(listQuery.period())) query.append(sql.get(QueryKeys.RIDE_LIST_YEAR)).append(" ");
+    query.append(sql.get(QueryKeys.RIDE_LIST_DATE_RANGE)).append(" ");
     query.append(sql.get(QueryKeys.RIDE_LIST_SEARCH)).append(" ");
     if ("needs_review".equals(listQuery.reviewStatus())) query.append(sql.get(QueryKeys.RIDE_LIST_NEEDS_REVIEW)).append(" ");
     if ("cleanup".equals(listQuery.reviewStatus())) query.append(sql.get(QueryKeys.RIDE_LIST_CLEANUP)).append(" ");
@@ -52,6 +54,8 @@ public class JdbcRideRepository implements RideRepository {
     MapSqlParameterSource params = userParams(userId)
         .addValue("searchQuery", normalizedSearch)
         .addValue("searchPattern", "%" + normalizedSearch + "%")
+        .addValue("startedFrom", listQuery.startedFrom())
+        .addValue("startedBefore", listQuery.startedBefore())
         .addValue("fetchLimit", listQuery.fetchLimit());
     if (listQuery.cursor() != null) {
       params.addValue("cursorStartedAt", listQuery.cursor().startedAt())
@@ -83,6 +87,36 @@ public class JdbcRideRepository implements RideRepository {
         sql.get(QueryKeys.RIDE_OWNED_IDS),
         userParams(userId).addValue("rideIds", rideIds),
         (rs, rowNum) -> rs.getString(1));
+  }
+
+  @Override
+  public Map<String, String> ownedRideIdsByClientIds(String userId, List<String> clientRideIds) {
+    if (clientRideIds == null || clientRideIds.isEmpty()) return Map.of();
+    return readWriteJdbc.query(
+        sql.get(QueryKeys.RIDE_OWNED_BY_CLIENT_IDS),
+        userParams(userId).addValue("clientRideIds", clientRideIds),
+        rs -> {
+          Map<String, String> result = new LinkedHashMap<>();
+          while (rs.next()) {
+            result.put(rs.getString("client_ride_id"), String.valueOf(rs.getObject("id")));
+          }
+          return result;
+        });
+  }
+
+  @Override
+  public List<Map<String, Object>> overlaps(String userId, String startedAt, String endedAt) {
+    return readWriteJdbc.query(
+        sql.get(QueryKeys.RIDE_OVERLAPS),
+        userParams(userId).addValue("startedAt", startedAt).addValue("endedAt", endedAt),
+        (rs, rowNum) -> {
+          Map<String, Object> row = new LinkedHashMap<>();
+          row.put("rideId", String.valueOf(rs.getObject("id")));
+          row.put("clientRideId", rs.getString("client_ride_id"));
+          row.put("startedAt", Rows.instantString(rs.getObject("started_at")));
+          row.put("endedAt", Rows.instantString(rs.getObject("ended_at")));
+          return row;
+        });
   }
 
   @Override
@@ -126,7 +160,7 @@ public class JdbcRideRepository implements RideRepository {
   @Override
   public Optional<Map<String, Object>> findByClientRideId(String userId, String clientRideId) {
     MapSqlParameterSource params = userParams(userId).addValue("clientRideId", clientRideId);
-    return readOnlyJdbc.query(sql.get(QueryKeys.RIDE_BY_CLIENT_ID), params, rs -> {
+    return readWriteJdbc.query(sql.get(QueryKeys.RIDE_BY_CLIENT_ID), params, rs -> {
       if (!rs.next()) return Optional.empty();
       Map<String, Object> summary = new java.util.LinkedHashMap<>();
       summary.put("distanceM", Rows.numeric(rs.getObject("distance_m")));
@@ -160,11 +194,43 @@ public class JdbcRideRepository implements RideRepository {
         .addValue("avgSpeedKmh", summary.get("avgSpeedKmh"))
         .addValue("clientRideId", rideClientId)
         .addValue("startedAt", startedAt)
-        .addValue("endedAt", endedAt);
+        .addValue("endedAt", endedAt)
+        .addValue("source", body.get("source"))
+        .addValue("sourceActivityType", body.get("sourceActivityType"))
+        .addValue("speedDataQuality", body.get("speedDataQuality"))
+        .addValue("aiStatus", body.get("aiStatus"))
+        .addValue("markReviewed", Boolean.TRUE.equals(body.get("markReviewed")));
     KeyHolder keyHolder = new GeneratedKeyHolder();
     readWriteJdbc.update(sql.get(QueryKeys.RIDE_INSERT), params, keyHolder, new String[] {"id"});
     Object id = keyHolder.getKeys() == null ? null : keyHolder.getKeys().get("id");
     return String.valueOf(id);
+  }
+
+  @Override
+  @Transactional
+  public String insertImportedRide(String userId, Map<String, Object> body, String rideClientId, String startedAt, String endedAt, List<Map<String, Object>> points, Map<String, Object> summary) {
+    Map<String, Object> start = points.get(0);
+    Map<String, Object> end = points.get(points.size() - 1);
+    MapSqlParameterSource params = userParams(userId)
+        .addValue("startLabel", body.get("startLabel"))
+        .addValue("endLabel", body.get("endLabel"))
+        .addValue("startLatitude", start.get("latitude"))
+        .addValue("startLongitude", start.get("longitude"))
+        .addValue("endLatitude", end.get("latitude"))
+        .addValue("endLongitude", end.get("longitude"))
+        .addValue("distanceM", summary.get("distanceM"))
+        .addValue("durationS", summary.get("durationS"))
+        .addValue("topSpeedKmh", summary.get("topSpeedKmh"))
+        .addValue("avgSpeedKmh", summary.get("avgSpeedKmh"))
+        .addValue("clientRideId", rideClientId)
+        .addValue("startedAt", startedAt)
+        .addValue("endedAt", endedAt)
+        .addValue("sourceActivityType", body.get("sourceActivityType"))
+        .addValue("speedDataQuality", body.get("speedDataQuality"));
+    return readWriteJdbc.query(
+        sql.get(QueryKeys.RIDE_IMPORT_INSERT),
+        params,
+        rs -> rs.next() ? String.valueOf(rs.getObject("id")) : null);
   }
 
   @Override

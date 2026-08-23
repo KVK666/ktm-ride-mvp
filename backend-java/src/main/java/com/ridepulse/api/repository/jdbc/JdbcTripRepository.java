@@ -56,6 +56,14 @@ public class JdbcTripRepository implements TripRepository {
   }
 
   @Override
+  public Optional<Map<String, Object>> findByClientTripId(String userId, String clientTripId) {
+    return readWriteJdbc.query(
+        sql.get(QueryKeys.TRIP_BY_CLIENT_ID),
+        userParams(userId).addValue("clientTripId", clientTripId),
+        rs -> rs.next() ? Optional.of(importedTrip(rs)) : Optional.empty());
+  }
+
+  @Override
   public List<Map<String, Object>> rides(String userId, String tripId) {
     return readOnlyJdbc.query(sql.get(QueryKeys.TRIP_RIDES), tripParams(userId, tripId), (rs, rowNum) -> Rows.ride(rs));
   }
@@ -72,6 +80,18 @@ public class JdbcTripRepository implements TripRepository {
         .addValue("title", title)
         .addValue("description", description);
     return readWriteJdbc.query(sql.get(QueryKeys.TRIP_INSERT), params, rs -> rs.next() ? String.valueOf(rs.getObject("id")) : null);
+  }
+
+  @Override
+  @Transactional
+  public String createImported(String userId, String title, String description, String clientTripId) {
+    return readWriteJdbc.query(
+        sql.get(QueryKeys.TRIP_IMPORT_INSERT),
+        userParams(userId)
+            .addValue("title", title)
+            .addValue("description", description)
+            .addValue("clientTripId", clientTripId),
+        rs -> rs.next() ? String.valueOf(rs.getObject("id")) : null);
   }
 
   @Override
@@ -120,6 +140,7 @@ public class JdbcTripRepository implements TripRepository {
     row.put("id", String.valueOf(rs.getObject("id")));
     row.put("title", rs.getString("title"));
     row.put("description", rs.getString("description"));
+    row.put("clientTripId", rs.getString("client_trip_id"));
     row.put("coverRideId", rs.getObject("cover_ride_id") == null ? null : String.valueOf(rs.getObject("cover_ride_id")));
     row.put("rideCount", Rows.integer(rs.getObject("ride_count")));
     row.put("distanceM", Rows.integer(rs.getObject("distance_m")));
@@ -127,6 +148,15 @@ public class JdbcTripRepository implements TripRepository {
     row.put("endedAt", Rows.instantString(rs.getObject("ended_at")));
     row.put("createdAt", Rows.instantString(rs.getObject("created_at")));
     row.put("updatedAt", Rows.instantString(rs.getObject("updated_at")));
+    return row;
+  }
+
+  private Map<String, Object> importedTrip(ResultSet rs) throws SQLException {
+    Map<String, Object> row = new LinkedHashMap<>();
+    row.put("id", String.valueOf(rs.getObject("id")));
+    row.put("title", rs.getString("title"));
+    row.put("description", rs.getString("description"));
+    row.put("clientTripId", rs.getString("client_trip_id"));
     return row;
   }
 

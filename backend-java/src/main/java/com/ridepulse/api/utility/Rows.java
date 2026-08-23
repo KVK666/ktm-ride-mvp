@@ -30,6 +30,15 @@ public final class Rows {
     row.put("startedAt", instantString(rs.getObject("started_at")));
     row.put("endedAt", instantString(rs.getObject("ended_at")));
     row.put("createdAt", instantString(rs.getObject("created_at")));
+    String source = rs.getString("source");
+    if (source == null || source.isBlank()) source = "ridepulse";
+    String speedDataQuality = rs.getString("speed_data_quality");
+    if (speedDataQuality == null || speedDataQuality.isBlank()) {
+      speedDataQuality = "google_timeline".equals(source) ? "unavailable" : "recorded";
+    }
+    row.put("source", source);
+    row.put("sourceActivityType", rs.getString("source_activity_type"));
+    row.put("speedDataQuality", speedDataQuality);
     row.put("aiTitle", rs.getString("ai_title"));
     row.put("aiSummary", rs.getString("ai_summary"));
     row.put("rideKind", rs.getString("ride_kind"));

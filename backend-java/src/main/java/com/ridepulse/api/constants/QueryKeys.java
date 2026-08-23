@@ -17,6 +17,7 @@ public final class QueryKeys {
   public static final String RIDE_LIST_TODAY = "ride.list-today";
   public static final String RIDE_LIST_MONTH = "ride.list-month";
   public static final String RIDE_LIST_YEAR = "ride.list-year";
+  public static final String RIDE_LIST_DATE_RANGE = "ride.list-date-range";
   public static final String RIDE_LIST_SEARCH = "ride.list-search";
   public static final String RIDE_LIST_NEEDS_REVIEW = "ride.list-needs-review";
   public static final String RIDE_LIST_CLEANUP = "ride.list-cleanup";
@@ -36,8 +37,10 @@ public final class QueryKeys {
   public static final String RIDE_DUPLICATES = "ride.duplicates";
   public static final String RIDE_PATCH = "ride.patch";
   public static final String RIDE_INSERT = "ride.insert";
+  public static final String RIDE_IMPORT_INSERT = "ride.import-insert";
   public static final String RIDE_INSERT_POINT = "ride.insert-point";
   public static final String RIDE_BY_CLIENT_ID = "ride.by-client-id";
+  public static final String RIDE_OVERLAPS = "ride.overlaps";
   public static final String RIDE_DELETE = "ride.delete";
   public static final String RIDE_AI_MARK_PENDING = "ride.ai-mark-pending";
   public static final String RIDE_AI_SAVE = "ride.ai-save";
@@ -84,6 +87,9 @@ public final class QueryKeys {
   public static final String TRIP_TOUCH = "trip.touch";
   public static final String TRIP_LIST_FOR_RIDE = "trip.list-for-ride";
   public static final String RIDE_OWNED_IDS = "ride.owned-ids";
+  public static final String RIDE_OWNED_BY_CLIENT_IDS = "ride.owned-by-client-ids";
+  public static final String TRIP_BY_CLIENT_ID = "trip.by-client-id";
+  public static final String TRIP_IMPORT_INSERT = "trip.import-insert";
 
   public static final String SCHEMA_UUID_EXTENSION = "schema.uuid-extension";
   public static final String SCHEMA_PGCRYPTO_EXTENSION = "schema.pgcrypto-extension";
@@ -123,6 +129,14 @@ public final class QueryKeys {
   public static final String SCHEMA_TRIPS_USER_INDEX = "schema.trips-user-index";
   public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
   public static final String SCHEMA_RIDES_USER_STARTED_INDEX = "schema.rides-user-started-index";
+  public static final String SCHEMA_RIDES_SOURCE = "schema.rides-source";
+  public static final String SCHEMA_RIDES_SOURCE_ACTIVITY_TYPE = "schema.rides-source-activity-type";
+  public static final String SCHEMA_RIDES_SPEED_DATA_QUALITY = "schema.rides-speed-data-quality";
+  public static final String SCHEMA_RIDES_SOURCE_BACKFILL = "schema.rides-source-backfill";
+  public static final String SCHEMA_RIDES_SOURCE_NOT_NULL = "schema.rides-source-not-null";
+  public static final String SCHEMA_RIDES_CLIENT_ID_INDEX = "schema.rides-client-id-index";
+  public static final String SCHEMA_TRIPS_CLIENT_ID = "schema.trips-client-id";
+  public static final String SCHEMA_TRIPS_CLIENT_ID_INDEX = "schema.trips-client-id-index";
   public static final String SCHEMA_SAVED_PLACES_TABLE = "schema.saved-places-table";
   public static final String SCHEMA_SAVED_PLACES_DEFAULTS = "schema.saved-places-defaults";
   public static final String SCHEMA_SAVED_PLACES_USER_FK = "schema.saved-places-user-fk";

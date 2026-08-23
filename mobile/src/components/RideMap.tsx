@@ -17,6 +17,8 @@ const darkMapStyle = [
 
 export function RideMap({
   coordinates,
+  traveledCoordinates,
+  untraveledCoordinates,
   current,
   style,
   title = "Ride map",
@@ -26,6 +28,8 @@ export function RideMap({
   live = true
 }: {
   coordinates: Coordinate[];
+  traveledCoordinates?: Coordinate[];
+  untraveledCoordinates?: Coordinate[];
   current?: Coordinate | null;
   style?: StyleProp<ViewStyle>;
   title?: string;
@@ -38,6 +42,15 @@ export function RideMap({
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const mapRef = useRef<MapView | null>(null);
   const mapCoordinates = useMemo(() => normalizeBoundedCoordinates(coordinates), [coordinates]);
+  const hasProgressPaths = traveledCoordinates !== undefined || untraveledCoordinates !== undefined;
+  const mapTraveledCoordinates = useMemo(
+    () => normalizeBoundedCoordinates(traveledCoordinates || []),
+    [traveledCoordinates]
+  );
+  const mapUntraveledCoordinates = useMemo(
+    () => normalizeBoundedCoordinates(untraveledCoordinates || []),
+    [untraveledCoordinates]
+  );
   const renderCoordinates = useMemo(() => sampleEvenly(mapCoordinates, 1200), [mapCoordinates]);
   const mapPhotoMarkers = useMemo(
     () =>
@@ -96,12 +109,34 @@ export function RideMap({
           longitudeDelta: 0.04
         }}
       >
-        {renderCoordinates.length > 1 ? (
+        {hasProgressPaths ? (
+          <>
+            {mapUntraveledCoordinates.length > 1 ? (
+              <Polyline coordinates={sampleEvenly(mapUntraveledCoordinates, 1200)} strokeColor={colors.borderStrong} strokeWidth={5} />
+            ) : null}
+            {mapTraveledCoordinates.length > 1 ? (
+              <Polyline coordinates={sampleEvenly(mapTraveledCoordinates, 1200)} strokeColor={colors.accent} strokeWidth={6} />
+            ) : null}
+          </>
+        ) : renderCoordinates.length > 1 ? (
           <Polyline coordinates={renderCoordinates} strokeColor={colors.accent} strokeWidth={5} />
         ) : null}
         {mapCoordinates[0] ? <Marker coordinate={mapCoordinates[0]} title="Start" pinColor={colors.success} /> : null}
         {mapCoordinates.length > 1 ? (
           <Marker coordinate={mapCoordinates[mapCoordinates.length - 1]} title="End" pinColor={colors.accent} />
+        ) : null}
+        {mapCurrent ? (
+          <Marker
+            coordinate={mapCurrent}
+            title="Current position"
+            anchor={{ x: 0.5, y: 0.5 }}
+            zIndex={4}
+            tracksViewChanges
+          >
+            <View style={[styles.currentMarker, { backgroundColor: colors.accent, borderColor: colors.background }]}>
+              <View style={[styles.currentMarkerCore, { backgroundColor: colors.background }]} />
+            </View>
+          </Marker>
         ) : null}
         {mapPhotoMarkers.map((photo, index) => (
           <Marker
@@ -140,6 +175,8 @@ export function RideMap({
         <View style={[styles.fullScreen, { backgroundColor: colors.background }]}>
           <RideMap
             coordinates={mapCoordinates}
+            traveledCoordinates={hasProgressPaths ? mapTraveledCoordinates : undefined}
+            untraveledCoordinates={hasProgressPaths ? mapUntraveledCoordinates : undefined}
             current={mapCurrent}
             photoMarkers={photoMarkers}
             onPhotoMarkerPress={onPhotoMarkerPress}
@@ -249,5 +286,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center"
+  },
+  currentMarker: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 5
+  },
+  currentMarkerCore: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
   }
 });

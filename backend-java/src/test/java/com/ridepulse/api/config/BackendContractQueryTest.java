@@ -45,6 +45,18 @@ class BackendContractQueryTest {
         .contains("id", "title", "ai_title");
   }
 
+  @Test
+  void googleTimelineImportQueriesAreOwnerScopedAndIdempotent() {
+    assertThat(query("sql.ride.select"))
+        .contains("r.source", "r.source_activity_type", "r.speed_data_quality");
+    assertThat(query("sql.ride.import-insert"))
+        .contains("google_timeline", "client_ride_id", "on conflict", "do nothing", "returning id");
+    assertThat(query("sql.ride.overlaps"))
+        .contains("rides", "user_id", ":startedat", ":endedat");
+    assertThat(query("sql.trip.import-insert"))
+        .contains("client_trip_id", "on conflict", "returning id");
+  }
+
   private static String query(String key) {
     return SQL.getProperty(key, "").toLowerCase();
   }

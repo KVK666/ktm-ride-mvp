@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-07-21
+Last updated: 2026-08-23
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -16,7 +16,7 @@ RidePulse is a private React Native ride tracking app for a small rider group ac
 - Database: PostgreSQL, currently hosted on Neon; AWS RDS cutover is supported with `DB_SCHEMA` when using a custom schema.
 - Backend hosting: Render Starter in Singapore, currently backed by Neon PostgreSQL.
 - OTA updates: Expo EAS Update / `expo-updates` on the `production` channel for JS and bundled asset updates after an OTA-enabled APK is installed.
-- Current Android app/runtime version: `0.1.6` with Android version code `7`; JavaScript-only UI updates can ship to this runtime through the production OTA channel without clearing rider data.
+- Current Android app/runtime version: `0.1.7` with Android version code `8`; JavaScript-only UI updates can ship to this runtime through the production OTA channel without clearing rider data.
 - Maps: Google Maps SDK for Android plus Google Directions and Geocoding APIs.
 - Authentication: Email/password with JWT and Render-backed email password reset.
 - Main repo branch: `ride-pulse`.
@@ -60,12 +60,16 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Shows dashboard totals for today, month, year, total rides, best top speed, average speed, and recent rides.
 - Dashboard shows a recovery card when an interrupted manual ride is locally stored and needs to be stopped/saved from the Ride tab.
 - Shows ride history by period, with route maps and full-screen map viewing.
-- Journal ride search is server-backed on mobile and web, matching manual/AI titles, summaries, ride kind, notes, insights, and endpoint labels while preserving legacy period filters. New clients use cursor pagination, explicit review filters, and newest/longest/fastest sorting.
+- Journal ride search is server-backed on mobile and web, matching manual/AI titles, summaries, ride kind, source activity, notes, insights, and endpoint labels while preserving legacy period filters. Mobile adds explicit year and month calendar filters; new clients use cursor pagination, review filters, and newest/longest/fastest sorting.
 - Journal includes a conservative Cleanup queue on mobile and web for unreviewed recordings with near-zero movement. RidePulse explains why each ride was flagged; riders explicitly keep it by marking it reviewed or remove it through the existing confirmed delete control. No ride is auto-deleted.
 - Adds manual Trip Albums inside Journal: riders can create and edit trip folders, add existing rides individually or in an idempotent batch, remove rides without deleting them, see current membership, and browse trip detail on Android and web.
+- Trips includes a Google Timeline import flow for the verified `semanticSegments` JSON format. Android keeps a private device-only backup, defaults qualifying `MOTORCYCLING` and `IN_PASSENGER_VEHICLE` activities to selected, supports activity/year/month/selection search and bulk review, checks duplicates and probable overlaps, uploads normalized rides in resumable batches of at most 50, and creates enabled date albums only after their rides resolve.
+- Timeline backup management shows file size, coverage dates, route/date counts, and the last import result. Removing the RidePulse copy never removes the original Downloads file. The raw JSON, `rawSignals`, `userLocationProfile`, place IDs, and unapproved activities are never sent to the backend.
+- Trip lists are incremental/virtualized on Android and web so hundreds of date albums remain responsive; web Trips also has title/date/place search.
 - Adds backend-owned AI ride intelligence with deterministic fallback: saved rides receive destination-aware titles, summaries, classification, key insight, best moment, and trip automation suggestions without blocking ride save. Saved places are matched first; otherwise a server-only Google Places lookup uses only the endpoint coordinate to recognise destinations such as coffee shops. Manual titles remain authoritative, and eligible older generic rides refresh once when opened.
 - Opens a focused Ride Detail screen from History with the useful ride story, key stats, route map/summary, notes/review, sharing/trip actions, album, and confirmed cleanup controls.
-- Ride Detail no longer exposes internal-looking ride confidence, AI status/date, GPS sample counts, empty duplicate state, route replay, generated chapter list, or the extra speed chart in the primary mobile/web flow. Those removals keep the page centred on the rider's memory rather than model diagnostics.
+- Ride Detail no longer exposes internal-looking ride confidence, AI status/date, GPS sample counts, empty duplicate state, generated chapter list, or the extra speed chart in the primary mobile/web flow. Those removals keep the page centred on the rider's memory rather than model diagnostics.
+- Ride Detail and Timeline candidate preview share a full-screen Google Maps route replay for any ride with usable coordinates, including existing RidePulse rides. It shows traveled/untraveled trace, start/end/current markers, play/pause, scrubber, actual/elapsed time, `0.5x`/`1x`/`2x`, and source-aware facts. Timeline traces and derived speeds are explicitly approximate, and unavailable peak speed is never rendered as zero.
 - Ride Detail has a Ride Review section for ride title, notes, reviewed status, and confirmed duplicate cleanup.
 - Ride Detail has a confirmed delete option for the selected ride, intended for test rides, unwanted rides, or duplicates that should be fully removed with their route points.
 - Ride Detail can import phone camera photos taken during the ride window and display them as photo stops.
@@ -85,6 +89,7 @@ Do not commit `.env` files, API keys, database passwords, or Neon/AWS database c
 - Fresh installs show a cinematic walkthrough before authentication, persisted with `duke_ride_onboarding_seen_v1`; Account can replay the walkthrough later.
 - User display photos sync through `/api/profile/photo`; private ride albums sync through owner-scoped ride-photo endpoints with metadata-first and individual binary loading. Local caches remain for speed and offline fallback.
 - OTA updates are enabled for JavaScript and bundled assets through EAS Update. Native changes such as app icon, permissions, package ID, native dependencies, Google Maps setup, or Android manifest changes still require installing a new APK.
+- Timeline import adds native `expo-document-picker` and `expo-crypto` dependencies, so this release requires a newly built APK rather than an OTA-only update.
 - Adds an Angular web companion in `web/` using the same graphite/OLED and electric-lime identity. Its protected experience groups Home, Plan, Journal (Rides/Trips/Memories), Insights (Rider Pulse/Reports), Account, rich Ride Detail, profile editing, saved-place planning, and private synced albums behind a responsive sidebar/mobile shell with accessible focus and loading states.
 - Web ride recording is intentionally out of scope; the website directs riders to the Android app for GPS/background tracking, ride recovery, auto tracking, and OTA update workflows. Web foreground geolocation is used only for route planning.
 - Password reset uses the Java API plus SMTP environment variables.
@@ -153,6 +158,9 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `mobile/src/services/activityRecognition.ts` and `activityRecognitionTask.ts`: Android native activity-recognition bridge and Headless JS task for motion-first ride wakeups.
 - `mobile/src/services/locationTask.ts`: Expo background location task entrypoint.
 - `mobile/src/services/rideUpload.ts`: ride upload and pending auto ride sync.
+- `mobile/src/services/googleTimelineParser.ts`: strict `semanticSegments` validation, qualifying activity extraction, timestamp-bounded route reconstruction, stable grouping inputs, and conservative derived-speed gates.
+- `mobile/src/services/googleTimelineBackup.ts` and `googleTimelineImport.ts`: private backup metadata, SHA-256 identity, duplicate/overlap review, and resumable normalized batch upload.
+- `mobile/src/components/RouteVisualizer.tsx` and `mobile/src/utils/routeReplay.ts`: shared Google Maps replay UI and timestamp interpolation for recorded and imported rides.
 - `mobile/src/services/trackingKeys.ts`: local storage keys and background task name.
 - `mobile/src/hooks/useAutoTracking.ts`: shared UI hook for Ride/Profile toggle state.
 - `mobile/src/context/AuthContext.tsx`: auth bootstrap and pending ride sync after login.
@@ -160,6 +168,7 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `scripts/install-android-release.ps1`: release installer that prebuilds native Android config before Gradle so app icon and OTA metadata stay in sync.
 - `backend-java/src/main/java/com/ridepulse/api/controller/RidesController.java`: ride create/list/detail/delete, paginated search, private photos, and ride-trip membership API.
 - `backend-java/src/main/java/com/ridepulse/api/controller/TripsController.java`: authenticated manual Trip Albums API with idempotent single/batch ride membership.
+- `backend-java/src/main/java/com/ridepulse/api/controller/GoogleTimelineImportController.java` and `service/GoogleTimelineImportService.java`: owner-scoped validation, duplicate/overlap checks, idempotent imported ride batches, and stable Trip creation.
 - `backend-java/src/main/java/com/ridepulse/api/controller/ProfileController.java`: authenticated identity, monthly-goal preferences, and profile-photo API.
 - `backend-java/src/main/java/com/ridepulse/api/controller/JournalController.java`: Home and Journal API surfaces.
 - `backend-java/src/main/java/com/ridepulse/api/service/PhotoValidationService.java`: profile-photo and ride-photo MIME/base64/size validation.
@@ -222,6 +231,7 @@ https://ktm-ride-mvp-java.onrender.com/health
 
 ## Latest Fix Notes
 
+- 2026-08-23: Added review-first Google Timeline import and shared ride replay. The supplied 32.2 MB export yields 3,318 qualifying vehicle rides and 731 enabled multi-ride date albums; raw Timeline data remains device-only. Journal now supports server-backed year/month selection, and Android/web Trip lists handle the larger album volume incrementally. Android/runtime is `0.1.7` (version code `8`) so older APKs cannot receive incompatible native-module OTA updates.
 - 2026-07-03: Prepared the Neon-to-AWS PostgreSQL migration path. Java database config now supports `DB_SCHEMA`/JDBC `currentSchema` for custom schemas such as `ridepulse_db,public`, Render has an optional dashboard-managed `DB_SCHEMA` variable, and `scripts/migrate-neon-to-aws.ps1` can dump Neon data and restore/move app tables into AWS without committing connection strings. Production is not marked cut over until the script is run, Render `DATABASE_URL` is changed to AWS, and smoke tests pass.
 - 2026-07-02: Renamed the GitHub repository and main branch references to `ride-pulse`. Updated the local `origin` URL, APK release workflow trigger branch, Render/web APK download links, and current project context; kept production API/service URLs and package IDs stable.
 - 2026-07-02: Fixed web CORS failures on authenticated Java API calls by allowing browser `OPTIONS` preflight requests to bypass JWT token validation while keeping real `/api/*` requests protected.
@@ -312,7 +322,9 @@ https://ktm-ride-mvp-java.onrender.com/health
 - Confirm Account shows identity/bike details and can add/change/remove the backend-synced display photo.
 - Confirm the same display photo appears on Home, You, and Profile after logout/login and app restart.
 - Confirm Ride Detail can save title/notes and mark reviewed.
-- Confirm Ride Detail shows the story, key stats, map, review, album, and actions without ride confidence, AI status/date, GPS point counts, route replay, chapters, or a duplicate empty state.
+- Confirm Ride Detail shows the story, key stats, map/replay, review, album, and actions without ride confidence, AI status/date, diagnostic GPS point counts, chapters, or a duplicate empty state.
+- Confirm an existing recorded ride and an imported ride can open nonblank full-screen replay, scrub and change playback speed, and show unavailable speed honestly.
+- Confirm Timeline import can choose/reopen/delete a private backup, filter routes by activity/year/month/selection, edit/merge/create date albums, pause/resume, and require a fresh overlap check after review changes. Do not confirm a full personal production import during smoke testing.
 - Confirm Ride Detail can delete the selected ride only after confirmation and returns to Journal.
 - Confirm fresh installs show walkthrough before login, and replay walkthrough works from Account.
 - Confirm Ride Detail album can find ride-window photos, manually add photos, remove album copies, and open slideshow.

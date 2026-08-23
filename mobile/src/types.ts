@@ -10,6 +10,64 @@ export type RidePoint = Coordinate & {
   recordedAt: string;
 };
 
+/**
+ * A normalized, local-only representation of a Google Timeline vehicle
+ * segment. The importer deliberately keeps only route data needed to create
+ * a Ride; the original export is never sent to the API or stored in the
+ * JavaScript bundle.
+ */
+export type GoogleTimelineCandidate = {
+  id: string;
+  source: "google_timeline";
+  activityType: string;
+  localDate: string;
+  startedAt: string;
+  endedAt: string;
+  startLabel: string;
+  endLabel: string;
+  distanceM: number;
+  durationS: number;
+  points: RidePoint[];
+  sourceSegmentIds: string[];
+  selected?: boolean;
+};
+
+export type GoogleTimelineGroup = {
+  id: string;
+  title: string;
+  startedAt: string;
+  endedAt: string;
+  distanceM: number;
+  candidates: GoogleTimelineCandidate[];
+  selected: boolean;
+  albumEnabled: boolean;
+};
+
+export type GoogleTimelineBackup = {
+  version: 1;
+  importId: string;
+  sourceHash: string;
+  createdAt: string;
+  sourceFileSizeBytes?: number;
+  rawJsonUri?: string | null;
+  candidates: GoogleTimelineCandidate[];
+  groups: GoogleTimelineGroup[];
+};
+
+export type GoogleTimelineUploadState = {
+  importId: string;
+  sourceHash: string;
+  phase: "ready" | "checking" | "uploading" | "complete" | "failed";
+  checked: boolean;
+  uploadedCandidateIds: string[];
+  skippedCandidateIds: string[];
+  rideIdsByCandidateId: Record<string, string>;
+  tripIdsByGroupId: Record<string, string>;
+  failedCandidateId?: string | null;
+  error?: string | null;
+  updatedAt: string;
+};
+
 export type RidePhoto = Coordinate & {
   id: string;
   uri: string;
@@ -63,6 +121,9 @@ export type User = {
 
 export type Ride = {
   id: string;
+  source?: "ridepulse" | "google_timeline" | string;
+  sourceActivityType?: string | null;
+  speedDataQuality?: "recorded" | "estimated" | "unavailable" | string | null;
   startLabel: string;
   endLabel: string;
   startLatitude: number;

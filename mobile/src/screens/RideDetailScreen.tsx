@@ -22,7 +22,7 @@ import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Metric } from "../components/Metric";
 import { RideSlideshowModal } from "../components/RideSlideshowModal";
-import { RideMap } from "../components/RideMap";
+import { RouteVisualizer } from "../components/RouteVisualizer";
 import { Screen } from "../components/Screen";
 import { RIDE_STORY_HEIGHT, RIDE_STORY_WIDTH, RideStoryCard } from "../components/RideStoryCard";
 import { diagnosticDetails, logDiagnostic } from "../services/diagnostics";
@@ -45,6 +45,7 @@ import { rideDisplayTitle } from "../utils/rideTitle";
 import { duration, km, kmh, shortDate, time } from "../utils/format";
 import { normalizeBoundedCoordinate, normalizeFiniteCoordinate } from "../utils/coordinates";
 import { finiteNumberOrZero, optionalFiniteNumber } from "../utils/normalize";
+import { hasReplayCoordinates } from "../utils/routeReplay";
 
 type RideDetailParams = {
   RideDetail: {
@@ -753,12 +754,11 @@ export function RideDetailScreen() {
           </View>
         ) : null}
 
-        {ride.points?.length ? (
-          <RideMap
-            coordinates={ride.points}
+        {hasReplayCoordinates(ride) ? (
+          <RouteVisualizer
+            ride={ride}
             title={`${ride.startLabel} to ${ride.endLabel}`}
             photoMarkers={photosWithLocation}
-            live={false}
             onPhotoMarkerPress={openPhotoMarker}
           />
         ) : null}
@@ -1517,6 +1517,7 @@ function normalizeRidePoint(point: any): RidePoint | null {
     return null;
   }
   return {
+    ...(point && typeof point === "object" ? point : {}),
     ...coordinate,
     altitudeM: optionalFiniteNumber(point?.altitudeM),
     accuracyM: optionalFiniteNumber(point?.accuracyM),

@@ -35,6 +35,13 @@ test("Journal query state keeps filters, sort, search, and cursor independent", 
   assert.equal(buildRideListQuery({ filter: "month", sort: "newest" }), "period=month&limit=100&sort=newest");
 });
 
+test("Journal calendar filters request the complete selected local month", () => {
+  const query = buildRideListQuery({ filter: "all", sort: "newest", calendarYear: 2025, calendarMonth: 6 });
+  const params = new URLSearchParams(query);
+  assert.equal(params.get("startedFrom"), new Date(2025, 6, 1).toISOString());
+  assert.equal(params.get("startedBefore"), new Date(2025, 7, 1).toISOString());
+});
+
 test("Journal page merging removes duplicate ride ids without reordering prior rides", () => {
   assert.deepEqual(
     mergeRidePages([{ id: "a" }, { id: "b", value: 1 }], [{ id: "b", value: 2 }, { id: "c" }]),

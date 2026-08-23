@@ -20,6 +20,7 @@ type Sort = "newest" | "longest" | "fastest";
 type JournalView = "rides" | "trips" | "memories";
 const filters: { key: Filter; label: string }[] = [{ key: "all", label: "All" }, { key: "month", label: "This month" }, { key: "review", label: "Needs review" }, { key: "cleanup", label: "Cleanup" }];
 const sorts: { key: Sort; label: string }[] = [{ key: "newest", label: "Newest" }, { key: "longest", label: "Longest" }, { key: "fastest", label: "Fastest" }];
+const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function HistoryScreen() {
   const navigation = useNavigation<any>();
@@ -31,6 +32,8 @@ export function HistoryScreen() {
   const [rides, setRides] = useState<Ride[]>([]);
   const [memories, setMemories] = useState<RideMemory[]>([]);
   const [query, setQuery] = useState("");
+  const [calendarYear, setCalendarYear] = useState<number | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState<number | null>(null);
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -52,6 +55,8 @@ export function HistoryScreen() {
       const parsed = JSON.parse(stored);
       if (filters.some((item) => item.key === parsed.filter)) setFilter(parsed.filter);
       if (sorts.some((item) => item.key === parsed.sort)) setSort(parsed.sort);
+      if (Number.isInteger(parsed.calendarYear)) setCalendarYear(parsed.calendarYear);
+      if (Number.isInteger(parsed.calendarMonth) && parsed.calendarMonth >= 0 && parsed.calendarMonth <= 11) setCalendarMonth(parsed.calendarMonth);
       if (parsed.view === "rides" || parsed.view === "memories") {
         setView(parsed.view);
       } else if (parsed.view === "trips") {
@@ -60,7 +65,7 @@ export function HistoryScreen() {
     }).catch(() => {});
   }, [navigation, preferenceKey]);
 
-  useEffect(() => { AsyncStorage.setItem(preferenceKey, JSON.stringify({ filter, sort, view })).catch(() => {}); }, [filter, preferenceKey, sort, view]);
+  useEffect(() => { AsyncStorage.setItem(preferenceKey, JSON.stringify({ filter, sort, view, calendarYear, calendarMonth })).catch(() => {}); }, [calendarMonth, calendarYear, filter, preferenceKey, sort, view]);
 
   const load = useCallback(async () => {
     const generation = ++requestGeneration.current;
@@ -69,7 +74,7 @@ export function HistoryScreen() {
     setLoadingMore(false);
     setError("");
     try {
-      const params = buildRideListQuery({ filter, sort, query: debouncedQuery });
+      const params = buildRideListQuery({ filter, sort, query: debouncedQuery, calendarYear, calendarMonth });
       const response = await api<{ rides: Ride[]; pageInfo?: { hasMore?: boolean; nextCursor?: string | null } }>(`/rides?${params}`);
       const next = Array.isArray(response.rides) ? response.rides : [];
       const nextMemories = await buildRideMemories(next);
@@ -87,7 +92,7 @@ export function HistoryScreen() {
         setLoading(false);
       }
     }
-  }, [debouncedQuery, filter, sort]);
+  }, [calendarMonth, calendarYear, debouncedQuery, filter, sort]);
 
   const loadMore = useCallback(async () => {
     if (loading || loadMoreInFlight.current || !hasMore || !nextCursor || view !== "rides") return;
@@ -95,7 +100,7 @@ export function HistoryScreen() {
     loadMoreInFlight.current = true;
     setLoadingMore(true);
     try {
-      const params = buildRideListQuery({ filter, sort, query: debouncedQuery, cursor: nextCursor });
+      const params = buildRideListQuery({ filter, sort, query: debouncedQuery, cursor: nextCursor, calendarYear, calendarMonth });
       const response = await api<{ rides: Ride[]; pageInfo?: { hasMore?: boolean; nextCursor?: string | null } }>(`/rides?${params}`);
       if (generation !== requestGeneration.current) return;
       const incoming = Array.isArray(response.rides) ? response.rides : [];
@@ -116,7 +121,7 @@ export function HistoryScreen() {
         setLoadingMore(false);
       }
     }
-  }, [debouncedQuery, filter, hasMore, loading, nextCursor, rides, sort, view]);
+  }, [calendarMonth, calendarYear, debouncedQuery, filter, hasMore, loading, nextCursor, rides, sort, view]);
 
   useFocusEffect(useCallback(() => {
     load();
@@ -137,12 +142,31 @@ export function HistoryScreen() {
 
   function chooseView(next: JournalView) {
     if (next === "trips") {
-      AsyncStorage.setItem(preferenceKey, JSON.stringify({ filter, sort, view: "trips" })).catch(() => {});
+      AsyncStorage.setItem(preferenceKey, JSON.stringify({ filter, sort, view: "trips", calendarYear, calendarMonth })).catch(() => {});
       navigation.navigate("Trips");
       return;
     }
     setView(next);
   }
+
+  function chooseFilter(next: Filter) {
+    setFilter(next);
+    if (next === "month") {
+      setCalendarYear(null);
+      setCalendarMonth(null);
+    }
+  }
+
+  function chooseCalendarYear(year: number | null) {
+    setFilter("all");
+    setCalendarYear(year);
+    setCalendarMonth(null);
+  }
+
+  const calendarYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: Math.max(1, currentYear - 2008) }, (_, index) => currentYear - index);
+  }, []);
 
   const header = (
     <View style={styles.headerContent}>
@@ -152,7 +176,9 @@ export function HistoryScreen() {
       </View>
       {view === "rides" ? <>
         <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}><Ionicons name="search" color={colors.muted} size={18} /><TextInput accessibilityLabel="Search rides" value={query} onChangeText={setQuery} placeholder="Search rides, places, AI insights" placeholderTextColor={colors.muted} style={[styles.searchInput, { color: colors.text }]} />{query ? <Pressable accessibilityLabel="Clear search" onPress={() => setQuery("")}><Ionicons name="close-circle" color={colors.muted} size={19} /></Pressable> : null}</View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>{filters.map((item) => <Chip key={item.key} label={item.label} selected={filter === item.key} onPress={() => setFilter(item.key)} />)}</ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>{filters.map((item) => <Chip key={item.key} label={item.label} selected={filter === item.key && calendarYear == null} onPress={() => chooseFilter(item.key)} />)}</ScrollView>
+        <View style={styles.calendarRow}><Ionicons name="calendar-outline" color={colors.muted} size={17} /><Text style={[styles.sortLabel, { color: colors.muted }]}>Year</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarChips}><Chip compact label="Any" selected={calendarYear == null} onPress={() => chooseCalendarYear(null)} />{calendarYears.map((year) => <Chip key={year} compact label={String(year)} selected={calendarYear === year} onPress={() => chooseCalendarYear(year)} />)}</ScrollView></View>
+        {calendarYear != null ? <View style={styles.calendarRow}><Ionicons name="calendar-number-outline" color={colors.muted} size={17} /><Text style={[styles.sortLabel, { color: colors.muted }]}>Month</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarChips}><Chip compact label="All" selected={calendarMonth == null} onPress={() => setCalendarMonth(null)} />{monthLabels.map((label, month) => <Chip key={label} compact label={label} selected={calendarMonth === month} onPress={() => setCalendarMonth(month)} />)}</ScrollView></View> : null}
         <View style={styles.sortRow}><Text style={[styles.sortLabel, { color: colors.muted }]}>Sort</Text>{sorts.map((item) => <Chip key={item.key} compact label={item.label} selected={sort === item.key} onPress={() => setSort(item.key)} />)}</View>
       </> : null}
       {error ? <Pressable onPress={load} style={[styles.error, { backgroundColor: `${colors.danger}16` }]}><Ionicons name="cloud-offline" color={colors.danger} size={20} /><Text style={[styles.errorCopy, { color: colors.text }]}>{error}. Tap to retry.</Text></Pressable> : null}
@@ -172,5 +198,5 @@ function Chip({ label, selected, onPress, compact = false }: { label: string; se
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 120 }, headerContent: { gap: 16, marginBottom: 16 }, header: { gap: 4, paddingRight: 54 }, eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 }, title: { fontFamily: typography.extraBold, fontSize: 36 }, subtitle: { fontFamily: typography.regular, fontSize: 14, lineHeight: 20 }, viewTabs: { flexDirection: "row", borderRadius: 18, padding: 4 }, viewTab: { flex: 1, minHeight: 44, borderRadius: 14, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center" }, viewTabText: { fontFamily: typography.bold, fontSize: 11 }, searchBox: { minHeight: 48, borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 9 }, searchInput: { flex: 1, fontFamily: typography.medium, fontSize: 13 }, chips: { gap: 8 }, chip: { minHeight: 44, borderRadius: 999, paddingHorizontal: 15, alignItems: "center", justifyContent: "center" }, chipCompact: { minHeight: 44, paddingHorizontal: 12 }, chipText: { fontFamily: typography.bold, fontSize: 11 }, sortRow: { flexDirection: "row", alignItems: "center", gap: 7, flexWrap: "wrap" }, sortLabel: { fontFamily: typography.bold, fontSize: 11, marginRight: 2 }, error: { flexDirection: "row", gap: 10, alignItems: "center", padding: 14, borderRadius: 18 }, errorCopy: { flex: 1, fontFamily: typography.medium, fontSize: 12 }, separator: { height: 14 }, loading: { minHeight: 180, alignItems: "center", justifyContent: "center" }, footerLoading: { minHeight: 64, alignItems: "center", justifyContent: "center" }, loadMoreButton: { minHeight: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 14 }, loadMoreText: { fontFamily: typography.bold, fontSize: 13 }
+  content: { padding: 20, paddingBottom: 120 }, headerContent: { gap: 16, marginBottom: 16 }, header: { gap: 4, paddingRight: 54 }, eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 }, title: { fontFamily: typography.extraBold, fontSize: 36 }, subtitle: { fontFamily: typography.regular, fontSize: 14, lineHeight: 20 }, viewTabs: { flexDirection: "row", borderRadius: 18, padding: 4 }, viewTab: { flex: 1, minHeight: 44, borderRadius: 14, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center" }, viewTabText: { fontFamily: typography.bold, fontSize: 11 }, searchBox: { minHeight: 48, borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 9 }, searchInput: { flex: 1, fontFamily: typography.medium, fontSize: 13 }, chips: { gap: 8 }, calendarRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 7 }, calendarChips: { gap: 7, paddingRight: 12 }, chip: { minHeight: 44, borderRadius: 999, paddingHorizontal: 15, alignItems: "center", justifyContent: "center" }, chipCompact: { minHeight: 44, paddingHorizontal: 12 }, chipText: { fontFamily: typography.bold, fontSize: 11 }, sortRow: { flexDirection: "row", alignItems: "center", gap: 7, flexWrap: "wrap" }, sortLabel: { fontFamily: typography.bold, fontSize: 11, marginRight: 2 }, error: { flexDirection: "row", gap: 10, alignItems: "center", padding: 14, borderRadius: 18 }, errorCopy: { flex: 1, fontFamily: typography.medium, fontSize: 12 }, separator: { height: 14 }, loading: { minHeight: 180, alignItems: "center", justifyContent: "center" }, footerLoading: { minHeight: 64, alignItems: "center", justifyContent: "center" }, loadMoreButton: { minHeight: 48, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 14 }, loadMoreText: { fontFamily: typography.bold, fontSize: 13 }
 });

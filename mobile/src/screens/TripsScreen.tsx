@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
@@ -70,73 +70,92 @@ export function TripsScreen() {
     }
   }
 
+  const renderTrip = useCallback(({ item }: { item: Trip }) => (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => navigation.navigate("TripDetail", { tripId: item.id })}
+      style={({ pressed }) => [styles.tripCard, { backgroundColor: colors.surface }, pressed && styles.pressed]}
+    >
+      <View style={[styles.tripIcon, { backgroundColor: `${colors.accent}18` }]}>
+        <Ionicons name="albums" color={colors.accent} size={22} />
+      </View>
+      <View style={styles.tripBody}>
+        <Text numberOfLines={2} style={[styles.tripTitle, { color: colors.text }]}>{item.title}</Text>
+        <Text numberOfLines={2} style={[styles.tripMeta, { color: colors.muted }]}>
+          {item.rideCount} rides - {km(item.distanceM)}{item.startedAt ? ` - since ${shortDate(item.startedAt)}` : ""}
+        </Text>
+        {item.description ? <Text numberOfLines={2} style={[styles.tripDescription, { color: colors.textSoft }]}>{item.description}</Text> : null}
+      </View>
+      <Ionicons name="arrow-forward" color={colors.muted} size={20} />
+    </Pressable>
+  ), [colors, navigation]);
+
   return (
     <Screen includeTopInset={false}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
+      <FlatList
+        data={sortedTrips}
+        keyExtractor={(item) => item.id}
+        renderItem={renderTrip}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
-      >
-        <View style={styles.header}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading && sortedTrips.length > 0} onRefresh={load} tintColor={colors.accent} />}
+        ListHeaderComponent={(
+          <View style={styles.headerContent}>
+            <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={styles.headerCopy}>
               <Text style={[styles.eyebrow, { color: colors.accent }]}>TRIP ALBUMS</Text>
               <Text style={[styles.title, { color: colors.text }]}>Trips</Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Create new trip"
-              onPress={() => { setMessage(""); setCreateOpen(true); }}
-              style={({ pressed }) => [styles.newTripButton, { backgroundColor: colors.accent }, pressed && styles.pressed]}
-            >
-              <Ionicons name="add" color={colors.onAccent} size={20} />
-              <Text style={[styles.newTripText, { color: colors.onAccent }]}>New trip</Text>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Create new trip"
+                onPress={() => { setMessage(""); setCreateOpen(true); }}
+                style={({ pressed }) => [styles.newTripButton, { backgroundColor: colors.accent }, pressed && styles.pressed]}
+              >
+                <Ionicons name="add" color={colors.onAccent} size={20} />
+                <Text style={[styles.newTripText, { color: colors.onAccent }]}>New trip</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Import Google Timeline"
+                onPress={() => navigation.navigate("GoogleTimelineImport")}
+                style={({ pressed }) => [styles.importButton, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}
+              >
+                <Ionicons name="cloud-download" color={colors.accent} size={18} />
+                <Text style={[styles.importText, { color: colors.text }]}>Import</Text>
+              </Pressable>
+            </View>
           </View>
           <Text style={[styles.subtitle, { color: colors.muted }]}>Group related rides into a manual album without changing the ride records.</Text>
-        </View>
+            </View>
 
-        {error ? (
-          <Pressable onPress={load} style={[styles.notice, { backgroundColor: `${colors.danger}16` }]}>
-            <Ionicons name="cloud-offline" color={colors.danger} size={21} />
-            <Text style={[styles.noticeText, { color: colors.text }]}>{error}. Tap to retry.</Text>
-          </Pressable>
-        ) : null}
+            {error ? (
+              <Pressable onPress={load} style={[styles.notice, { backgroundColor: `${colors.danger}16` }]}>
+                <Ionicons name="cloud-offline" color={colors.danger} size={21} />
+                <Text style={[styles.noticeText, { color: colors.text }]}>{error}. Tap to retry.</Text>
+              </Pressable>
+            ) : null}
 
-        {loading && !sortedTrips.length ? (
-          <View style={styles.loading}><ActivityIndicator color={colors.accent} /></View>
-        ) : null}
+            {loading && !sortedTrips.length ? (
+              <View style={styles.loading}><ActivityIndicator color={colors.accent} /></View>
+            ) : null}
 
-        <View style={styles.list}>
-          {sortedTrips.map((trip) => (
-            <Pressable
-              key={trip.id}
-              accessibilityRole="button"
-              onPress={() => navigation.navigate("TripDetail", { tripId: trip.id })}
-              style={({ pressed }) => [styles.tripCard, { backgroundColor: colors.surface }, pressed && styles.pressed]}
-            >
-              <View style={[styles.tripIcon, { backgroundColor: `${colors.accent}18` }]}>
-                <Ionicons name="albums" color={colors.accent} size={22} />
-              </View>
-              <View style={styles.tripBody}>
-                <Text numberOfLines={2} style={[styles.tripTitle, { color: colors.text }]}>{trip.title}</Text>
-                <Text numberOfLines={2} style={[styles.tripMeta, { color: colors.muted }]}>
-                  {trip.rideCount} rides - {km(trip.distanceM)}{trip.startedAt ? ` - since ${shortDate(trip.startedAt)}` : ""}
-                </Text>
-                {trip.description ? <Text numberOfLines={2} style={[styles.tripDescription, { color: colors.textSoft }]}>{trip.description}</Text> : null}
-              </View>
-              <Ionicons name="arrow-forward" color={colors.muted} size={20} />
-            </Pressable>
-          ))}
-        </View>
-
-        {!loading && !error && !sortedTrips.length ? (
+          </View>
+        )}
+        ListEmptyComponent={!loading && !error ? (
           <View style={[styles.empty, { backgroundColor: colors.surface }]}>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No trip albums yet</Text>
             <Text style={[styles.emptyText, { color: colors.muted }]}>Create one here, then add rides from any Ride Detail screen.</Text>
           </View>
         ) : null}
-      </ScrollView>
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        removeClippedSubviews
+      />
       <Modal visible={createOpen} transparent animationType="slide" onRequestClose={() => setCreateOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="Close new trip form" style={styles.modalDismiss} onPress={() => setCreateOpen(false)} />
@@ -196,8 +215,10 @@ function normalizeTrip(value: any): Trip {
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 118, gap: 18 },
+  headerContent: { gap: 18 },
   header: { gap: 5 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  headerActions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 8 },
   headerCopy: { flex: 1, minWidth: 0, gap: 4 },
   eyebrow: { fontFamily: typography.bold, fontSize: 10, letterSpacing: 1.35 },
   title: { fontFamily: typography.extraBold, fontSize: 38, lineHeight: 44 },
@@ -205,6 +226,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: typography.bold, fontSize: 16 },
   newTripButton: { minHeight: 44, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 6 },
   newTripText: { fontFamily: typography.bold, fontSize: 13 },
+  importButton: { minHeight: 44, borderRadius: 15, paddingHorizontal: 12, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  importText: { fontFamily: typography.bold, fontSize: 13 },
   input: { minHeight: 46, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, fontFamily: typography.medium, fontSize: 13 },
   descriptionInput: { minHeight: 82, paddingTop: 12 },
   message: { fontFamily: typography.medium, fontSize: 12 },
@@ -212,6 +235,7 @@ const styles = StyleSheet.create({
   noticeText: { flex: 1, fontFamily: typography.medium, fontSize: 12 },
   loading: { height: 120, alignItems: "center", justifyContent: "center" },
   list: { gap: 12 },
+  separator: { height: 12 },
   tripCard: { borderRadius: 22, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   tripIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   tripBody: { flex: 1, minWidth: 0, gap: 4 },

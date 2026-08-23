@@ -47,8 +47,10 @@ public class RidesController {
       @RequestParam(required = false) Integer limit,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) String reviewStatus,
-      @RequestParam(required = false) String sort) {
-    return ResponseUtil.ok(rideService.list(authSupport.userId(request), period, q, limit, cursor, reviewStatus, sort));
+      @RequestParam(required = false) String sort,
+      @RequestParam(required = false) String startedFrom,
+      @RequestParam(required = false) String startedBefore) {
+    return ResponseUtil.ok(rideService.list(authSupport.userId(request), period, q, limit, cursor, reviewStatus, sort, startedFrom, startedBefore));
   }
 
   @GetMapping("/{id}/intelligence")
