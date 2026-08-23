@@ -22,6 +22,9 @@ class BackendContractQueryTest {
   void rideSearchIncludesAiFieldsAndStableKeysetOrdering() {
     assertThat(query("sql.ride.list-search"))
         .contains("r.ai_title", "r.ai_summary", "r.ride_kind", "r.key_insight");
+    assertThat(query("sql.ride.list-date-range"))
+        .contains("cast(:startedfrom as timestamptz) is null", "cast(:startedbefore as timestamptz) is null")
+        .doesNotContain(":startedfrom is null", ":startedbefore is null");
     assertThat(query("sql.ride.list-order-newest"))
         .contains("r.started_at desc", "r.id desc");
     assertThat(query("sql.ride.list-cursor-newest"))
