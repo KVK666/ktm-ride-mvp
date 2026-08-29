@@ -130,6 +130,7 @@ public final class QueryKeys {
   public static final String SCHEMA_RIDE_PHOTO_CLIENT_ID = "schema.ride-photo-client-id";
   public static final String SCHEMA_RIDE_PHOTO_CLIENT_ID_INDEX = "schema.ride-photo-client-id-index";
   public static final String SCHEMA_TRIPS_USER_INDEX = "schema.trips-user-index";
+  public static final String SCHEMA_TRIP_RIDES_MEMBERSHIP_INDEX = "schema.trip-rides-membership-index";
   public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
   public static final String SCHEMA_RIDES_USER_STARTED_INDEX = "schema.rides-user-started-index";
   public static final String SCHEMA_RIDES_SOURCE = "schema.rides-source";

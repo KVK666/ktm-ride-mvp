@@ -67,6 +67,10 @@ class BackendContractQueryTest {
         .contains("alter column id set default gen_random_uuid()", "alter column created_at set default now()", "alter column updated_at set default now()");
     assertThat(query("sql.schema.trip-rides-defaults"))
         .contains("alter column sort_order set default 0", "alter column added_at set default now()");
+    assertThat(query("sql.schema.trip-rides-membership-index"))
+        .contains("create unique index", "trip_rides", "trip_id", "ride_id");
+    assertThat(query("sql.trip.add-ride"))
+        .contains("on conflict (trip_id, ride_id) do nothing");
   }
 
   private static String query(String key) {
