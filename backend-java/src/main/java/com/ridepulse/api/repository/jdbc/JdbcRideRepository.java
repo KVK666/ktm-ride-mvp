@@ -9,6 +9,8 @@ import com.ridepulse.api.service.PhotoValidationService.NormalizedRidePhoto;
 import com.ridepulse.api.utility.RowMappers;
 import com.ridepulse.api.utility.Rows;
 import com.ridepulse.api.utility.SqlQueries;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -109,14 +111,15 @@ public class JdbcRideRepository implements RideRepository {
     return readWriteJdbc.query(
         sql.get(QueryKeys.RIDE_OVERLAPS),
         userParams(userId).addValue("startedAt", startedAt).addValue("endedAt", endedAt),
-        (rs, rowNum) -> {
-          Map<String, Object> row = new LinkedHashMap<>();
-          row.put("rideId", String.valueOf(rs.getObject("id")));
-          row.put("clientRideId", rs.getString("client_ride_id"));
-          row.put("startedAt", Rows.instantString(rs.getObject("started_at")));
-          row.put("endedAt", Rows.instantString(rs.getObject("ended_at")));
-          return row;
-        });
+        (rs, rowNum) -> overlapRow(rs));
+  }
+
+  @Override
+  public List<Map<String, Object>> overlapsRange(String userId, String startedAt, String endedAt) {
+    return readWriteJdbc.query(
+        sql.get(QueryKeys.RIDE_OVERLAPS_RANGE),
+        userParams(userId).addValue("startedAt", startedAt).addValue("endedAt", endedAt),
+        (rs, rowNum) -> overlapRow(rs));
   }
 
   @Override
@@ -329,6 +332,15 @@ public class JdbcRideRepository implements RideRepository {
 
   private MapSqlParameterSource rideParams(String rideId) {
     return new MapSqlParameterSource("rideId", rideId);
+  }
+
+  private static Map<String, Object> overlapRow(ResultSet rs) throws SQLException {
+    Map<String, Object> row = new LinkedHashMap<>();
+    row.put("rideId", String.valueOf(rs.getObject("id")));
+    row.put("clientRideId", rs.getString("client_ride_id"));
+    row.put("startedAt", Rows.instantString(rs.getObject("started_at")));
+    row.put("endedAt", Rows.instantString(rs.getObject("ended_at")));
+    return row;
   }
 
   private MapSqlParameterSource rideParams(String userId, String rideId) {

@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import { GoogleTimelineBackup, GoogleTimelineCandidate, GoogleTimelineGroup, GoogleTimelineUploadState } from "../types";
 import { groupTimelineCandidates, parseGoogleTimeline, GoogleTimelineParseOptions } from "./googleTimelineParser";
 import { saveGoogleTimelineBackup, updateGoogleTimelineBackupResult } from "./googleTimelineBackup";
@@ -8,6 +8,7 @@ import { saveGoogleTimelineBackup, updateGoogleTimelineBackupResult } from "./go
 export const GOOGLE_TIMELINE_IMPORT_STATE_KEY = "ridepulse_google_timeline_import_state_v1";
 export const GOOGLE_TIMELINE_IMPORT_MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 export const GOOGLE_TIMELINE_IMPORT_BATCH_SIZE = 50;
+const GOOGLE_TIMELINE_IMPORT_REQUEST_TIMEOUT_MS = 60000;
 export const GOOGLE_TIMELINE_BACKUP_VERSION = 2;
 
 export type GoogleTimelineImportProgress = {
@@ -24,7 +25,6 @@ export type GoogleTimelineImportProgress = {
 export type GoogleTimelineUploadOptions = {
   batchSize?: number;
   onProgress?: (progress: GoogleTimelineImportProgress) => void;
-  confirmedOverlapCandidateIds?: readonly string[];
   shouldCancel?: () => boolean;
 };
 
@@ -129,10 +129,6 @@ export async function uploadGoogleTimelineImport(backup: GoogleTimelineBackup, o
   const batchSize = Math.max(1, Math.min(GOOGLE_TIMELINE_IMPORT_BATCH_SIZE, Math.floor(options.batchSize || GOOGLE_TIMELINE_IMPORT_BATCH_SIZE)));
   const activeCandidates = selectedCandidates(backup);
   const activeGroups = albumGroups(backup);
-  const confirmedOverlapIds = new Set(options.confirmedOverlapCandidateIds || []);
-  if (confirmedOverlapIds.size) {
-    state.skippedCandidateIds = state.skippedCandidateIds.filter((candidateId) => !confirmedOverlapIds.has(candidateId));
-  }
   if (!activeCandidates.length) throw new Error("Select at least one Timeline route to import.");
 
   const assertNotCancelled = () => {
@@ -153,58 +149,40 @@ export async function uploadGoogleTimelineImport(backup: GoogleTimelineBackup, o
   };
 
   try {
-    const hasUncheckedActiveCandidate = activeCandidates.some((candidate) =>
-      !state.uploadedCandidateIds.includes(candidate.id) && !state.skippedCandidateIds.includes(candidate.id)
-    );
-    if (!state.checked || hasUncheckedActiveCandidate) {
-      assertNotCancelled();
-      state = await saveGoogleTimelineUploadState({ ...state, phase: "checking", error: null, failedCandidateId: null });
-      notify("checking");
-      const checked = await checkGoogleTimelineImport(backup, activeCandidates, batchSize);
-      for (const candidate of activeCandidates) {
-        const status = checked.statusByCandidateId[candidate.id];
-        if (status === "duplicate" || (status === "overlap" && !confirmedOverlapIds.has(candidate.id))) {
-          if (!state.skippedCandidateIds.includes(candidate.id)) state.skippedCandidateIds.push(candidate.id);
-          if (status === "duplicate") {
-            const rideId = checked.rideIdsByCandidateId[candidate.id];
-            if (rideId) state.rideIdsByCandidateId[candidate.id] = rideId;
-          } else {
-            delete state.rideIdsByCandidateId[candidate.id];
-          }
-        }
-      }
-      state = await saveGoogleTimelineUploadState({ ...state, checked: true, phase: "uploading", error: null });
-    } else {
-      state = await saveGoogleTimelineUploadState({ ...state, phase: "uploading", error: null, failedCandidateId: null });
-    }
+    assertNotCancelled();
+    state = await saveGoogleTimelineUploadState({ ...state, checked: true, phase: "uploading", error: null, failedCandidateId: null });
     notify("uploading");
 
     const pending = activeCandidates.filter((candidate) => !state.uploadedCandidateIds.includes(candidate.id) && !state.skippedCandidateIds.includes(candidate.id));
     for (const batch of batches(pending, batchSize)) {
       assertNotCancelled();
       state = await saveGoogleTimelineUploadState({ ...state, phase: "uploading", failedCandidateId: batch[0]?.id || null, error: null });
-      const allowedInBatch = batch.filter((candidate) => confirmedOverlapIds.has(candidate.id)).map((candidate) => candidate.id);
-      const response = await api<any>("/imports/google-timeline/rides", {
-        method: "POST",
-        body: JSON.stringify({
-          rides: batch.map((candidate) => toRidePayload(backup, candidate)),
-          allowOverlapClientRideIds: allowedInBatch
-        })
-      });
+      const response = await requestImportBatch<any>(
+        "/imports/google-timeline/rides",
+        { rides: batch.map((candidate) => toRidePayload(backup, candidate)) },
+        options.shouldCancel
+      );
       const rows = responseRows(response, "rides");
       for (const candidate of batch) {
         const row = rows.find((value) => value.clientRideId === candidate.id);
         if (!row) throw new Error("The server returned an incomplete Timeline ride batch.");
         const status = normalizeImportStatus(row.status);
         if (!status) throw new Error("The server returned an unknown Timeline ride status.");
-        if (status === "duplicate" || status === "overlap") {
+        if (status === "duplicate") {
           if (!state.skippedCandidateIds.includes(candidate.id)) state.skippedCandidateIds.push(candidate.id);
+          const rideId = text(row.rideId, row.id);
+          if (rideId) state.rideIdsByCandidateId[candidate.id] = rideId;
+        } else if (status === "overlap") {
+          if (!state.skippedCandidateIds.includes(candidate.id)) state.skippedCandidateIds.push(candidate.id);
+          delete state.rideIdsByCandidateId[candidate.id];
         } else if (status === "new") {
           if (!state.uploadedCandidateIds.includes(candidate.id)) state.uploadedCandidateIds.push(candidate.id);
+          const rideId = text(row.rideId, row.id);
+          if (!rideId) throw new Error("The server did not return the imported Timeline ride.");
+          state.rideIdsByCandidateId[candidate.id] = rideId;
         } else {
           throw new Error("The server returned an unknown Timeline ride status.");
         }
-        state.rideIdsByCandidateId[candidate.id] = text(row.rideId, row.id);
       }
       state.failedCandidateId = null;
       state = await saveGoogleTimelineUploadState(state);
@@ -223,10 +201,7 @@ export async function uploadGoogleTimelineImport(backup: GoogleTimelineBackup, o
           .map((candidate) => candidate.id)
       })).filter((trip) => trip.rideClientIds.length >= 2);
       if (!trips.length) continue;
-      const response = await api<any>("/imports/google-timeline/trips", {
-        method: "POST",
-        body: JSON.stringify({ trips })
-      });
+      const response = await requestImportBatch<any>("/imports/google-timeline/trips", { trips }, options.shouldCancel);
       const rows = responseRows(response, "trips");
       for (const trip of trips) {
         const row = rows.find((value) => value.clientTripId === trip.clientTripId);
@@ -350,6 +325,27 @@ function batches<T>(values: readonly T[], size: number) {
   const result: T[][] = [];
   for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
   return result;
+}
+
+async function requestImportBatch<T>(path: string, body: unknown, shouldCancel?: () => boolean): Promise<T> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (shouldCancel?.()) throw new Error("Import paused by rider.");
+    try {
+      return await api<T>(path, {
+        method: "POST",
+        timeoutMs: GOOGLE_TIMELINE_IMPORT_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify(body)
+      });
+    } catch (error) {
+      if ((error instanceof ApiError && error.status < 500) || attempt === 2) throw error;
+      await delay(500 * (attempt + 1));
+    }
+  }
+  throw new Error("Timeline import request failed.");
+}
+
+function delay(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function text(...values: unknown[]) {

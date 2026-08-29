@@ -22,6 +22,8 @@ public interface RideRepository {
 
   List<Map<String, Object>> overlaps(String userId, String startedAt, String endedAt);
 
+  List<Map<String, Object>> overlapsRange(String userId, String startedAt, String endedAt);
+
   List<Map<String, Object>> points(String rideId);
 
   List<Map<String, Object>> intelligencePoints(String rideId);

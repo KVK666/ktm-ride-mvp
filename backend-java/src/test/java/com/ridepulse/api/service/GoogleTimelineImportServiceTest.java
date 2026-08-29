@@ -29,10 +29,13 @@ class GoogleTimelineImportServiceTest {
 
   @Test
   void checkClassifiesExistingRidesAndTimeOverlapsWithoutCrossAccountReads() {
-    when(rideRepository.findByClientRideId("user-1", "already-imported"))
-        .thenReturn(Optional.of(Map.of("rideId", "ride-existing")));
-    when(rideRepository.overlaps("user-1", "2026-08-23T10:00:00Z", "2026-08-23T10:30:00Z"))
-        .thenReturn(List.of(Map.of("rideId", "ride-overlap")));
+    when(rideRepository.ownedRideIdsByClientIds("user-1", List.of("already-imported", "new-ride")))
+        .thenReturn(Map.of("already-imported", "ride-existing"));
+    when(rideRepository.overlapsRange("user-1", "2026-08-23T10:00:00Z", "2026-08-23T10:30:00Z"))
+        .thenReturn(List.of(Map.of(
+            "rideId", "ride-overlap",
+            "startedAt", "2026-08-23T10:05:00Z",
+            "endedAt", "2026-08-23T10:20:00Z")));
 
     Map<String, Object> response = service.check("user-1", Map.of("rides", List.of(
         ride("already-imported", "2026-08-23T09:00:00Z", "2026-08-23T09:30:00Z"),
@@ -43,9 +46,8 @@ class GoogleTimelineImportServiceTest {
     assertThat(statuses)
         .containsExactly("existing", "probable_overlap");
     assertThat(response.get("canImport")).isEqualTo(false);
-    verify(rideRepository).findByClientRideId("user-1", "already-imported");
-    verify(rideRepository).findByClientRideId("user-1", "new-ride");
-    verify(rideRepository, never()).findByClientRideId("other-user", "already-imported");
+    verify(rideRepository).ownedRideIdsByClientIds("user-1", List.of("already-imported", "new-ride"));
+    verify(rideRepository, never()).ownedRideIdsByClientIds(eq("other-user"), any());
   }
 
   @Test
@@ -100,8 +102,11 @@ class GoogleTimelineImportServiceTest {
 
   @Test
   void probableOverlapRequiresExplicitAllowanceBeforeWriting() {
-    when(rideRepository.overlaps("user-1", "2026-08-23T10:00:00Z", "2026-08-23T10:30:00Z"))
-        .thenReturn(List.of(Map.of("rideId", "ride-existing")));
+    when(rideRepository.overlapsRange("user-1", "2026-08-23T10:00:00Z", "2026-08-23T10:30:00Z"))
+        .thenReturn(List.of(Map.of(
+            "rideId", "ride-existing",
+            "startedAt", "2026-08-23T10:05:00Z",
+            "endedAt", "2026-08-23T10:20:00Z")));
     when(rideRepository.insertImportedRide(eq("user-1"), any(), eq("overlap"), any(), any(), any(), any()))
         .thenReturn("ride-overlap");
 
@@ -120,8 +125,8 @@ class GoogleTimelineImportServiceTest {
 
   @Test
   void importingTheSameClientRideReturnsDuplicateAndDoesNotWritePoints() {
-    when(rideRepository.findByClientRideId("user-1", "already-imported"))
-        .thenReturn(Optional.of(Map.of("rideId", "ride-existing")));
+    when(rideRepository.ownedRideIdsByClientIds("user-1", List.of("already-imported")))
+        .thenReturn(Map.of("already-imported", "ride-existing"));
 
     Map<String, Object> response = service.importRides("user-1", Map.of("rides", List.of(
         ride("already-imported", "2026-08-23T10:00:00Z", "2026-08-23T10:30:00Z"))));
@@ -131,6 +136,7 @@ class GoogleTimelineImportServiceTest {
         .isEqualTo("ride-existing");
     verify(rideRepository, never()).insertImportedRide(any(), any(), any(), any(), any(), any(), any());
     verify(rideRepository, never()).insertPoints(any(), any());
+    verify(rideRepository, never()).overlapsRange(any(), any(), any());
   }
 
   @Test
@@ -197,7 +203,7 @@ class GoogleTimelineImportServiceTest {
     assertThatThrownBy(() -> service.check("user-1", Map.of("rides", List.of(
         ride("bad-ride", "2026-08-23T10:30:00Z", "2026-08-23T10:00:00Z")))))
         .isInstanceOf(ApiException.class);
-    verify(rideRepository, never()).findByClientRideId(any(), any());
+    verify(rideRepository, never()).ownedRideIdsByClientIds(any(), any());
   }
 
   private static Map<String, Object> ride(String clientRideId, String startedAt, String endedAt) {

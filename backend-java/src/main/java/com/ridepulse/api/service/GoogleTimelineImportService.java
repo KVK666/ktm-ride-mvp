@@ -169,16 +169,28 @@ public class GoogleTimelineImportService {
   private List<RideInspection> inspect(String userId, List<ImportedRide> rides) {
     List<RideInspection> inspections = new ArrayList<>();
     List<ImportedRide> acceptedInBatch = new ArrayList<>();
+    List<String> clientRideIds = rides.stream().map(ImportedRide::clientRideId).toList();
+    Map<String, String> foundRideIds = rideRepository.ownedRideIdsByClientIds(userId, clientRideIds);
+    Map<String, String> existingRideIds = foundRideIds == null ? Map.of() : foundRideIds;
+    List<ImportedRide> unmatchedRides = rides.stream()
+        .filter(ride -> !existingRideIds.containsKey(ride.clientRideId()))
+        .toList();
+    List<Map<String, Object>> existingIntervals = List.of();
+    if (!unmatchedRides.isEmpty()) {
+      String rangeStart = unmatchedRides.stream().map(ImportedRide::startedAt).min(Comparator.comparing(Instant::parse)).orElseThrow();
+      String rangeEnd = unmatchedRides.stream().map(ImportedRide::endedAt).max(Comparator.comparing(Instant::parse)).orElseThrow();
+      existingIntervals = rideRepository.overlapsRange(userId, rangeStart, rangeEnd);
+      if (existingIntervals == null) existingIntervals = List.of();
+    }
     for (ImportedRide ride : rides) {
-      Map<String, Object> duplicate = rideRepository.findByClientRideId(userId, ride.clientRideId()).orElse(null);
       Map<String, Object> summary = summary(ride);
-      if (duplicate != null) {
-        inspections.add(new RideInspection(ride, "existing", text(first(duplicate, "rideId", "id")), summary, null));
+      String existingRideId = existingRideIds.get(ride.clientRideId());
+      if (existingRideId != null) {
+        inspections.add(new RideInspection(ride, "existing", existingRideId, summary, null));
         continue;
       }
 
-      List<Map<String, Object>> overlaps = rideRepository.overlaps(userId, ride.startedAt(), ride.endedAt());
-      Map<String, Object> overlap = overlaps.isEmpty() ? null : overlaps.get(0);
+      Map<String, Object> overlap = firstOverlap(existingIntervals, ride);
       if (overlap == null) {
         overlap = batchOverlap(acceptedInBatch, ride);
       }
@@ -190,6 +202,29 @@ public class GoogleTimelineImportService {
       }
     }
     return inspections;
+  }
+
+  private static Map<String, Object> firstOverlap(List<Map<String, Object>> intervals, ImportedRide ride) {
+    Instant rideStart = Instant.parse(ride.startedAt());
+    Instant rideEnd = Instant.parse(ride.endedAt());
+    for (Map<String, Object> interval : intervals) {
+      Instant intervalStart = instantOrNull(first(interval, "startedAt", "started_at"));
+      if (intervalStart == null) continue;
+      if (!intervalStart.isBefore(rideEnd)) break;
+      Instant intervalEnd = instantOrNull(first(interval, "endedAt", "ended_at"));
+      if (intervalEnd == null) intervalEnd = intervalStart;
+      if (intervalEnd.isAfter(rideStart)) return interval;
+    }
+    return null;
+  }
+
+  private static Instant instantOrNull(Object value) {
+    if (value == null) return null;
+    try {
+      return Instant.parse(String.valueOf(value));
+    } catch (DateTimeParseException ignored) {
+      return null;
+    }
   }
 
   private Map<String, Object> checkClientRideIds(String userId, Map<String, Object> body) {

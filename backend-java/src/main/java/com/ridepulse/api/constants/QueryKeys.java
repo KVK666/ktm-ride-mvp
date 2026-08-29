@@ -41,6 +41,7 @@ public final class QueryKeys {
   public static final String RIDE_INSERT_POINT = "ride.insert-point";
   public static final String RIDE_BY_CLIENT_ID = "ride.by-client-id";
   public static final String RIDE_OVERLAPS = "ride.overlaps";
+  public static final String RIDE_OVERLAPS_RANGE = "ride.overlaps-range";
   public static final String RIDE_DELETE = "ride.delete";
   public static final String RIDE_AI_MARK_PENDING = "ride.ai-mark-pending";
   public static final String RIDE_AI_SAVE = "ride.ai-save";

@@ -18,6 +18,8 @@ export class ApiError extends Error {
   }
 }
 
+type ApiRequestOptions = RequestInit & { timeoutMs?: number };
+
 export function isAuthenticationError(error: unknown) {
   return error instanceof ApiError && (error.status === 401 || error.status === 403);
 }
@@ -98,19 +100,20 @@ export async function clearToken() {
   }
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function api<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const token = await readToken();
+  const { timeoutMs = 10000, ...requestOptions } = options;
   let response: Response;
 
   try {
     response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
-      ...options,
+      ...requestOptions,
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers || {})
+        ...(requestOptions.headers || {})
       }
-    }, 10000);
+    }, timeoutMs);
   } catch (error: any) {
     logDiagnostic({
       level: "error",

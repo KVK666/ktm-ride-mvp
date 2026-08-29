@@ -19,6 +19,7 @@ import {
 import ImageViewing from "react-native-image-viewing";
 import { captureRef } from "react-native-view-shot";
 import { api } from "../api/client";
+import { ConfirmationModal } from "../components/ConfirmationModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Metric } from "../components/Metric";
 import { RideSlideshowModal } from "../components/RideSlideshowModal";
@@ -55,6 +56,7 @@ type RideDetailParams = {
 };
 
 type RideDetailSection = "overview" | "album" | "details";
+type RideDeleteConfirmation = { kind: "ride" | "duplicate"; ride: Ride };
 
 export function RideDetailScreen() {
   const { colors } = useTheme();
@@ -71,6 +73,7 @@ export function RideDetailScreen() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [deletingDuplicateId, setDeletingDuplicateId] = useState<string | null>(null);
   const [deletingRide, setDeletingRide] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<RideDeleteConfirmation | null>(null);
   const [album, setAlbum] = useState<RideAlbum | null>(null);
   const [photos, setPhotos] = useState<RideAlbumPhoto[]>([]);
   const [photosSearched, setPhotosSearched] = useState(false);
@@ -302,18 +305,7 @@ export function RideDetailScreen() {
   }
 
   function confirmDeleteDuplicate(duplicate: Ride) {
-    Alert.alert(
-      "Delete duplicate ride?",
-      `${rideTitle(duplicate)}\n${shortDate(duplicate.startedAt)} - ${km(duplicate.distanceM)}\n\nThis permanently removes the duplicate ride and its route points.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteDuplicate(duplicate.id)
-        }
-      ]
-    );
+    setDeleteConfirmation({ kind: "duplicate", ride: duplicate });
   }
 
   async function deleteDuplicate(rideId: string) {
@@ -322,9 +314,11 @@ export function RideDetailScreen() {
     try {
       await api(`/rides/${rideId}`, { method: "DELETE" });
       setDuplicateRides((current) => current.filter((item) => item.id !== rideId));
+      setDeleteConfirmation(null);
       setReviewMessage("Duplicate ride deleted.");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     } catch (err: any) {
+      setDeleteConfirmation(null);
       setReviewMessage(err.message || "Unable to delete duplicate ride");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
@@ -337,18 +331,7 @@ export function RideDetailScreen() {
       return;
     }
 
-    Alert.alert(
-      "Delete this ride?",
-      `${displayTitle}\n${shortDate(ride.startedAt)} · ${km(ride.distanceM)}\n\nThis permanently removes the ride and its saved route points.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete ride",
-          style: "destructive",
-          onPress: () => deleteCurrentRide()
-        }
-      ]
-    );
+    setDeleteConfirmation({ kind: "ride", ride });
   }
 
   async function deleteCurrentRide() {
@@ -360,9 +343,11 @@ export function RideDetailScreen() {
     setReviewMessage("");
     try {
       await api(`/rides/${ride.id}`, { method: "DELETE" });
+      setDeleteConfirmation(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       navigation.navigate("MainTabs", { screen: "Journal" });
     } catch (err: any) {
+      setDeleteConfirmation(null);
       setReviewMessage(err.message || "Unable to delete this ride");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
@@ -1112,6 +1097,23 @@ export function RideDetailScreen() {
         photos={photos}
         initialIndex={photoViewerInitialIndex}
         onClose={() => setSlideshowOpen(false)}
+      />
+      <ConfirmationModal
+        visible={Boolean(deleteConfirmation)}
+        title={deleteConfirmation?.kind === "duplicate" ? "Delete duplicate ride?" : "Delete this ride?"}
+        message="This permanently removes the ride and its saved route points. This cannot be undone."
+        detail={deleteConfirmation ? `${rideTitle(deleteConfirmation.ride)} · ${shortDate(deleteConfirmation.ride.startedAt)} · ${km(deleteConfirmation.ride.distanceM)}` : undefined}
+        confirmLabel={deleteConfirmation?.kind === "duplicate" ? "Delete duplicate" : "Delete ride"}
+        confirmIcon="trash"
+        danger
+        loading={deletingRide || Boolean(deletingDuplicateId)}
+        onClose={() => setDeleteConfirmation(null)}
+        onConfirm={() => {
+          const confirmation = deleteConfirmation;
+          if (!confirmation) return;
+          if (confirmation.kind === "duplicate") void deleteDuplicate(confirmation.ride.id);
+          else void deleteCurrentRide();
+        }}
       />
     </Screen>
   );

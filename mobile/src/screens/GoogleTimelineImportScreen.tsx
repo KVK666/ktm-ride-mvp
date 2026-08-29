@@ -4,6 +4,7 @@ import * as FileSystem from "expo-file-system";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { ConfirmationModal } from "../components/ConfirmationModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteVisualizer } from "../components/RouteVisualizer";
 import { Screen } from "../components/Screen";
@@ -16,7 +17,6 @@ import {
   loadGoogleTimelineUploadState,
   prepareGoogleTimelineImport,
   uploadGoogleTimelineImport,
-  checkGoogleTimelineImport,
   GOOGLE_TIMELINE_BACKUP_VERSION,
   GOOGLE_TIMELINE_IMPORT_MAX_SOURCE_BYTES,
   GoogleTimelineImportProgress
@@ -44,10 +44,9 @@ export function GoogleTimelineImportScreen() {
   const [albumEnabledDraft, setAlbumEnabledDraft] = useState(false);
   const [mergeGroupIds, setMergeGroupIds] = useState<Set<string>>(() => new Set());
   const [albumCandidateIds, setAlbumCandidateIds] = useState<Set<string>>(() => new Set());
-  const [checkSummary, setCheckSummary] = useState<{ newCount: number; duplicateCount: number; overlapCount: number; overlapCandidateIds: string[] } | null>(null);
   const [showCustomize, setShowCustomize] = useState(false);
   const [showSavedImports, setShowSavedImports] = useState(false);
-  const [includeOverlaps, setIncludeOverlaps] = useState(false);
+  const [importConfirmationOpen, setImportConfirmationOpen] = useState(false);
   const cancelRequested = useRef(false);
 
   const selectedGroups = useMemo(() => backup?.groups.filter((group) => group.selected !== false) || [], [backup]);
@@ -60,7 +59,8 @@ export function GoogleTimelineImportScreen() {
     [selectedGroups]
   );
   const importComplete = uploadState?.phase === "complete";
-  const currentStep = !backup ? 1 : checkSummary || importComplete ? 3 : 2;
+  const importPaused = uploadState?.phase === "failed" || progress?.phase === "failed";
+  const currentStep = !backup ? 1 : busy || progress || importComplete ? 3 : 2;
   const filteredCandidates = useMemo(() => {
     if (!backup) return [];
     const query = searchQuery.trim().toLowerCase();
@@ -133,30 +133,15 @@ export function GoogleTimelineImportScreen() {
       setSavedBackups(await listGoogleTimelineBackups());
       setUploadState(prepared.state);
       setProgress(null);
-      setCheckSummary(null);
       setMergeGroupIds(new Set());
       setAlbumCandidateIds(new Set());
       setShowCustomize(false);
-      setIncludeOverlaps(false);
       setViewMode("dates");
       setSearchQuery("");
       setYearFilter("all");
       setMonthFilter("all");
       setSelectionFilter("all");
-      setNotice(`Found ${prepared.backup.candidates.length.toLocaleString()} rides. Checking which ones are new...`);
-      try {
-        const checked = await checkGoogleTimelineImport(prepared.backup);
-        const rows = Object.values(checked.statusByCandidateId);
-        setCheckSummary({
-          newCount: rows.filter((status) => status === "new").length,
-          duplicateCount: rows.filter((status) => status === "duplicate").length,
-          overlapCount: rows.filter((status) => status === "overlap").length,
-          overlapCandidateIds: Object.entries(checked.statusByCandidateId).filter(([, status]) => status === "overlap").map(([candidateId]) => candidateId)
-        });
-        setNotice("Your import is ready. Review the summary and add the rides when you are comfortable.");
-      } catch {
-        setNotice("The file is ready. Continue when the backend is available to check for duplicates.");
-      }
+      setNotice(`RidePulse found ${prepared.backup.candidates.length.toLocaleString()} rides and grouped them automatically. Nothing has been added yet.`);
     } catch (value) {
       setError(value instanceof Error ? value.message : "Timeline import could not be prepared.");
     } finally {
@@ -171,7 +156,6 @@ export function GoogleTimelineImportScreen() {
       groups: backup.groups.map((group) => group.id === groupId ? { ...group, selected: !group.selected } : group)
     };
     setBackup(next);
-    setCheckSummary(null);
     setMergeGroupIds(new Set());
     setAlbumCandidateIds(new Set());
     try {
@@ -189,7 +173,6 @@ export function GoogleTimelineImportScreen() {
       groups: backup.groups.map((group) => ({ ...group, candidates: group.candidates.map((candidate) => candidate.id === candidateId ? { ...candidate, selected: candidate.selected === false } : candidate) }))
     };
     setBackup(next);
-    setCheckSummary(null);
     await saveGoogleTimelineBackup(next).catch(() => setError("Selection could not be saved locally. Try again."));
   }
 
@@ -202,7 +185,6 @@ export function GoogleTimelineImportScreen() {
       groups: backup.groups.map((group) => ({ ...group, candidates: group.candidates.map((candidate) => ids.has(candidate.id) ? { ...candidate, selected } : candidate) }))
     };
     setBackup(next);
-    setCheckSummary(null);
     await saveGoogleTimelineBackup(next).catch(() => setError("Selection could not be saved locally. Try again."));
   }
 
@@ -219,7 +201,6 @@ export function GoogleTimelineImportScreen() {
       groups: backup.groups.map((group) => group.id === editingGroup.id ? { ...group, title: groupTitleDraft.trim() || group.title, albumEnabled: albumEnabledDraft } : group)
     };
     setBackup(next);
-    setCheckSummary(null);
     setEditingGroup(null);
     await saveGoogleTimelineBackup(next).catch(() => setError("Album settings could not be saved locally."));
   }
@@ -241,7 +222,6 @@ export function GoogleTimelineImportScreen() {
     const selectedIds = new Set(groupsToMerge.map((group) => group.id));
     const next = { ...backup, groups: [...backup.groups.filter((group) => !selectedIds.has(group.id)), merged] };
     setBackup(next);
-    setCheckSummary(null);
     setMergeGroupIds(new Set());
     await saveGoogleTimelineBackup(next).catch(() => setError("Albums could not be merged locally."));
   }
@@ -311,7 +291,6 @@ export function GoogleTimelineImportScreen() {
     };
     const next = { ...backup, groups: [...remainingGroups, newGroup] };
     setBackup(next);
-    setCheckSummary(null);
     setAlbumCandidateIds(new Set());
     await saveGoogleTimelineBackup(next).catch(() => setError("The new album could not be saved locally."));
   }
@@ -340,9 +319,7 @@ export function GoogleTimelineImportScreen() {
     }
     setBackup(saved);
     setUploadState(state);
-    setCheckSummary(null);
     setShowCustomize(false);
-    setIncludeOverlaps(false);
     setMergeGroupIds(new Set());
     setAlbumCandidateIds(new Set());
     setNotice("Saved Timeline import reopened.");
@@ -360,37 +337,14 @@ export function GoogleTimelineImportScreen() {
     ]);
   }
 
-  async function startUpload() {
+  function startUpload() {
     if (!backup || busy || selectedCandidates < 1) return;
-    if (!checkSummary) {
-      setBusy(true);
-      setError("");
-      try {
-        const checked = await checkGoogleTimelineImport(backup);
-        const rows = Object.values(checked.statusByCandidateId);
-        setCheckSummary({
-          newCount: rows.filter((status) => status === "new").length,
-          duplicateCount: rows.filter((status) => status === "duplicate").length,
-          overlapCount: rows.filter((status) => status === "overlap").length,
-          overlapCandidateIds: Object.entries(checked.statusByCandidateId).filter(([, status]) => status === "overlap").map(([candidateId]) => candidateId)
-        });
-        setNotice("Review the duplicate and overlap counts, then confirm the import.");
-      } catch (value) {
-        setError(value instanceof Error ? value.message : "Timeline conflict check failed.");
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    const ridesToImport = checkSummary.newCount + (includeOverlaps ? checkSummary.overlapCount : 0);
-    const message = `${ridesToImport.toLocaleString()} new rides will be added to Journal and up to ${enabledAlbumCount.toLocaleString()} date-based Trips will be created. ${checkSummary.duplicateCount.toLocaleString()} rides already in RidePulse will be skipped.${checkSummary.overlapCount ? ` ${checkSummary.overlapCount.toLocaleString()} possible duplicates will be ${includeOverlaps ? "included" : "skipped"}.` : ""}`;
-    const actions: any[] = [{ text: "Cancel", style: "cancel" }];
-    actions.push({ text: "Add rides", onPress: () => void performUpload(includeOverlaps) });
-    Alert.alert("Add these rides to RidePulse?", message, actions);
+    setImportConfirmationOpen(true);
   }
 
-  async function performUpload(includeOverlaps: boolean) {
+  async function performUpload() {
     if (!backup || busy || selectedCandidates < 1) return;
+    setImportConfirmationOpen(false);
     cancelRequested.current = false;
     setBusy(true);
     setError("");
@@ -398,16 +352,16 @@ export function GoogleTimelineImportScreen() {
     try {
       const finalState = await uploadGoogleTimelineImport(backup, {
         onProgress: handleProgress,
-        confirmedOverlapCandidateIds: includeOverlaps ? checkSummary?.overlapCandidateIds : [],
         shouldCancel: () => cancelRequested.current
       });
       setUploadState(finalState);
       setSavedBackups(await listGoogleTimelineBackups());
-      setNotice(`Imported ${finalState.uploadedCandidateIds.length.toLocaleString()} routes. Existing routes were skipped safely.`);
-      setCheckSummary(null);
+      setNotice(`Added ${finalState.uploadedCandidateIds.length.toLocaleString()} rides and created ${Object.keys(finalState.tripIdsByGroupId).length.toLocaleString()} Trips. ${finalState.skippedCandidateIds.length.toLocaleString()} existing or overlapping rides were skipped safely.`);
     } catch (value) {
       const message = value instanceof Error ? value.message : "Timeline upload stopped.";
-      setError(message);
+      setError(message.toLowerCase().includes("timed out")
+        ? "The server took too long for this batch. Your progress is saved; tap Resume import to continue safely."
+        : message);
       const state = await loadGoogleTimelineUploadState();
       if (state) setUploadState(state);
     } finally {
@@ -504,21 +458,6 @@ export function GoogleTimelineImportScreen() {
                   <Text style={[styles.summaryHint, { color: colors.muted }]}>RidePulse adds only new rides. Rides from the same date become a Trip automatically.</Text>
                 </View>
 
-                {checkSummary ? (
-                  <View style={[styles.checkSummary, { borderColor: colors.border }]}>
-                    <Text style={[styles.checkTitle, { color: colors.text }]}>Ready to import</Text>
-                    <CheckRow icon="add-circle-outline" label="New rides to add" value={checkSummary.newCount} color={colors.success} colors={colors} />
-                    <CheckRow icon="checkmark-done-outline" label="Already in RidePulse" value={checkSummary.duplicateCount} color={colors.muted} colors={colors} />
-                    {checkSummary.overlapCount ? <CheckRow icon="copy-outline" label="Possible duplicates" value={checkSummary.overlapCount} color={colors.yellow} colors={colors} /> : null}
-                    {checkSummary.overlapCount ? (
-                      <Pressable accessibilityRole="switch" accessibilityState={{ checked: includeOverlaps }} onPress={() => setIncludeOverlaps((value) => !value)} style={[styles.overlapChoice, { backgroundColor: colors.surfaceHigh }]}>
-                        <Ionicons name={includeOverlaps ? "checkbox" : "square-outline"} color={includeOverlaps ? colors.yellow : colors.muted} size={21} />
-                        <View style={styles.groupCopy}><Text style={[styles.choiceTitle, { color: colors.text }]}>{includeOverlaps ? "Include possible duplicates" : "Skip possible duplicates"}</Text><Text style={[styles.choiceBody, { color: colors.muted }]}>Skipping is recommended. Change this only when you know those rides are separate.</Text></View>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ) : null}
-
                 <Pressable accessibilityRole="button" onPress={() => setShowCustomize((value) => !value)} style={[styles.customizeButton, { borderColor: colors.border }]}>
                   <Ionicons name="options-outline" color={colors.accent} size={19} />
                   <View style={styles.groupCopy}><Text style={[styles.customizeTitle, { color: colors.text }]}>Customize rides and Trips</Text><Text style={[styles.choiceBody, { color: colors.muted }]}>Optional: exclude dates, preview routes, rename Trips, or merge groups.</Text></View>
@@ -540,7 +479,7 @@ export function GoogleTimelineImportScreen() {
             </> : null}
             {progress ? (
               <View style={[styles.progress, { backgroundColor: colors.surface }]}>
-                <View style={styles.progressHeader}><Text style={[styles.progressTitle, { color: colors.text }]}>{progress.phase === "complete" ? "Import complete" : progress.phase === "failed" ? "Import paused" : "Importing routes"}</Text><Text style={[styles.progressValue, { color: colors.accent }]}>{progress.processedCandidates}/{progress.totalCandidates}</Text></View>
+                <View style={styles.progressHeader}><Text style={[styles.progressTitle, { color: colors.text }]}>{progress.phase === "complete" ? "Import complete" : progress.phase === "failed" ? "Import paused" : "Reviewing and adding rides"}</Text><Text style={[styles.progressValue, { color: colors.accent }]}>{progress.processedCandidates}/{progress.totalCandidates}</Text></View>
                 <View style={[styles.progressTrack, { backgroundColor: colors.surfaceHigh }]}><View style={[styles.progressFill, { backgroundColor: progress.phase === "failed" ? colors.danger : colors.accent, width: `${progress.totalCandidates ? Math.min(100, progress.processedCandidates / progress.totalCandidates * 100) : 0}%` }]} /></View>
               </View>
             ) : null}
@@ -554,12 +493,23 @@ export function GoogleTimelineImportScreen() {
         windowSize={7}
         removeClippedSubviews
       />
-      {backup ? <View style={[styles.actionDock, { backgroundColor: colors.background, borderColor: colors.border }]}>{importComplete ? <PrimaryButton label="View rides in Journal" icon="checkmark-circle" onPress={() => navigation.navigate("MainTabs", { screen: "Journal" })} block /> : <PrimaryButton label={busy ? (progress ? "Adding rides..." : "Preparing import...") : checkSummary ? `Add ${(checkSummary.newCount + (includeOverlaps ? checkSummary.overlapCount : 0)).toLocaleString()} rides` : "Continue"} icon="arrow-forward" loading={busy} disabled={!selectedCandidates} onPress={startUpload} block />}{busy && progress ? <Pressable accessibilityRole="button" onPress={pauseImport} style={styles.dockLink}><Ionicons name="pause" color={colors.accent} size={17} /><Text style={[styles.linkText, { color: colors.text }]}>Pause after this batch</Text></Pressable> : null}</View> : null}
+      {backup ? <View style={[styles.actionDock, { backgroundColor: colors.background, borderColor: colors.border }]}>{importComplete ? <PrimaryButton label="View rides in Journal" icon="checkmark-circle" onPress={() => navigation.navigate("MainTabs", { screen: "Journal" })} block /> : <PrimaryButton label={busy ? "Reviewing and adding rides..." : importPaused ? "Resume import" : `Add ${selectedCandidates.toLocaleString()} rides`} icon={importPaused ? "refresh" : "cloud-upload"} loading={busy} disabled={!selectedCandidates} onPress={startUpload} block />}{busy && progress ? <Pressable accessibilityRole="button" onPress={pauseImport} style={styles.dockLink}><Ionicons name="pause" color={colors.accent} size={17} /><Text style={[styles.linkText, { color: colors.text }]}>Pause after this batch</Text></Pressable> : null}</View> : null}
       {busy && !backup ? <View style={styles.busyOverlay}><ActivityIndicator color={colors.accent} /></View> : null}
       <Modal visible={Boolean(previewCandidate)} animationType="slide" onRequestClose={() => setPreviewCandidate(null)}>
         <Screen><View style={styles.previewSheet}><View style={styles.sheetHeader}><Text style={[styles.previewTitle, { color: colors.text }]}>Route preview</Text><Pressable accessibilityRole="button" accessibilityLabel="Close route preview" onPress={() => setPreviewCandidate(null)} style={[styles.iconButton, { backgroundColor: colors.surfaceHigh }]}><Ionicons name="close" color={colors.text} size={21} /></Pressable></View>{previewCandidate ? <RoutePreview candidate={previewCandidate} /> : null}</View></Screen>
       </Modal>
       <Modal visible={Boolean(editingGroup)} transparent animationType="slide" onRequestClose={() => setEditingGroup(null)}><View style={styles.modalBackdrop}><Pressable style={styles.modalDismiss} onPress={() => setEditingGroup(null)} /><View style={[styles.editSheet, { backgroundColor: colors.surface }]}><Text style={[styles.previewTitle, { color: colors.text }]}>Edit album</Text><TextInput value={groupTitleDraft} onChangeText={setGroupTitleDraft} placeholder="Album name" placeholderTextColor={colors.muted} style={[styles.editInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceHigh }]} /><Pressable accessibilityRole="switch" accessibilityState={{ checked: albumEnabledDraft }} onPress={() => setAlbumEnabledDraft((enabled) => !enabled)} style={[styles.albumToggle, { borderColor: albumEnabledDraft ? colors.accent : colors.border, backgroundColor: albumEnabledDraft ? `${colors.accent}18` : colors.surfaceHigh }]}><Ionicons name={albumEnabledDraft ? "albums" : "remove-circle-outline"} color={albumEnabledDraft ? colors.accent : colors.muted} size={19} /><Text style={[styles.bulkText, { color: colors.text }]}>{albumEnabledDraft ? "Create album for this date" : "Keep routes standalone"}</Text></Pressable><PrimaryButton label="Save album" icon="save" onPress={saveGroupEdit} block /></View></View></Modal>
+      <ConfirmationModal
+        visible={importConfirmationOpen}
+        title={importPaused ? "Resume Timeline import?" : "Add these rides?"}
+        message={importPaused ? "RidePulse will continue from the last completed batch." : "RidePulse will review, deduplicate, and group the selected rides automatically."}
+        detail={importPaused ? "Completed rides will not be added twice." : `${selectedCandidates.toLocaleString()} rides selected · Up to ${enabledAlbumCount.toLocaleString()} Trips`}
+        confirmLabel={importPaused ? "Resume import" : "Add rides"}
+        confirmIcon={importPaused ? "refresh" : "cloud-upload"}
+        loading={busy}
+        onClose={() => setImportConfirmationOpen(false)}
+        onConfirm={() => void performUpload()}
+      />
     </Screen>
   );
 }
@@ -581,10 +531,6 @@ function GuideRow({ icon, title, body, colors }: { icon: IoniconName; title: str
 
 function SummaryStat({ value, label, colors }: { value: string; label: string; colors: ThemeColors }) {
   return <View style={styles.summaryStat}><Text adjustsFontSizeToFit numberOfLines={1} style={[styles.summaryStatValue, { color: colors.text }]}>{value}</Text><Text style={[styles.summaryStatLabel, { color: colors.muted }]}>{label}</Text></View>;
-}
-
-function CheckRow({ icon, label, value, color, colors }: { icon: IoniconName; label: string; value: number; color: string; colors: ThemeColors }) {
-  return <View style={styles.checkRow}><Ionicons name={icon} color={color} size={19} /><Text style={[styles.checkLabel, { color: colors.text }]}>{label}</Text><Text style={[styles.checkValue, { color }]}>{value.toLocaleString()}</Text></View>;
 }
 
 function RoutePreview({ candidate }: { candidate: GoogleTimelineCandidate }) {
@@ -666,13 +612,6 @@ const styles = StyleSheet.create({
   progressValue: { fontFamily: typography.bold, fontSize: 12 },
   progressTrack: { height: 7, borderRadius: 4, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 4 },
-  checkSummary: { borderWidth: 1, borderRadius: 16, padding: 14, gap: 11 },
-  checkTitle: { fontFamily: typography.extraBold, fontSize: 16 },
-  checkRow: { minHeight: 30, flexDirection: "row", alignItems: "center", gap: 9 },
-  checkLabel: { flex: 1, fontFamily: typography.medium, fontSize: 12 },
-  checkValue: { fontFamily: typography.extraBold, fontSize: 14 },
-  overlapChoice: { minHeight: 62, borderRadius: 8, padding: 11, flexDirection: "row", alignItems: "center", gap: 10 },
-  choiceTitle: { fontFamily: typography.bold, fontSize: 12 },
   choiceBody: { fontFamily: typography.regular, fontSize: 11, lineHeight: 17 },
   customizeButton: { minHeight: 68, borderWidth: 1, borderRadius: 8, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   customizeTitle: { fontFamily: typography.bold, fontSize: 13 },

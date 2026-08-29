@@ -56,6 +56,9 @@ class BackendContractQueryTest {
         .contains("google_timeline", "client_ride_id", "on conflict", "do nothing", "returning id");
     assertThat(query("sql.ride.overlaps"))
         .contains("rides", "user_id", ":startedat", ":endedat");
+    assertThat(query("sql.ride.overlaps-range"))
+        .contains("rides", "user_id", ":startedat", ":endedat")
+        .doesNotContain("limit");
     assertThat(query("sql.trip.import-insert"))
         .contains("client_trip_id", "on conflict", "returning id");
   }
