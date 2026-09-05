@@ -42,8 +42,6 @@ class BackendContractQueryTest {
   void photoUploadAndReportsExposeTheNewContracts() {
     assertThat(query("sql.ride-photo.insert"))
         .contains("gen_random_uuid()", "client_photo_id", "on conflict", "returning id");
-    assertThat(query("sql.schema.ride-album-defaults"))
-        .contains("alter column id set default gen_random_uuid()", "alter column imported_at set default now()");
     assertThat(query("sql.reports.routes"))
         .contains("id", "title", "ai_title");
   }
@@ -63,12 +61,6 @@ class BackendContractQueryTest {
         .contains("gen_random_uuid()", "client_trip_id", "on conflict", "returning id");
     assertThat(query("sql.trip.insert"))
         .contains("gen_random_uuid()", "returning id");
-    assertThat(query("sql.schema.trips-defaults"))
-        .contains("alter column id set default gen_random_uuid()", "alter column created_at set default now()", "alter column updated_at set default now()");
-    assertThat(query("sql.schema.trip-rides-defaults"))
-        .contains("alter column sort_order set default 0", "alter column added_at set default now()");
-    assertThat(query("sql.schema.trip-rides-membership-index"))
-        .contains("create unique index", "trip_rides", "trip_id", "ride_id");
     assertThat(query("sql.trip.add-ride"))
         .contains("on conflict (trip_id, ride_id) do nothing");
   }

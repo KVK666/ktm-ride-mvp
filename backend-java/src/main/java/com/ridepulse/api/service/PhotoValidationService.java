@@ -1,6 +1,7 @@
 package com.ridepulse.api.service;
 
 import com.ridepulse.api.constants.Messages;
+import com.ridepulse.api.dto.NormalizedRidePhoto;
 import com.ridepulse.api.http.ApiException;
 import java.time.Instant;
 import java.util.Base64;
@@ -90,14 +91,4 @@ public class PhotoValidationService {
 
   public record NormalizedPhoto(byte[] data, String mimeType) {}
 
-  public record NormalizedRidePhoto(
-      byte[] data,
-      String mimeType,
-      String fileName,
-      String createdAt,
-      String importedAt,
-      Double latitude,
-      Double longitude,
-      boolean hasLocation,
-      String clientPhotoId) {}
 }

@@ -2,25 +2,23 @@ package com.ridepulse.api.repository.jdbc;
 
 import com.ridepulse.api.constants.BeanNames;
 import com.ridepulse.api.constants.QueryKeys;
+import com.ridepulse.api.dto.NormalizedRidePhoto;
 import com.ridepulse.api.dto.RideListQuery;
 import com.ridepulse.api.pojo.PhotoRow;
 import com.ridepulse.api.repository.RideRepository;
-import com.ridepulse.api.service.PhotoValidationService.NormalizedRidePhoto;
 import com.ridepulse.api.utility.RowMappers;
 import com.ridepulse.api.utility.Rows;
 import com.ridepulse.api.utility.SqlQueries;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -203,10 +201,8 @@ public class JdbcRideRepository implements RideRepository {
         .addValue("speedDataQuality", body.get("speedDataQuality"))
         .addValue("aiStatus", body.get("aiStatus"))
         .addValue("markReviewed", Boolean.TRUE.equals(body.get("markReviewed")));
-    KeyHolder keyHolder = new GeneratedKeyHolder();
-    readWriteJdbc.update(sql.get(QueryKeys.RIDE_INSERT), params, keyHolder, new String[] {"id"});
-    Object id = keyHolder.getKeys() == null ? null : keyHolder.getKeys().get("id");
-    return String.valueOf(id);
+    return readWriteJdbc.query(sql.get(QueryKeys.RIDE_INSERT), params,
+        rs -> rs.next() ? rs.getString("id") : null);
   }
 
   @Override
@@ -249,13 +245,6 @@ public class JdbcRideRepository implements RideRepository {
             .addValue("recordedAt", point.get("recordedAt")))
         .toArray(MapSqlParameterSource[]::new);
     readWriteJdbc.batchUpdate(sql.get(QueryKeys.RIDE_INSERT_POINT), batch);
-  }
-
-  @Override
-  @Transactional
-  public void markAiPending(String userId, String rideId, int contextVersion) {
-    readWriteJdbc.update(sql.get(QueryKeys.RIDE_AI_MARK_PENDING), rideParams(userId, rideId)
-        .addValue("aiContextVersion", contextVersion));
   }
 
   @Override

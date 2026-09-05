@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class RideAiIntelligenceServiceTest {
   private final SavedPlaceRepository savedPlaceRepository = mock(SavedPlaceRepository.class);
   private final DestinationPlaceService destinationPlaceService = mock(DestinationPlaceService.class);
-  private final RideAiIntelligenceService service = new RideAiIntelligenceService(
+  private final RideAiIntelligenceService service = newService(
       mock(RideRepository.class),
       mock(TripRepository.class),
       savedPlaceRepository,
@@ -94,7 +94,7 @@ class RideAiIntelligenceServiceTest {
 
   @Test
   void configStatusReportsNonSecretProviderSettings() {
-    RideAiIntelligenceService configured = new RideAiIntelligenceService(
+    RideAiIntelligenceService configured = newService(
         mock(RideRepository.class),
         mock(TripRepository.class),
         mock(SavedPlaceRepository.class),
@@ -133,18 +133,19 @@ class RideAiIntelligenceServiceTest {
 
   @Test
   void staleGenericRideQueuesOneVersionedRefreshButManualTitleDoesNot() {
+    com.ridepulse.api.repository.RideAiJobRepository jobs = mock(com.ridepulse.api.repository.RideAiJobRepository.class);
     RideRepository repository = mock(RideRepository.class);
-    RideAiIntelligenceService refreshService = new RideAiIntelligenceService(
+    RideAiIntelligenceService refreshService = newService(
         repository, mock(TripRepository.class), mock(SavedPlaceRepository.class),
-        mock(DestinationPlaceService.class), new ObjectMapper(), "", "gpt-4o-mini", "https://example.invalid");
+        mock(DestinationPlaceService.class), new ObjectMapper(), "", "gpt-4o-mini", "https://example.invalid", jobs);
     Map<String, Object> genericRide = Map.of(
         "id", "ride-old", "title", "", "aiTitle", "Morning ride", "aiStatus", "ready", "aiContextVersion", 0);
 
     assertThat(refreshService.processRideIfMissingAsync("owner-1", genericRide)).isTrue();
-    verify(repository).markAiPending("owner-1", "ride-old", RideAiIntelligenceService.AI_CONTEXT_VERSION);
+    verify(jobs).enqueue("owner-1", "ride-old", RideAiIntelligenceService.AI_CONTEXT_VERSION);
 
     RideRepository manualRepository = mock(RideRepository.class);
-    RideAiIntelligenceService manualService = new RideAiIntelligenceService(
+    RideAiIntelligenceService manualService = newService(
         manualRepository, mock(TripRepository.class), mock(SavedPlaceRepository.class),
         mock(DestinationPlaceService.class), new ObjectMapper(), "", "gpt-4o-mini", "https://example.invalid");
     Map<String, Object> manualRide = Map.of(
@@ -152,5 +153,21 @@ class RideAiIntelligenceServiceTest {
 
     assertThat(manualService.processRideIfMissingAsync("owner-1", manualRide)).isFalse();
     verifyNoInteractions(manualRepository);
+  }
+
+  private static RideAiIntelligenceService newService(RideRepository rides, TripRepository trips,
+      SavedPlaceRepository places, DestinationPlaceService destinations, ObjectMapper mapper,
+      String apiKey, String model, String url) {
+    return newService(rides, trips, places, destinations, mapper, apiKey, model, url,
+        mock(com.ridepulse.api.repository.RideAiJobRepository.class));
+  }
+
+  private static RideAiIntelligenceService newService(RideRepository rides, TripRepository trips,
+      SavedPlaceRepository places, DestinationPlaceService destinations, ObjectMapper mapper,
+      String apiKey, String model, String url, com.ridepulse.api.repository.RideAiJobRepository jobs) {
+    RideIntelligencePolicy policy = new RideIntelligencePolicy(mapper);
+    return new RideAiIntelligenceService(rides, jobs, new RideDestinationContext(places, destinations), policy,
+        new RideAiProvider(trips, policy, mapper, apiKey, model, url), new RideTripAutomation(trips, policy),
+        Runnable::run, mock(org.springframework.transaction.PlatformTransactionManager.class));
   }
 }

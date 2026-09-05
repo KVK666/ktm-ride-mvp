@@ -1,6 +1,6 @@
 package com.ridepulse.api.repository;
 
-import com.ridepulse.api.service.PhotoValidationService.NormalizedRidePhoto;
+import com.ridepulse.api.dto.NormalizedRidePhoto;
 import com.ridepulse.api.dto.RideListQuery;
 import com.ridepulse.api.pojo.PhotoRow;
 import java.util.List;
@@ -41,8 +41,6 @@ public interface RideRepository {
   String insertImportedRide(String userId, Map<String, Object> body, String rideClientId, String startedAt, String endedAt, List<Map<String, Object>> points, Map<String, Object> summary);
 
   void insertPoints(String rideId, List<Map<String, Object>> points);
-
-  void markAiPending(String userId, String rideId, int contextVersion);
 
   void saveAiIntelligence(String userId, String rideId, Map<String, Object> intelligence);
 

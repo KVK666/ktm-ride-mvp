@@ -43,7 +43,6 @@ public final class QueryKeys {
   public static final String RIDE_OVERLAPS = "ride.overlaps";
   public static final String RIDE_OVERLAPS_RANGE = "ride.overlaps-range";
   public static final String RIDE_DELETE = "ride.delete";
-  public static final String RIDE_AI_MARK_PENDING = "ride.ai-mark-pending";
   public static final String RIDE_AI_SAVE = "ride.ai-save";
 
   public static final String RIDE_PHOTO_LIST = "ride-photo.list";
@@ -91,60 +90,10 @@ public final class QueryKeys {
   public static final String RIDE_OWNED_BY_CLIENT_IDS = "ride.owned-by-client-ids";
   public static final String TRIP_BY_CLIENT_ID = "trip.by-client-id";
   public static final String TRIP_IMPORT_INSERT = "trip.import-insert";
-
-  public static final String SCHEMA_UUID_EXTENSION = "schema.uuid-extension";
-  public static final String SCHEMA_PGCRYPTO_EXTENSION = "schema.pgcrypto-extension";
-  public static final String SCHEMA_USER_PROFILE_DATA = "schema.user-profile-data";
-  public static final String SCHEMA_USER_PROFILE_MIME = "schema.user-profile-mime";
-  public static final String SCHEMA_USER_PROFILE_UPDATED = "schema.user-profile-updated";
-  public static final String SCHEMA_USER_MONTHLY_DISTANCE_GOAL = "schema.user-monthly-distance-goal";
-  public static final String SCHEMA_USERS_ID_UNIQUE_INDEX = "schema.users-id-unique-index";
-  public static final String SCHEMA_PASSWORD_RESET_TABLE = "schema.password-reset-table";
-  public static final String SCHEMA_PASSWORD_RESET_DEFAULTS = "schema.password-reset-defaults";
-  public static final String SCHEMA_PASSWORD_RESET_USER_FK = "schema.password-reset-user-fk";
-  public static final String SCHEMA_RIDE_ALBUM_TABLE = "schema.ride-album-table";
-  public static final String SCHEMA_RIDE_ALBUM_DEFAULTS = "schema.ride-album-defaults";
-  public static final String SCHEMA_TRIPS_TABLE = "schema.trips-table";
-  public static final String SCHEMA_TRIPS_DEFAULTS = "schema.trips-defaults";
-  public static final String SCHEMA_TRIP_RIDES_TABLE = "schema.trip-rides-table";
-  public static final String SCHEMA_TRIP_RIDES_DEFAULTS = "schema.trip-rides-defaults";
-  public static final String SCHEMA_RIDE_AI_TITLE = "schema.ride-ai-title";
-  public static final String SCHEMA_RIDE_AI_SUMMARY = "schema.ride-ai-summary";
-  public static final String SCHEMA_RIDE_KIND = "schema.ride-kind";
-  public static final String SCHEMA_RIDE_KIND_CONFIDENCE = "schema.ride-kind-confidence";
-  public static final String SCHEMA_RIDE_KIND_REASON = "schema.ride-kind-reason";
-  public static final String SCHEMA_RIDE_KEY_INSIGHT = "schema.ride-key-insight";
-  public static final String SCHEMA_RIDE_BEST_MOMENT = "schema.ride-best-moment";
-  public static final String SCHEMA_RIDE_TRIP_SUGGESTION = "schema.ride-trip-suggestion";
-  public static final String SCHEMA_RIDE_AI_STATUS = "schema.ride-ai-status";
-  public static final String SCHEMA_RIDE_AI_GENERATED_AT = "schema.ride-ai-generated-at";
-  public static final String SCHEMA_RIDE_DESTINATION_NAME = "schema.ride-destination-name";
-  public static final String SCHEMA_RIDE_DESTINATION_CATEGORY = "schema.ride-destination-category";
-  public static final String SCHEMA_RIDE_DESTINATION_ADDRESS = "schema.ride-destination-address";
-  public static final String SCHEMA_RIDE_DESTINATION_SOURCE = "schema.ride-destination-source";
-  public static final String SCHEMA_RIDE_AI_CONTEXT_VERSION = "schema.ride-ai-context-version";
-  public static final String SCHEMA_PASSWORD_RESET_USER_INDEX = "schema.password-reset-user-index";
-  public static final String SCHEMA_PASSWORD_RESET_EXPIRES_INDEX = "schema.password-reset-expires-index";
-  public static final String SCHEMA_RIDE_PHOTO_RIDE_INDEX = "schema.ride-photo-ride-index";
-  public static final String SCHEMA_RIDE_PHOTO_USER_INDEX = "schema.ride-photo-user-index";
-  public static final String SCHEMA_RIDE_PHOTO_CLIENT_ID = "schema.ride-photo-client-id";
-  public static final String SCHEMA_RIDE_PHOTO_CLIENT_ID_INDEX = "schema.ride-photo-client-id-index";
-  public static final String SCHEMA_TRIPS_USER_INDEX = "schema.trips-user-index";
-  public static final String SCHEMA_TRIP_RIDES_MEMBERSHIP_INDEX = "schema.trip-rides-membership-index";
-  public static final String SCHEMA_TRIP_RIDES_RIDE_INDEX = "schema.trip-rides-ride-index";
-  public static final String SCHEMA_RIDES_USER_STARTED_INDEX = "schema.rides-user-started-index";
-  public static final String SCHEMA_RIDES_SOURCE = "schema.rides-source";
-  public static final String SCHEMA_RIDES_SOURCE_ACTIVITY_TYPE = "schema.rides-source-activity-type";
-  public static final String SCHEMA_RIDES_SPEED_DATA_QUALITY = "schema.rides-speed-data-quality";
-  public static final String SCHEMA_RIDES_SOURCE_BACKFILL = "schema.rides-source-backfill";
-  public static final String SCHEMA_RIDES_SOURCE_NOT_NULL = "schema.rides-source-not-null";
-  public static final String SCHEMA_RIDES_CLIENT_ID_INDEX = "schema.rides-client-id-index";
-  public static final String SCHEMA_TRIPS_CLIENT_ID = "schema.trips-client-id";
-  public static final String SCHEMA_TRIPS_CLIENT_ID_INDEX = "schema.trips-client-id-index";
-  public static final String SCHEMA_SAVED_PLACES_TABLE = "schema.saved-places-table";
-  public static final String SCHEMA_SAVED_PLACES_DEFAULTS = "schema.saved-places-defaults";
-  public static final String SCHEMA_SAVED_PLACES_USER_FK = "schema.saved-places-user-fk";
-  public static final String SCHEMA_SAVED_PLACES_USER_LABEL_INDEX = "schema.saved-places-user-label-index";
+  public static final String RIDE_AI_ENQUEUE = "ride-ai.enqueue";
+  public static final String RIDE_AI_CLAIM = "ride-ai.claim";
+  public static final String RIDE_AI_LOCK = "ride-ai.lock";
+  public static final String RIDE_AI_COMPLETE = "ride-ai.complete";
 
   private QueryKeys() {}
 }

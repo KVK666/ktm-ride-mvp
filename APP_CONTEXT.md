@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-08-23
+Last updated: 2026-09-05
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -9,6 +9,8 @@ This file is the living context for the RidePulse app. Keep it updated whenever 
 RidePulse is a private React Native ride tracking app for a small rider group across any motorcycle brand. It focuses on the core useful parts riders actually need: tracking rides, viewing route history, checking speed and distance analytics, using Google Maps based navigation, and exporting ride reports.
 
 ## Current Stack
+
+- Backend maintenance: Flyway creates/upgrades schemas through versioned migrations, concurrent ride retries use conflict-safe inserts, and pending AI work survives restarts through database leases. AI, ride listing/photos, Timeline validation and password-reset delivery now have separate responsibilities. SMTP runs after token issuance commits, with bounded network timeouts. See `backend-java/README.md` for migration and PostgreSQL regression-test instructions.
 
 - Mobile app: Expo React Native, Android-first.
 - Web app: Angular standalone app in `web/`, with a cinematic public website and authenticated companion dashboard.
@@ -172,7 +174,7 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `backend-java/src/main/java/com/ridepulse/api/controller/ProfileController.java`: authenticated identity, monthly-goal preferences, and profile-photo API.
 - `backend-java/src/main/java/com/ridepulse/api/controller/JournalController.java`: Home and Journal API surfaces.
 - `backend-java/src/main/java/com/ridepulse/api/service/PhotoValidationService.java`: profile-photo and ride-photo MIME/base64/size validation.
-- `backend-java/src/main/resources/db-queries.properties`: SQL, schema bootstrap statements, and `.pojo` mapping keys.
+- `backend-java/src/main/resources/db-queries.properties`: runtime SQL and `.pojo` mapping keys; versioned schema changes live under `backend-java/src/main/resources/db/migration`.
 - `scripts/migrate-neon-to-aws.ps1`: guarded pg_dump/pg_restore helper for moving existing Neon `public` RidePulse data into an AWS PostgreSQL schema such as `ridepulse_db`.
 
 ## Local Development Notes

@@ -39,7 +39,7 @@ class PhotoValidationServiceTest {
   void acceptsFourMegabyteRidePhotosAndKeepsClientIdempotencyKey() {
     byte[] image = new byte[4 * 1024 * 1024];
 
-    PhotoValidationService.NormalizedRidePhoto result = service.normalizeRidePhotoPayload(Map.of(
+    com.ridepulse.api.dto.NormalizedRidePhoto result = service.normalizeRidePhotoPayload(Map.of(
         "imageBase64", Base64.getEncoder().encodeToString(image),
         "mimeType", "image/webp",
         "clientPhotoId", "device-photo-42"));

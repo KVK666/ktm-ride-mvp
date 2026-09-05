@@ -3,107 +3,37 @@ package com.ridepulse.api.service;
 import com.ridepulse.api.constants.Messages;
 import com.ridepulse.api.constants.ProgramCodes;
 import com.ridepulse.api.dto.CreateRideResult;
-import com.ridepulse.api.dto.RideListCursor;
-import com.ridepulse.api.dto.RideListQuery;
 import com.ridepulse.api.http.ApiException;
-import com.ridepulse.api.pojo.PhotoRow;
 import com.ridepulse.api.repository.RideRepository;
 import com.ridepulse.api.utility.Rows;
-import com.ridepulse.api.service.PhotoValidationService.NormalizedRidePhoto;
 import java.time.Instant;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class RideService {
   private static final int MAX_RIDE_POINTS = 12000;
   private final RideRepository rideRepository;
   private final RideMathService rideMathService;
-  private final RoutePreviewService routePreviewService;
   private final JournalIntelligenceService journalIntelligenceService;
-  private final PhotoValidationService photoValidationService;
   private final RideAiIntelligenceService rideAiIntelligenceService;
 
   RideService(
       RideRepository rideRepository,
       RideMathService rideMathService,
-      RoutePreviewService routePreviewService,
       JournalIntelligenceService journalIntelligenceService,
-      PhotoValidationService photoValidationService,
       RideAiIntelligenceService rideAiIntelligenceService) {
     this.rideRepository = rideRepository;
     this.rideMathService = rideMathService;
-    this.routePreviewService = routePreviewService;
     this.journalIntelligenceService = journalIntelligenceService;
-    this.photoValidationService = photoValidationService;
     this.rideAiIntelligenceService = rideAiIntelligenceService;
-  }
-
-  public Map<String, Object> list(String userId, String period, String query) {
-    return list(userId, period, query, null, null, null, null);
-  }
-
-  public Map<String, Object> list(
-      String userId,
-      String period,
-      String query,
-      Integer requestedLimit,
-      String encodedCursor,
-      String requestedReviewStatus,
-      String requestedSort) {
-    return list(userId, period, query, requestedLimit, encodedCursor, requestedReviewStatus, requestedSort, null, null);
-  }
-
-  public Map<String, Object> list(
-      String userId,
-      String period,
-      String query,
-      Integer requestedLimit,
-      String encodedCursor,
-      String requestedReviewStatus,
-      String requestedSort,
-      String requestedStartedFrom,
-      String requestedStartedBefore) {
-    boolean paginationRequested = requestedLimit != null || (encodedCursor != null && !encodedCursor.isBlank());
-    int limit = paginationRequested ? normalizeLimit(requestedLimit) : 100;
-    String reviewStatus = normalizeReviewStatus(requestedReviewStatus);
-    String sort = normalizeSort(requestedSort);
-    String startedFrom = normalizeOptionalInstant(requestedStartedFrom);
-    String startedBefore = normalizeOptionalInstant(requestedStartedBefore);
-    if (startedFrom != null && startedBefore != null && !Instant.parse(startedBefore).isAfter(Instant.parse(startedFrom))) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, "Ride date range is invalid");
-    }
-    RideListCursor cursor = decodeCursor(encodedCursor, sort);
-    List<Map<String, Object>> rows = rideRepository.list(
-        userId,
-        new RideListQuery(period, query, reviewStatus, sort, startedFrom, startedBefore, paginationRequested ? limit + 1 : limit, cursor));
-    boolean hasMore = paginationRequested && rows.size() > limit;
-    List<Map<String, Object>> pageRows = hasMore ? new ArrayList<>(rows.subList(0, limit)) : rows;
-    List<Map<String, Object>> rides = journalIntelligenceService.decorateRides(
-        routePreviewService.attachRoutePreviews(pageRows),
-        Map.of());
-    Map<String, Object> response = new LinkedHashMap<>();
-    response.put("rides", rides);
-    if (paginationRequested) {
-      Map<String, Object> pageInfo = new LinkedHashMap<>();
-      pageInfo.put("hasMore", hasMore);
-      pageInfo.put("nextCursor", hasMore && !pageRows.isEmpty() ? encodeCursor(pageRows.get(pageRows.size() - 1), sort) : null);
-      response.put("pageInfo", pageInfo);
-    }
-    return response;
   }
 
   public Map<String, Object> intelligence(String userId, String rideId) {
@@ -125,36 +55,6 @@ public class RideService {
   public Map<String, Object> duplicates(String userId, String rideId) {
     requireOwnedRide(userId, rideId);
     return Map.of("duplicates", rideRepository.duplicates(userId, rideId));
-  }
-
-  public Map<String, Object> photos(String userId, String rideId) {
-    return photos(userId, rideId, true);
-  }
-
-  public Map<String, Object> photos(String userId, String rideId, boolean includeData) {
-    requireOwnedRide(userId, rideId);
-    return Map.of("photos", rideRepository.photos(userId, rideId, includeData));
-  }
-
-  public PhotoRow photo(String userId, String rideId, String photoId) {
-    return rideRepository.photo(userId, rideId, photoId)
-        .filter(row -> row.data() != null && row.mimeType() != null && !row.mimeType().isBlank())
-        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.RIDE_PHOTO_NOT_FOUND));
-  }
-
-  @Transactional
-  public Map<String, Object> addPhoto(String userId, String rideId, Map<String, Object> body) {
-    requireOwnedRide(userId, rideId);
-    NormalizedRidePhoto photo = photoValidationService.normalizeRidePhotoPayload(body);
-    Map<String, Object> response = new LinkedHashMap<>();
-    response.put("photo", rideRepository.insertPhoto(userId, rideId, photo));
-    return response;
-  }
-
-  @Transactional
-  public void deletePhoto(String userId, String rideId, String photoId) {
-    int deleted = rideRepository.deletePhoto(userId, rideId, photoId);
-    if (deleted == 0) throw new ApiException(HttpStatus.NOT_FOUND, ProgramCodes.NOT_FOUND, Messages.RIDE_PHOTO_NOT_FOUND);
   }
 
   public Map<String, Object> get(String userId, String rideId) {
@@ -203,24 +103,22 @@ public class RideService {
     normalizedBody.put("source", "ridepulse");
     normalizedBody.put("sourceActivityType", null);
     normalizedBody.put("speedDataQuality", "recorded");
-    normalizedBody.put("aiStatus", "fallback");
+    normalizedBody.put("aiStatus", "pending");
     normalizedBody.put("markReviewed", false);
     Map<String, Object> summary = rideMathService.summarizeRide(points, startedAt, endedAt);
 
-    try {
-      String rideId = rideRepository.insertRide(userId, normalizedBody, rideClientId, startedAt, endedAt, points, summary);
-      rideRepository.insertPoints(rideId, points);
-      afterCommit(() -> rideAiIntelligenceService.processRideAsync(userId, rideId));
-      Map<String, Object> response = new LinkedHashMap<>();
-      response.put("rideId", rideId);
-      response.put("summary", summary);
-      response.put("aiStatus", "pending");
-      return new CreateRideResult(true, response);
-    } catch (DuplicateKeyException error) {
-      Map<String, Object> duplicate = rideRepository.findByClientRideId(userId, rideClientId).orElse(null);
-      if (duplicate != null) return new CreateRideResult(false, duplicate);
-      throw error;
+    String rideId = rideRepository.insertRide(userId, normalizedBody, rideClientId, startedAt, endedAt, points, summary);
+    if (rideId == null) {
+      Map<String, Object> duplicate = rideRepository.findByClientRideId(userId, rideClientId)
+          .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, ProgramCodes.CONFLICT, Messages.REQUEST_CONFLICT));
+      return new CreateRideResult(false, duplicate);
     }
+    rideRepository.insertPoints(rideId, points);
+    Map<String, Object> response = new LinkedHashMap<>();
+    response.put("rideId", rideId);
+    response.put("summary", summary);
+    response.put("aiStatus", "pending");
+    return new CreateRideResult(true, response);
   }
 
   @Transactional
@@ -301,88 +199,6 @@ public class RideService {
 
   private static String string(Object value) {
     return value == null ? "" : String.valueOf(value);
-  }
-
-  private static void afterCommit(Runnable action) {
-    if (TransactionSynchronizationManager.isSynchronizationActive()) {
-      TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-        @Override
-        public void afterCommit() {
-          action.run();
-        }
-      });
-      return;
-    }
-    action.run();
-  }
-
-  private static int normalizeLimit(Integer value) {
-    int limit = value == null ? 50 : value;
-    if (limit < 1 || limit > 100) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.RIDE_LIST_LIMIT_INVALID);
-    }
-    return limit;
-  }
-
-  private static String normalizeReviewStatus(String value) {
-    if (value == null || value.isBlank() || "all".equalsIgnoreCase(value)) return "all";
-    String normalized = value.trim().toLowerCase().replace('-', '_');
-    if ("needsreview".equals(normalized) || "unreviewed".equals(normalized)) normalized = "needs_review";
-    if (!"needs_review".equals(normalized) && !"cleanup".equals(normalized)) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.RIDE_LIST_FILTER_INVALID);
-    }
-    return normalized;
-  }
-
-  private static String normalizeSort(String value) {
-    if (value == null || value.isBlank()) return "newest";
-    String normalized = value.trim().toLowerCase();
-    if (!Set.of("newest", "longest", "fastest").contains(normalized)) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.RIDE_LIST_SORT_INVALID);
-    }
-    return normalized;
-  }
-
-  private static String normalizeOptionalInstant(String value) {
-    if (value == null || value.isBlank()) return null;
-    try {
-      return Instant.parse(value.trim()).toString();
-    } catch (Exception ignored) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, "Ride date range is invalid");
-    }
-  }
-
-  private static RideListCursor decodeCursor(String value, String sort) {
-    if (value == null || value.isBlank()) return null;
-    try {
-      String decoded = new String(Base64.getUrlDecoder().decode(value.trim()), StandardCharsets.UTF_8);
-      String[] parts = decoded.split("\\|", -1);
-      if (parts.length != 5 || !"v1".equals(parts[0]) || !sort.equals(parts[1])) throw new IllegalArgumentException();
-      double sortValue = Double.parseDouble(parts[2]);
-      if (!Double.isFinite(sortValue)) throw new IllegalArgumentException();
-      String startedAt = Instant.parse(parts[3]).toString();
-      String rideId = UUID.fromString(parts[4]).toString();
-      return new RideListCursor(sort, sortValue, startedAt, rideId);
-    } catch (Exception ignored) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, ProgramCodes.BAD_REQUEST, Messages.RIDE_LIST_CURSOR_INVALID);
-    }
-  }
-
-  private static String encodeCursor(Map<String, Object> ride, String sort) {
-    String startedAt = Instant.parse(String.valueOf(ride.get("startedAt"))).toString();
-    String rideId = UUID.fromString(String.valueOf(ride.get("id"))).toString();
-    double sortValue = switch (sort) {
-      case "longest" -> numeric(ride.get("distanceM"));
-      case "fastest" -> numeric(ride.get("topSpeedKmh"));
-      default -> 0d;
-    };
-    String value = String.join("|", "v1", sort, Double.toString(sortValue), startedAt, rideId);
-    return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(StandardCharsets.UTF_8));
-  }
-
-  private static double numeric(Object value) {
-    Double number = RideMathService.optionalNumber(value);
-    return number == null || !Double.isFinite(number) ? 0d : number;
   }
 
 }

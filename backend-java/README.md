@@ -2,13 +2,22 @@
 
 Spring Boot backend for the RidePulse mobile and web apps.
 
-Controllers are intentionally thin and return the standard response wrapper. Business flow lives in `service`, repository interfaces live under `repository`, and JDBC implementations live under `repository/jdbc`. SQL lives in `src/main/resources/db-queries.properties` with named parameters and `.pojo` mapping keys. Repositories use `NamedParameterJdbcTemplate`, with separate read-only and read-write datasource beans; schema bootstrap scripts are property-backed and called from `SchemaService`.
+Controllers are intentionally thin and return the standard response wrapper. Business flow lives in `service`, repository interfaces live under `repository`, and JDBC implementations live under `repository/jdbc`. Runtime SQL lives in `src/main/resources/db-queries.properties` with named parameters and `.pojo` mapping keys. Repositories use `NamedParameterJdbcTemplate`, with separate read-only and read-write datasource beans. Flyway applies versioned schema migrations from `src/main/resources/db/migration` before application startup completes.
+
+## Backend responsibilities
+
+- `RideService`: ride creation, detail, review, ownership and deletion.
+- `RideListService` / `RidePhotoService`: pagination/search and private photo operations.
+- `RideAiIntelligenceService`: durable job orchestration and atomic completion. Provider HTTP calls, destination matching, fallback rules and trip automation live in separate classes.
+- `GoogleTimelineImportService`: import transactions; `GoogleTimelinePayload` validates and normalizes input, and `GoogleTimelineOverlapPolicy` checks intervals.
+- `PasswordResetService`: reset workflow; token issuance commits before the separate email sender runs. HTML is a resource template, and SMTP connection/read/write timeouts are bounded.
+- `dto`: shared typed data such as photo payloads and AI job claims, independent of service implementations. Existing JSON names and response envelopes remain compatible.
 
 ## Requirements
 
 - Java 17
 - Maven 3.9+
-- PostgreSQL connection compatible with the existing RidePulse schema
+- PostgreSQL 16 (an empty database or the existing RidePulse schema)
 
 ## Local Run
 
@@ -30,6 +39,23 @@ The Java API listens on `PORT` or `4001` by default.
 ```powershell
 mvn test
 ```
+
+The database regression suite uses a dedicated PostgreSQL database and creates/removes uniquely named test schemas. Never point it at production:
+
+```powershell
+$env:RIDEPULSE_TEST_DATABASE_URL="jdbc:postgresql://localhost:5432/ridepulse_test?user=postgres"
+mvn -Ppostgres-it verify
+```
+
+It exercises fresh/legacy migrations, concurrent ride retries, transaction rollback, AI lease recovery, stale-worker fencing and atomic trip automation. PR CI provisions PostgreSQL and runs this suite.
+
+## Schema upgrades and AI recovery
+
+Flyway baselines an existing non-empty schema at version `0`, then applies V1 (non-destructive core table creation), V2 (the former additive updates), and V3 (AI leases). Existing tables and records are preserved. Select the intended database/schema using `DATABASE_URL` and `DB_SCHEMA`, and take the normal deployment backup before the first migration. The database role needs DDL permissions. Future schema changes belong in a new migration file; do not edit applied migrations or disable checksum validation.
+
+Ride creation saves `pending` AI status in the same transaction as the route, so a restart cannot lose the job. Two bounded workers poll every five seconds. A claim expires after five minutes; unfinished work is reclaimed after that interval. A claim token prevents a replaced worker from committing, and trip changes and the intelligence result commit together. Missing provider configuration still produces deterministic fallback intelligence. Set `ridepulse.ai.worker-enabled=false` to pause workers while retaining pending work.
+
+Migrations use PostgreSQL's built-in `gen_random_uuid()`; they do not require installing UUID extensions in a particular schema.
 
 Smoke test against a non-production account:
 

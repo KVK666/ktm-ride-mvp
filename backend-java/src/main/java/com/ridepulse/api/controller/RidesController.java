@@ -4,16 +4,18 @@ import com.ridepulse.api.auth.AuthSupport;
 import com.ridepulse.api.constants.Messages;
 import com.ridepulse.api.dto.ApiResponse;
 import com.ridepulse.api.dto.CreateRideResult;
+import com.ridepulse.api.service.RideListService;
+import com.ridepulse.api.service.RidePhotoService;
 import com.ridepulse.api.service.RideService;
 import com.ridepulse.api.service.TripService;
 import com.ridepulse.api.utility.ResponseUtil;
 import com.ridepulse.api.utility.ValidationUtil;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Map;
 import java.time.Instant;
+import java.util.Map;
 import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,11 +34,15 @@ public class RidesController {
   private final AuthSupport authSupport;
   private final RideService rideService;
   private final TripService tripService;
+  private final RideListService rideListService;
+  private final RidePhotoService ridePhotoService;
 
-  RidesController(AuthSupport authSupport, RideService rideService, TripService tripService) {
+  RidesController(AuthSupport authSupport, RideService rideService, TripService tripService, RideListService rideListService, RidePhotoService ridePhotoService) {
     this.authSupport = authSupport;
     this.rideService = rideService;
     this.tripService = tripService;
+    this.rideListService = rideListService;
+    this.ridePhotoService = ridePhotoService;
   }
 
   @GetMapping
@@ -50,7 +56,7 @@ public class RidesController {
       @RequestParam(required = false) String sort,
       @RequestParam(required = false) String startedFrom,
       @RequestParam(required = false) String startedBefore) {
-    return ResponseUtil.ok(rideService.list(authSupport.userId(request), period, q, limit, cursor, reviewStatus, sort, startedFrom, startedBefore));
+    return ResponseUtil.ok(rideListService.list(authSupport.userId(request), period, q, limit, cursor, reviewStatus, sort, startedFrom, startedBefore));
   }
 
   @GetMapping("/{id}/intelligence")
@@ -68,7 +74,7 @@ public class RidesController {
       HttpServletRequest request,
       @PathVariable String id,
       @RequestParam(defaultValue = "true") boolean includeData) {
-    return ResponseUtil.ok(rideService.photos(
+    return ResponseUtil.ok(ridePhotoService.photos(
         authSupport.userId(request),
         ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND),
         includeData));
@@ -83,7 +89,7 @@ public class RidesController {
 
   @GetMapping("/{id}/photos/{photoId}")
   ResponseEntity<?> photo(HttpServletRequest request, @PathVariable String id, @PathVariable String photoId) {
-    com.ridepulse.api.pojo.PhotoRow photo = rideService.photo(
+    com.ridepulse.api.pojo.PhotoRow photo = ridePhotoService.photo(
         authSupport.userId(request),
         ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND),
         ValidationUtil.requiredPath(photoId, Messages.RIDE_PHOTO_NOT_FOUND));
@@ -96,12 +102,12 @@ public class RidesController {
 
   @PostMapping("/{id}/photos")
   ResponseEntity<ApiResponse<Map<String, Object>>> addPhoto(HttpServletRequest request, @PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(ResponseUtil.created(rideService.addPhoto(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_PHOTO_MISSING_OR_INVALID))));
+    return ResponseEntity.status(HttpStatus.CREATED).body(ResponseUtil.created(ridePhotoService.addPhoto(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requestBody(body, Messages.RIDE_PHOTO_MISSING_OR_INVALID))));
   }
 
   @DeleteMapping("/{id}/photos/{photoId}")
   ApiResponse<Void> deletePhoto(HttpServletRequest request, @PathVariable String id, @PathVariable String photoId) {
-    rideService.deletePhoto(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requiredPath(photoId, Messages.RIDE_PHOTO_NOT_FOUND));
+    ridePhotoService.deletePhoto(authSupport.userId(request), ValidationUtil.requiredPath(id, Messages.RIDE_NOT_FOUND), ValidationUtil.requiredPath(photoId, Messages.RIDE_PHOTO_NOT_FOUND));
     return ResponseUtil.deleted();
   }
 

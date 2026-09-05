@@ -17,19 +17,16 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-class RideServiceTest {
+class RideListServiceTest {
   private final RideRepository rideRepository = mock(RideRepository.class);
   private final RoutePreviewService routePreviewService = mock(RoutePreviewService.class);
   private final JournalIntelligenceService journalIntelligenceService = mock(JournalIntelligenceService.class);
-  private final RideService service = new RideService(
+  private final RideListService service = new RideListService(
       rideRepository,
-      mock(RideMathService.class),
       routePreviewService,
-      journalIntelligenceService,
-      mock(PhotoValidationService.class),
-      mock(RideAiIntelligenceService.class));
+      journalIntelligenceService);
 
-  RideServiceTest() {
+  RideListServiceTest() {
     when(routePreviewService.attachRoutePreviews(any())).thenAnswer(invocation -> invocation.getArgument(0));
     when(journalIntelligenceService.decorateRides(any(), anyMap())).thenAnswer(invocation -> invocation.getArgument(0));
   }

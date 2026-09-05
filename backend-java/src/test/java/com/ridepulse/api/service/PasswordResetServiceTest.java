@@ -2,8 +2,8 @@ package com.ridepulse.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.Session;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -18,7 +18,7 @@ class PasswordResetServiceTest {
   @Test
   void resetEmailSupportsPlainTextAndHtmlAlternatives() throws Exception {
     MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
-    MimeMessageHelper helper = PasswordResetService.multipartMessageHelper(message);
+    MimeMessageHelper helper = PasswordResetEmailSender.multipartMessageHelper(message);
 
     helper.setText("Plain text", "<p>HTML text</p>");
     message.saveChanges();
@@ -27,8 +27,8 @@ class PasswordResetServiceTest {
   }
 
   @Test
-  void resetEmailHtmlIsBrandedActionableAndEscaped() {
-    String html = PasswordResetService.resetEmailHtml("Rider <One>", "https://example.com/reset?token=a&b");
+  void resetEmailHtmlIsBrandedActionableAndEscaped() throws Exception {
+    String html = new PasswordResetEmailTemplate().render("Rider <One>", "https://example.com/reset?token=a&b");
 
     assertThat(html)
         .contains("RidePulse", "Reset your password", "This link expires in 30 minutes", "Reset password")
