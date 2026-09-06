@@ -1,6 +1,6 @@
 # RidePulse App Context
 
-Last updated: 2026-09-05
+Last updated: 2026-09-07
 
 This file is the living context for the RidePulse app. Keep it updated whenever the app gains a meaningful feature, UX change, deployment change, setup change, or known limitation. Treat `APP_CONTEXT.md` as part of the definition of done for user-facing changes.
 
@@ -119,6 +119,49 @@ Auto tracking is implemented as an optional setting and is off by default.
 
 Known limitation: auto tracking detects vehicle-like movement and sustained GPS movement, not the exact vehicle. It cannot perfectly know bike vs car.
 
+## Backend Maintenance Guide For Future Agents
+
+The backend refactor and reliability fixes were committed and pushed to `ride-pulse` in `47cf060` on 2026-09-05. This section describes the maintained implementation; older fix notes below describe historical behavior. Read [backend-java/README.md](backend-java/README.md) for setup and migration details, and verify current source before changing behavior. This work did not change mobile or web code.
+
+### Responsibility boundaries
+
+Keep controllers thin and preserve the standard API response envelope, JSON field names, owner checks, and existing client contracts. Prefer small extractions by responsibility over putting new workflows into one large service or rewriting the package structure.
+
+| Responsibility | Owning classes/resources |
+| --- | --- |
+| Ride creation, detail, review and deletion | `service/RideService.java` |
+| Ride search, pagination and cursor handling | `service/RideListService.java` |
+| Private ride photo operations | `service/RidePhotoService.java`, `service/PhotoValidationService.java`, `dto/NormalizedRidePhoto.java` |
+| Durable AI work and atomic completion | `service/RideAiIntelligenceService.java`, `repository/RideAiJobRepository.java`, `repository/jdbc/JdbcRideAiJobRepository.java`, `config/RideAiConfig.java` |
+| AI provider HTTP calls and summarized request payload | `service/RideAiProvider.java` |
+| Saved-place matching and destination enrichment | `service/RideDestinationContext.java`, `service/DestinationPlaceService.java` |
+| Deterministic intelligence and shared calculations | `service/RideIntelligencePolicy.java`, `service/RideIntelligenceSupport.java` |
+| Automatic trip changes | `service/RideTripAutomation.java`, within the AI completion transaction |
+| Timeline import transactions | `service/GoogleTimelineImportService.java` |
+| Timeline payload validation and interval overlap rules | `service/GoogleTimelinePayload.java`, `service/GoogleTimelineOverlapPolicy.java` |
+| Password reset orchestration and token issuance | `service/PasswordResetService.java`, `service/PasswordResetTokenIssuer.java` |
+| Reset email delivery and rendering | `service/PasswordResetEmailSender.java`, `service/PasswordResetEmailTemplate.java`, `src/main/resources/mail/password-reset.html` |
+
+Java paths in the table are relative to `backend-java/src/main/java/com/ridepulse/api/`; the mail resource path is relative to `backend-java/`. Shared DTOs belong in `dto`, independent of service implementations. Move additional map-based payloads to typed records incrementally without changing their serialized API contracts. Runtime queries remain in `db-queries.properties`; schema DDL belongs in migrations.
+
+### Database and transaction rules
+
+- No manual SQL execution is required for this release. Flyway applies `src/main/resources/db/migration` on backend startup, using the configured database/schema. Confirm `DATABASE_URL` and `DB_SCHEMA`; the deployment role needs create/alter permissions. Take the normal database backup before the first migration deployment.
+- Existing non-empty schemas are baselined at version `0`. V1 creates missing core tables, V2 applies the former additive updates, and V3 adds AI leases. These migrations preserve existing records. `SchemaService` was removed; do not restore startup DDL execution from query properties or follow older notes that describe it as the current migration mechanism.
+- Add a new versioned migration for future schema changes. Never edit an already-applied migration or disable checksum validation to bypass a mismatch. UUID creation uses PostgreSQL's built-in `gen_random_uuid()`.
+- Ride creation uses `ON CONFLICT ... DO NOTHING RETURNING id`, then reads the existing ride on a client-ID conflict. Preserve the unique owner/client-ID index and the transaction covering ride plus points. Do not catch a duplicate-key insert and query inside the same failed transaction.
+- Ride creation stores `ai_status = 'pending'` in the same transaction as the route. PostgreSQL is the AI queue. Two workers poll every five seconds; a five-minute lease makes interrupted work recoverable. Keep claim-token checks so a replaced worker cannot commit. Trip changes, intelligence saving and claim completion must commit together; failed trip changes roll back before saving a suggestion fallback.
+- Preserve deterministic AI fallback and manual-title precedence. Use `ridepulse.ai.worker-enabled=false` to pause dispatch without deleting pending work. Do not replace durable work with untracked common-pool futures.
+- Password-reset token issuance commits before SMTP runs. Preserve hashed one-time tokens, generic reset-request responses, escaped email content, and bounded SMTP connection/read/write timeouts. Do not move network delivery back inside the token transaction.
+
+### Verification baseline
+
+The local verification for `47cf060` passed **73 unit tests and 9 PostgreSQL integration tests**, with no failures or skips, using `mvn --batch-mode -Ppostgres-it verify`. Integration coverage includes fresh/legacy migrations, concurrent same-ID uploads, rollback on point-write failure, AI lease recovery and stale-worker fencing, atomic trip rollback, HTTP response/ownership contracts, and password-reset transaction/one-time-token behavior.
+
+Run `mvn test` for backend unit checks. For database, transaction or migration changes, set `RIDEPULSE_TEST_DATABASE_URL` to a dedicated test database and run `mvn -Ppostgres-it verify` from `backend-java/`. `backend-java/src/test/java/com/ridepulse/api/service/BackendPostgresIT.java` creates and drops isolated test schemas; never target production. Backend PR CI provisions PostgreSQL 16 and runs this profile. These are historical local results, not proof that a later change or deployed environment passes.
+
+Production deployment/migration success and live SMTP/AI-provider behavior were **not verified** in that run; email delivery was mocked and the real provider was disabled in integration tests. Verify deployment logs and `/health` before reporting a successful production rollout. Update this context alongside meaningful backend behavior or structure changes.
+
 ## Important Files
 
 - `mobile/src/screens/RideScreen.tsx`: manual ride UI plus auto tracking card.
@@ -142,9 +185,9 @@ Known limitation: auto tracking detects vehicle-like movement and sustained GPS 
 - `mobile/src/components/JournalHero.tsx`, `SmartHighlight.tsx`, `RideBadge.tsx`, `RouteReplay.tsx`, `ChapterTimeline.tsx`, `PremiumEmptyState.tsx`, and `InlineSkeleton.tsx`: Smart Journal V2 primitives.
 - `mobile/src/components/MemoryCard.tsx`, `RideSlideshowModal.tsx`, and `OnboardingScreen.tsx`: local memories, album slideshow, and first-install walkthrough UI.
 - `backend-java/src/main/java/com/ridepulse/api/service/RoutePreviewService.java`: bounded route-preview loader used by the Java API.
-- `backend-java/src/main/java/com/ridepulse/api/service/PasswordResetService.java`: hashed one-time reset token creation, SMTP reset email delivery, and password update validation.
+- `backend-java/src/main/java/com/ridepulse/api/service/PasswordResetService.java`: password reset orchestration and password update validation; token issuance, SMTP delivery and HTML rendering are separate components described above.
 - `backend-java/src/main/java/com/ridepulse/api/service/JournalIntelligenceService.java`: derived smart-journal summaries, badges, highlights, route chapters, and fallback-safe ride intelligence.
-- `backend-java/src/main/java/com/ridepulse/api/service/RideAiIntelligenceService.java`: backend-only AI/fallback ride naming, classification, insight, best moment, trip automation with user-owned trip safety checks, and non-secret provider observability through Render logs plus `/health`.
+- `backend-java/src/main/java/com/ridepulse/api/service/RideAiIntelligenceService.java`: durable AI job orchestration and atomic completion; provider calls, destination context, fallback rules and trip automation live in separate classes described above.
 - `backend-java/src/main/java/com/ridepulse/api/service/DestinationPlaceService.java`: privacy-bounded Google Places/Geocoding endpoint resolver with category normalization and safe fallbacks.
 - `backend-java/src/main/java/com/ridepulse/api/service/SavedPlaceService.java`: validation and owner-scoped CRUD for routine locations; matching is consumed only by authenticated ride intelligence.
 - `web/src/app/features/companion/saved-places-page.component.ts`: responsive Saved Places management for the Angular companion.
